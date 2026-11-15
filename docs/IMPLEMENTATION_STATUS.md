@@ -84,3 +84,12 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - Server shutdown timeout now produces nonzero process exit instead of logging a warning and returning success.
 - Added negative authorization configuration regression tests.
 - **Verification gap:** GitHub Actions result for this exact tree remains unverified. The runtime CLI has not been tested with two real VPS or a production PKI. Do not deploy.
+
+## 2026-11-15 — Homeserver independent test evidence (user-reported)
+
+- Host: Ubuntu 26.04.1 x86_64, Go 1.25.5. Verified source commit `d06bf68a3aae17c0e598191ed15742d2c62367a4`.
+- `go build ./...`, `go vet ./...`, `go test -count=1 -timeout=120s ./...` and `go test -race -count=1 -timeout=180s ./...`: PASS per host console output. Earlier commit `6fb7193` had duplicate `strings` import in CLI tests, fixed in `d06bf68`.
+- Loopback integration with ephemeral test CA and separate server/client leaf certificates, Encapsulator/Decapsulator and TCP echo backend: 262144 bytes sent and received, SHA-256 matched; PASS.
+- Eight concurrent loopback sessions, 131072 bytes each (1048576 bytes total): all eight byte-exact PASS. systemd transient unit `tervon-bridge-parallel-test.service` ended `Result=success`, `ExecMainStatus=0`.
+- An earlier SSH console closed unexpectedly; test subprocesses were orphaned and manually terminated. No evidence of host OOM or sshd crash in inspected logs. Cause of console closure not established.
+- These results are user-provided console evidence, not independently retrieved CI artifacts. The loopback test does not prove multi-host connectivity, fault recovery, throughput, or production readiness.
