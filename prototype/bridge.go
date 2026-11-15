@@ -68,6 +68,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authenticated HTTP/2 required", http.StatusUnauthorized)
 		return
 	}
+	service := r.Header.Get("Tervon-Service")
+	fingerprint := sha256.Sum256(r.TLS.PeerCertificates[0].Raw)
+	if !s.AuthorizedServices[fingerprint][service] {
+		http.Error(w, "service not authorized", http.StatusForbidden)
+		return
+	}
 	if s.MaxConcurrent > 0 {
 		s.admissionOnce.Do(func() { s.admission = make(chan struct{}, s.MaxConcurrent) })
 		select {
@@ -77,12 +83,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "stream capacity reached", http.StatusServiceUnavailable)
 			return
 		}
-	}
-	service := r.Header.Get("Tervon-Service")
-	fingerprint := sha256.Sum256(r.TLS.PeerCertificates[0].Raw)
-	if !s.AuthorizedServices[fingerprint][service] {
-		http.Error(w, "service not authorized", http.StatusForbidden)
-		return
 	}
 	c, err := s.pick(service)
 	if err != nil {
