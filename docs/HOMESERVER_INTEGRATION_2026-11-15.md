@@ -74,3 +74,10 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - New session while Decapsulator unavailable failed as expected; restarted test Decapsulator; fresh session recovered on attempt 1 with Encapsulator left running; both processes alive.
 - Unit consumed 11.879s wall, 1min 5.980s CPU, 419.5M peak memory including build/test processes. Shell `Killed` notification is expected for intentional SIGKILL.
 - Scope: process crash and restart over loopback, not a packet blackhole, route loss, or remote-VPS test.
+
+## Loopback TCP blackhole and restoration (user-reported PASS)
+
+- Isolated `blackhole` suite completed in `tervon-bridge-blackhole-v1.service`: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
+- Healthy byte-exact echo via loopback TCP proxy PASS. Proxy discarded both directions while processes remained alive. Active stream stalled as expected; no unexpected EOF or payload. After restoring forwarding, a fresh TCP stream succeeded on first attempt; both bridge processes survived.
+- Unit wall 13.595s, CPU 1min 5.561s, memory peak 419.7M including build/test processes.
+- Limitation: short fault-injection interval, not proof of automatic recovery/timeout of existing stalled TCP streams, long-duration outages, or real network packet loss on remote VPS.
