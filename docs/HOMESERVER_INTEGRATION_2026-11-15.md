@@ -42,3 +42,11 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - Server (Decapsulator): FD 7 -> 7; RSS 12148 -> 16308 KiB (+4160 KiB). Client (Encapsulator): FD 7 -> 7; RSS 13044 -> 26092 KiB (+13048 KiB). Client RSS grew through the ten batches; investigate heap retention with longer repeated cycles and runtime metrics before claiming absence or presence of leaks.
 - End-to-end unit duration 18.962s wall, 1min 7.884s CPU, 422.1M peak unit memory (includes build and test processes).
 - This is a bounded stress test, not an extended soak test; no real two-VPS network testing yet.
+
+## Repeated session cancellation / goroutine lifecycle (user-reported PASS)
+
+- Source test `prototype/goroutine_lifecycle_test.go`, commit `3e529728397019e0f3b8b9ff8b0483e74e3b52c4`.
+- Warm-up baseline 7 goroutines. Five cycles of 20 sessions: ordinary test 8,7,7,7,8; race-enabled test 7,7,7,7,8.
+- `go test -run '^TestRepeatedCancellationGoroutines$' -count=1 -v -timeout=120s .` PASS (0.442s).
+- `go test -race -run '^TestRepeatedCancellationGoroutines$' -count=1 -v -timeout=180s .` PASS (1.655s).
+- No sustained goroutine accumulation or race report observed in this bounded scenario; not proof of leak-free long-term operation.
