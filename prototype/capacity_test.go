@@ -4,7 +4,6 @@ import (
     "context"
     "crypto/sha256"
     "crypto/tls"
-    "crypto/x509"
     "io"
     "net"
     "net/http"
@@ -84,6 +83,3 @@ func TestStreamCapacityReleasedAfterCancellation(t *testing.T) {
     }
     t.Fatal("stream admission slot not released after cancellation")
 }
-
-// Ensure standard-library TLS and HTTP/2 are exercised, not mocked responses.
-var _ *x509.CertPool
