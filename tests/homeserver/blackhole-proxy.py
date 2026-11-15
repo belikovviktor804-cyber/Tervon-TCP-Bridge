@@ -19,7 +19,10 @@ async def relay(reader, writer):
     except (OSError, ConnectionError):
         pass
     finally:
-        writer.close()
+        try:
+            writer.write_eof()
+        except (OSError, AttributeError):
+            pass
 
 async def handle(reader, writer):
     try:
@@ -27,12 +30,7 @@ async def handle(reader, writer):
     except OSError:
         writer.close()
         return
-    tasks = [asyncio.create_task(relay(reader, upstream_writer)),
-             asyncio.create_task(relay(upstream_reader, writer))]
-    _, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-    for task in pending:
-        task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.gather(relay(reader, upstream_writer), relay(upstream_reader, writer))
     upstream_writer.close()
     writer.close()
 
