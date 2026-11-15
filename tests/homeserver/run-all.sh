@@ -16,7 +16,7 @@ trap cleanup EXIT
 export GOCACHE="$RUN/go-cache"
 export GOTMPDIR="$RUN/go-tmp"
 mkdir -p "$GOCACHE" "$GOTMPDIR"
-for port in 18443 19000 19001; do
+for port in 18443 18444 19000 19001; do
   if ss -H -ltn "sport = :$port" | grep -q .; then
     echo "STOP: test port $port already occupied" >&2
     exit 1
@@ -77,7 +77,9 @@ client = {
 (d / "server.json").write_text(json.dumps(server))
 (d / "client.json").write_text(json.dumps(client))
 PY
-if [[ "${BRIDGE_TEST_SUITE:-all}" == "remote-failure" ]]; then
+if [[ "${BRIDGE_TEST_SUITE:-all}" == "blackhole" ]]; then
+  tests=(blackhole)
+elif [[ "${BRIDGE_TEST_SUITE:-all}" == "remote-failure" ]]; then
   tests=(remote-failure)
 elif [[ "${BRIDGE_TEST_SUITE:-all}" == "hold" ]]; then
   tests=(hold)
@@ -86,7 +88,7 @@ elif [[ "${BRIDGE_TEST_SUITE:-all}" == "stress" ]]; then
 elif [[ "${BRIDGE_TEST_SUITE:-all}" == "all" ]]; then
   tests=(parallel recovery active-drop resource)
 else
-  echo "Invalid BRIDGE_TEST_SUITE (expected all, stress, hold or remote-failure)" >&2
+  echo "Invalid BRIDGE_TEST_SUITE (expected all, stress, hold, remote-failure or blackhole)" >&2
   exit 2
 fi
 for test in "${tests[@]}"; do
