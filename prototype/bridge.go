@@ -92,9 +92,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	_, _ = io.Copy(flushWriter{w: w, rc: rc}, c)
 	_ = rc.Flush()
+	// Stop the upload after backend EOF, including when the client never
+	// sends its request EOF. This bounds handler wait, not goroutine lifetime.
 	_ = r.Body.Close()
-	// A blocked request-body read is a known experimental limitation.
-	<-done
+	_ = c.Close()
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		// Outstanding request-body reads still require a cancellation audit.
+	}
 }
 
 // Client forwards an accepted TCP stream to a remote HTTPS bridge.
