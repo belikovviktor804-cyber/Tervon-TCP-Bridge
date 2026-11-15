@@ -93,6 +93,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
+	// A canceled HTTP/2 stream must also interrupt a blocked backend read.
+	stopBackend := context.AfterFunc(r.Context(), func() {
+		_ = c.Close()
+		_ = r.Body.Close()
+	})
+	defer stopBackend()
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusOK)
 	rc := http.NewResponseController(w)
