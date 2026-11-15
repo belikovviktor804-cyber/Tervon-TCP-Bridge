@@ -63,3 +63,10 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - Equivalent client EOF change and regression passed Go 1.23.2 unit tests, race detector, and vet on the local working copy. The working copy is **not a byte-for-byte checkout of the current GitHub tree**, so these are not CI results.
 - Reviewed formatting gate: repository has previously unformatted test files; formatting remains diagnostic, not a passing strict gate.
 - Remaining release blockers: exact-commit CI verification; server-side request-body goroutine cancellation proof; bounded shutdown when sessions refuse to stop; per-client limits; robust config/CLI and operational TLS setup. **Do not deploy.**
+
+## 2026-11-15 — bounded listener shutdown
+
+- Encapsulator `Client.ListenAndServe` now uses `ShutdownTimeout` when waiting for active sessions: default 5 seconds, negative means unbounded. An exceeded deadline returns an explicit error rather than claiming a clean shutdown (commit 2e910b7).
+- Added tests for timeout and successful drain in `prototype/shutdown_timeout_test.go` (commit 321accf).
+- Locally verified the same wait helper and tests with Go 1.23.2: `go test`, `go test -race`, and `go vet` passed. This does **not** establish PASS for the complete published commit.
+- **Important:** the deadline bounds how long the listener waits; it does not forcibly kill a blocked HTTP transport or prove all goroutines exited. Timeout must be treated as an incomplete shutdown. Exact-commit CI and end-to-end shutdown tests remain release blockers.
