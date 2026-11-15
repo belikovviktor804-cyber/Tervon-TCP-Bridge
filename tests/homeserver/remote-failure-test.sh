@@ -119,7 +119,6 @@ if outcome and outcome[0][0] == "FAIL":
     raise SystemExit(f"FAIL: active stream setup {outcome}")
 print("PASS: active stream established", flush=True)
 os.kill(server_pid, signal.SIGKILL)
-os.waitpid(server_pid, 0) if False else None
 thread.join(timeout=9)
 if thread.is_alive():
     raise SystemExit("FAIL: active stream did not terminate within 9s")
