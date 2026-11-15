@@ -1,9 +1,8 @@
 package main
 
 import (
- "os"
  "fmt"
- "strings"
+ "os"
  "path/filepath"
  "strings"
  "testing"
