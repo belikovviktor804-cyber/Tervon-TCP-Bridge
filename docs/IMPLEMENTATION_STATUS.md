@@ -38,3 +38,12 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - Commit ec1c9f1 closes request body and backend socket after response EOF, and bounds handler waiting to 500 ms.
 - An equivalent patch to the local Go 1.23.2 working copy passed unit tests, race detector, and vet. **The exact published commit has not been executed locally or confirmed by CI.**
 - IMPORTANT: bounded handler waiting is **not** proof of bounded goroutine lifetime. Request-body read cancellation and shutdown behavior require further adversarial tests. Do not deploy.
+
+## 2026-11-15 — concurrent admission gate
+
+- Commit 1d60bcf adds optional `Server.MaxConcurrent` semaphore for admitted HTTP/2 streams; excess requests receive HTTP 503 before backend dialing.
+- Commit eb28c39 adds `TestStreamCapacityRejectsBeforeBackendDial`.
+- IMPORTANT: admission occurs after mTLS-chain validation but before fingerprint service authorization; this must be reconsidered to prevent unauthorized clients consuming stream slots.
+- IMPORTANT: zero means unlimited, and the semaphore is initialized once: changing MaxConcurrent at runtime is unsupported. No per-identity quotas or total HTTP connection cap exist.
+- **Neither GitHub CI nor exact-commit local execution is confirmed for these changes.** They are unverified source changes, not a completed security milestone.
+- Request-body cancellation and active-session shutdown remain unresolved. No production deployment.
