@@ -55,3 +55,11 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - This only covers **dial and fallback cancellation**, not stream upload/download goroutine cleanup, shutdown, idle timeouts, or bounded total HTTP connections.
 - Exact published commit CI status **not verified**. The GitHub connector's workflow-run lookup only covers PR-triggered runs; empty results cannot establish whether push CI ran. Container git access to github.com is unavailable due to DNS.
 - No production deployment.
+
+## 2026-11-15 — grouped lifecycle review
+
+- Updated client response-EOF path to close local TCP, request pipe, and context, then join the upload goroutine (commit 4eb7f43). Previously the handler could return with the upload still reading the local connection.
+- Added regression `TestEarlyBackendEOFWithOpenClientUpload` (commit 0f9b687).
+- Equivalent client EOF change and regression passed Go 1.23.2 unit tests, race detector, and vet on the local working copy. The working copy is **not a byte-for-byte checkout of the current GitHub tree**, so these are not CI results.
+- Reviewed formatting gate: repository has previously unformatted test files; formatting remains diagnostic, not a passing strict gate.
+- Remaining release blockers: exact-commit CI verification; server-side request-body goroutine cancellation proof; bounded shutdown when sessions refuse to stop; per-client limits; robust config/CLI and operational TLS setup. **Do not deploy.**
