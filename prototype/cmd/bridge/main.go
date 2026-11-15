@@ -55,10 +55,23 @@ func load(path string) (config, error) {
  if c.Listen == "" || c.CertFile == "" || c.KeyFile == "" || c.CAFile == "" { return c, fmt.Errorf("listen, cert_file, key_file and ca_file are required") }
  if c.Mode == "server" {
   if c.MaxStreams <= 0 || len(c.Routes) == 0 || len(c.Authorized) == 0 { return c, fmt.Errorf("server requires positive max_streams, routes and authorized fingerprints") }
+  for service, backends := range c.Routes {
+   if service == "" || len(backends) == 0 { return c, fmt.Errorf("service routes must be nonempty") }
+   for _, backend := range backends {
+    if backend.Address == "" { return c, fmt.Errorf("backend address must be nonempty") }
+   }
+  }
+  for fingerprint, services := range c.Authorized {
+   raw, err := hex.DecodeString(fingerprint)
+   if err != nil || len(raw) != sha256.Size || len(services) == 0 { return c, fmt.Errorf("invalid authorized certificate fingerprint or empty service list") }
+   for _, service := range services {
+    if _, ok := c.Routes[service]; !ok { return c, fmt.Errorf("authorized service has no configured route: %q", service) }
+   }
+  }
  } else if c.Mode == "client" {
   if c.MaxLocalConnections <= 0 || c.RemoteURL == "" || c.Service == "" || c.ServerName == "" { return c, fmt.Errorf("client requires max_local_connections, remote_url, service and server_name") }
   u, err := url.Parse(c.RemoteURL)
-  if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.Path != "/v1/stream" { return c, fmt.Errorf("remote_url must be an HTTPS /v1/stream endpoint") }
+  if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || u.Path != "/v1/stream" { return c, fmt.Errorf("remote_url must be an HTTPS /v1/stream endpoint") }
  } else { return c, fmt.Errorf("mode must be server or client") }
  return c, nil
 }
@@ -106,7 +119,7 @@ func main() {
   defer cancel()
   if err := srv.Shutdown(shutdownCtx); err != nil {
    _ = srv.Close()
-   log.Printf("server graceful shutdown incomplete: %v", err)
+   log.Fatalf("server graceful shutdown incomplete: %v", err)
   }
  }
 }
