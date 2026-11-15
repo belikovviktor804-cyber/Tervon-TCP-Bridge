@@ -20,3 +20,10 @@
 - Local Go 1.23.2: unit tests, race detector, vet passed after changes.
 - GitHub Actions result for latest commit not yet confirmed.
 - Remaining lifecycle issues: half-close, early EOF, cancellation and resource limits. Do not deploy.
+
+## Lifecycle regression increment
+
+- Published `prototype/lifecycle_test.go` with real TCP half-close and backend early-EOF regression scenarios.
+- Equivalent local tests passed on Go 1.23.2 with `go test`, `go test -race` and `go vet`.
+- These tests do not establish complete cancellation safety, bounded goroutine lifetimes or resource limits. GitHub CI status for the published commit has not been verified.
+- No server deployment or production change.
