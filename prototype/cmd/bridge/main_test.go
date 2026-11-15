@@ -2,6 +2,8 @@ package main
 
 import (
  "os"
+ "fmt"
+ "strings"
  "path/filepath"
  "strings"
  "testing"
@@ -28,4 +30,18 @@ func TestLoadValidClient(t *testing.T) {
  c, err := load(p)
  if err != nil { t.Fatal(err) }
  if c.MaxLocalConnections != 2 || !strings.HasPrefix(c.RemoteURL, "https://") { t.Fatalf("unexpected config: %+v", c) }
+}
+
+func TestLoadRejectsInvalidServerAuthorization(t *testing.T) {
+ base := `{"mode":"server","listen":"127.0.0.1:8443","cert_file":"c","key_file":"k","ca_file":"a","max_streams":2,"routes":{"vpn":[{"Name":"backend","Address":"127.0.0.1:9000"}]},"authorized":{%s}}`
+ cases := []string{
+  `"not-hex":["vpn"]`,
+  fmt.Sprintf("%q:[\"unknown\"]", strings.Repeat("a", 64)),
+  fmt.Sprintf("%q:[]", strings.Repeat("a", 64)),
+ }
+ for i, auth := range cases {
+  p := filepath.Join(t.TempDir(), "config.json")
+  if err := os.WriteFile(p, []byte(fmt.Sprintf(base, auth)), 0600); err != nil { t.Fatal(err) }
+  if _, err := load(p); err == nil { t.Errorf("case %d accepted invalid authorization", i) }
+ }
 }
