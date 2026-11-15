@@ -77,17 +77,23 @@ client = {
 (d / "server.json").write_text(json.dumps(server))
 (d / "client.json").write_text(json.dumps(client))
 PY
-if [[ "${BRIDGE_TEST_SUITE:-all}" == "stress" ]]; then
+if [[ "${BRIDGE_TEST_SUITE:-all}" == "hold" ]]; then
+  tests=(hold)
+elif [[ "${BRIDGE_TEST_SUITE:-all}" == "stress" ]]; then
   tests=(stress)
 elif [[ "${BRIDGE_TEST_SUITE:-all}" == "all" ]]; then
   tests=(parallel recovery active-drop resource)
 else
-  echo "Invalid BRIDGE_TEST_SUITE (expected all or stress)" >&2
+  echo "Invalid BRIDGE_TEST_SUITE (expected all, stress or hold)" >&2
   exit 2
 fi
 for test in "${tests[@]}"; do
   echo "===== TEST: $test ====="
-  BRIDGE_TEST_RUN="$RUN" timeout --signal=TERM --kill-after=5s 90s \
+  test_timeout=90
+  if [[ "$test" == "hold" ]]; then
+    test_timeout=$(( ${BRIDGE_HOLD_SECONDS:-60} + 45 ))
+  fi
+  BRIDGE_TEST_RUN="$RUN" timeout --signal=TERM --kill-after=5s "${test_timeout}s" \
     bash "$ROOT/tests/homeserver/$test-test.sh"
   echo "PASS: $test"
 done
