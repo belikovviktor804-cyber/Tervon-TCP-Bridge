@@ -66,3 +66,11 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - Active baseline server FD 15, RSS 14180 KiB; client FD 15, RSS 15948 KiB. After close server FD 7, RSS 14480 KiB (+300 KiB); client FD 7, RSS 16068 KiB (+120 KiB). All eight extra FDs released per process.
 - Full unit 1min 12.820s wall, 1min 7.654s CPU, 418.3M unit peak memory (includes build/test subprocesses).
 - This validates the 60-second loopback hold scenario, not multi-hour endurance or remote VPS behavior.
+
+## Decapsulator forced termination and restart (user-reported PASS)
+
+- Isolated `remote-failure` suite completed on Homeserver in `tervon-bridge-remote-failure-v1.service`: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
+- Healthy echo PASS; established active HTTP/2 tunnel; test Decapsulator killed with SIGKILL; active stream received EOF after approximately 0.001027s from the blocking receive start (not a network-failure detection SLA).
+- New session while Decapsulator unavailable failed as expected; restarted test Decapsulator; fresh session recovered on attempt 1 with Encapsulator left running; both processes alive.
+- Unit consumed 11.879s wall, 1min 5.980s CPU, 419.5M peak memory including build/test processes. Shell `Killed` notification is expected for intentional SIGKILL.
+- Scope: process crash and restart over loopback, not a packet blackhole, route loss, or remote-VPS test.
