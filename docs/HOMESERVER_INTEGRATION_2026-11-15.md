@@ -50,3 +50,11 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - `go test -run '^TestRepeatedCancellationGoroutines$' -count=1 -v -timeout=120s .` PASS (0.442s).
 - `go test -race -run '^TestRepeatedCancellationGoroutines$' -count=1 -v -timeout=180s .` PASS (1.655s).
 - No sustained goroutine accumulation or race report observed in this bounded scenario; not proof of leak-free long-term operation.
+
+## Stress test — 1000 sessions (user-reported PASS)
+
+- Stress parameterization commit `15554070f4c0647ae14a517acbc3061908441301`; `BRIDGE_STRESS_CONNECTIONS=1000` and `BRIDGE_TEST_SUITE=stress`.
+- Transient unit `tervon-bridge-stress-1000.service` completed: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
+- 20 batches of 50 sessions with 8 workers; 65536000 byte-exact bytes (62.5 MiB) in 12.80s transfer phase. Both bridge processes survived. Whole unit: 24.655s wall, 1min 12.156s CPU, 426.4M unit peak memory (includes build/test subprocesses).
+- Decapsulator FD 7 -> 7; RSS 12576 -> 16408 KiB (+3832 KiB). Encapsulator FD 7 -> 7; RSS 13304 -> 22716 KiB (+9412 KiB). Encapsulator peak sampled RSS 25308 KiB at batch 17, then decreased; no monotonic RSS accumulation observed in this bounded run.
+- Result: PASS for this loopback stress scenario, not a long-term memory-leak proof or a two-VPS result.
