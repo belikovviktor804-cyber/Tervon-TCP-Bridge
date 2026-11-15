@@ -58,3 +58,11 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - 20 batches of 50 sessions with 8 workers; 65536000 byte-exact bytes (62.5 MiB) in 12.80s transfer phase. Both bridge processes survived. Whole unit: 24.655s wall, 1min 12.156s CPU, 426.4M unit peak memory (includes build/test subprocesses).
 - Decapsulator FD 7 -> 7; RSS 12576 -> 16408 KiB (+3832 KiB). Encapsulator FD 7 -> 7; RSS 13304 -> 22716 KiB (+9412 KiB). Encapsulator peak sampled RSS 25308 KiB at batch 17, then decreased; no monotonic RSS accumulation observed in this bounded run.
 - Result: PASS for this loopback stress scenario, not a long-term memory-leak proof or a two-VPS result.
+
+## Long-lived HTTP/2 tunnel test — 8 sessions, 60 seconds (user-reported PASS)
+
+- Harness commits `588f1b0bafac5f89c1356bf79aa46dc2c2094589` and `8433054e3e2cf371b79c42f7d9153778ade77a76`; unit `tervon-bridge-hold-v1.service` completed with `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
+- Eight concurrent bidirectional TCP echo sessions remained open for the 60-second target, transferring 9797632 byte-exact bytes (approximately 9.34 MiB); both bridge processes survived.
+- Active baseline server FD 15, RSS 14180 KiB; client FD 15, RSS 15948 KiB. After close server FD 7, RSS 14480 KiB (+300 KiB); client FD 7, RSS 16068 KiB (+120 KiB). All eight extra FDs released per process.
+- Full unit 1min 12.820s wall, 1min 7.654s CPU, 418.3M unit peak memory (includes build/test subprocesses).
+- This validates the 60-second loopback hold scenario, not multi-hour endurance or remote VPS behavior.
