@@ -25,6 +25,8 @@ jobs:
           cache-dependency-path: prototype/go.mod
       - name: Report Go source formatting (non-blocking until cleanup)
         run: gofmt -l .
+      - name: Build all packages including CLI
+        run: go build ./...
       - name: Vet
         run: go vet ./...
       - name: Unit tests
