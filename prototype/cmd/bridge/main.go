@@ -13,6 +13,8 @@ import (
  "flag"
  "fmt"
  "log"
+ "io"
+ "net/url"
  "net/http"
  "os"
  "os/signal"
@@ -46,16 +48,17 @@ func load(path string) (config, error) {
  d.DisallowUnknownFields()
  if err := d.Decode(&c); err != nil { return c, err }
  var extra any
- if err := d.Decode(&extra); !errors.Is(err, os.ErrClosed) {
-  // A second JSON document is not permitted.
+ if err := d.Decode(&extra); err != io.EOF {
   if err == nil { return c, fmt.Errorf("multiple JSON documents") }
-  if err.Error() != "EOF" { return c, err }
+  return c, err
  }
  if c.Listen == "" || c.CertFile == "" || c.KeyFile == "" || c.CAFile == "" { return c, fmt.Errorf("listen, cert_file, key_file and ca_file are required") }
  if c.Mode == "server" {
   if c.MaxStreams <= 0 || len(c.Routes) == 0 || len(c.Authorized) == 0 { return c, fmt.Errorf("server requires positive max_streams, routes and authorized fingerprints") }
  } else if c.Mode == "client" {
   if c.MaxLocalConnections <= 0 || c.RemoteURL == "" || c.Service == "" || c.ServerName == "" { return c, fmt.Errorf("client requires max_local_connections, remote_url, service and server_name") }
+  u, err := url.Parse(c.RemoteURL)
+  if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.Path != "/v1/stream" { return c, fmt.Errorf("remote_url must be an HTTPS /v1/stream endpoint") }
  } else { return c, fmt.Errorf("mode must be server or client") }
  return c, nil
 }
