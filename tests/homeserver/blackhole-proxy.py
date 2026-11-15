@@ -27,7 +27,12 @@ async def handle(reader, writer):
     except OSError:
         writer.close()
         return
-    await asyncio.gather(relay(reader, upstream_writer), relay(upstream_reader, writer))
+    tasks = [asyncio.create_task(relay(reader, upstream_writer)),
+             asyncio.create_task(relay(upstream_reader, writer))]
+    _, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for task in pending:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
     upstream_writer.close()
     writer.close()
 
