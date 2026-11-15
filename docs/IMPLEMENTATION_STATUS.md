@@ -70,3 +70,10 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - Added tests for timeout and successful drain in `prototype/shutdown_timeout_test.go` (commit 321accf).
 - Locally verified the same wait helper and tests with Go 1.23.2: `go test`, `go test -race`, and `go vet` passed. This does **not** establish PASS for the complete published commit.
 - **Important:** the deadline bounds how long the listener waits; it does not forcibly kill a blocked HTTP transport or prove all goroutines exited. Timeout must be treated as an incomplete shutdown. Exact-commit CI and end-to-end shutdown tests remain release blockers.
+
+## 2026-11-15 — local TCP admission
+
+- Added `Client.MaxLocalConnections` to cap local TCP sessions before spawning HTTP forwarding goroutines. Excess accepted sockets are immediately closed (commit e9af50c).
+- Added `TestLocalConnectionAdmissionCap` to verify rejection and shutdown (commit 9b49df2).
+- Zero still means unlimited, for experimental compatibility; production must explicitly configure a positive cap. This is a total local connection cap, **not** per-IP, per-identity, or rate limiting.
+- The full published revision has not yet been run through CI; do not interpret source publication as a passing test. The implementation still lacks a production executable/configuration and complete end-to-end validation.
