@@ -2,6 +2,8 @@ package bridge
 
 import (
 	"context"
+ "errors"
+ "io"
 	"net"
 	"testing"
 	"time"
@@ -42,6 +44,6 @@ func TestListenerShutdownWaitsForActiveSessions(t *testing.T) {
 		_ = c.SetReadDeadline(time.Now().Add(time.Second))
 		var b [1]byte
 		_, err := c.Read(b[:])
-		if err == nil { t.Fatal("accepted connection remained open after shutdown") }
+		if !errors.Is(err, io.EOF) { t.Fatalf("expected EOF after shutdown, got %v", err) }
 	}
 }
