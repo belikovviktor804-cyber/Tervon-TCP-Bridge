@@ -194,19 +194,30 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 		return err
 	}
 	defer ln.Close()
-	go func() {
-		<-ctx.Done()
-		_ = ln.Close()
-	}()
+	stop := context.AfterFunc(ctx, func() { _ = ln.Close() })
+	defer stop()
+	var active sync.WaitGroup
 	for {
 		c, e := ln.Accept()
 		if e != nil {
+			// Do not return while accepted sessions are still running.
+			// Cancellation closes their local TCP sockets via HandleContext.
+			active.Wait()
 			if ctx.Err() != nil {
 				return nil
 			}
 			return e
 		}
-		go func() { _ = cl.HandleContext(ctx, c) }()
+		if ctx.Err() != nil {
+			_ = c.Close()
+			active.Wait()
+			return nil
+		}
+		active.Add(1)
+		go func() {
+			defer active.Done()
+			_ = cl.HandleContext(ctx, c)
+		}()
 	}
 }
 
