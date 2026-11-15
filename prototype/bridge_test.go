@@ -3,6 +3,7 @@ package bridge
 import (
 	"bytes"
 	"crypto/rand"
+"crypto/sha256"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+"strings"
 	"testing"
 	"time"
 )
@@ -51,7 +53,7 @@ func echo(t *testing.T) (string, func()) {
 func setup(t *testing.T, backends []Backend) *Client {
 	t.Helper()
 	cert, pool := cert(t)
-	s := &Server{Routes: map[string][]Backend{"vpn": backends}, next: map[string]int{}}
+	s := &Server{Routes: map[string][]Backend{"vpn": backends}, AuthorizedServices: map[[32]byte]map[string]bool{sha256.Sum256(cert.Certificate[0]): {"vpn": true}}}
 	hs := httptest.NewUnstartedServer(s)
 	hs.EnableHTTP2 = true
 	hs.TLS = &tls.Config{Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool, NextProtos: []string{"h2"}}
@@ -115,4 +117,21 @@ func TestUnauthenticatedDenied(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, r)
 	if w.Code != http.StatusUnauthorized { t.Fatalf("status %d", w.Code) }
+}
+
+func TestUnauthorizedServiceDenied(t *testing.T) {
+ addr, stop := echo(t)
+ defer stop()
+ cl := setup(t, []Backend{{Name:"echo",Address:addr}})
+ cl.Service = "admin"
+ a,b := net.Pipe()
+ defer b.Close()
+ done := make(chan error,1)
+ go func(){done <- cl.Handle(a)}()
+ select {
+ case err := <-done:
+  if err == nil || !strings.Contains(err.Error(), "403") {t.Fatalf("expected 403, got %v",err)}
+ case <-time.After(5*time.Second):
+  t.Fatal("authorization rejection blocked")
+ }
 }
