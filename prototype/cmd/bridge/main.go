@@ -71,7 +71,7 @@ func load(path string) (config, error) {
  } else if c.Mode == "client" {
   if c.MaxLocalConnections <= 0 || c.RemoteURL == "" || c.Service == "" || c.ServerName == "" { return c, fmt.Errorf("client requires max_local_connections, remote_url, service and server_name") }
   u, err := url.Parse(c.RemoteURL)
-  if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || u.Path != "/v1/stream" { return c, fmt.Errorf("remote_url must be an HTTPS /v1/stream endpoint") }
+  if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || u.Path != "/v1/stream" || u.RawPath != "" || u.Opaque != "" { return c, fmt.Errorf("remote_url must be an HTTPS /v1/stream endpoint") }
  } else { return c, fmt.Errorf("mode must be server or client") }
  return c, nil
 }
