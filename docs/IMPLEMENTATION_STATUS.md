@@ -47,3 +47,11 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - IMPORTANT: zero means unlimited, and the semaphore is initialized once: changing MaxConcurrent at runtime is unsupported. No per-identity quotas or total HTTP connection cap exist.
 - **Neither GitHub CI nor exact-commit local execution is confirmed for these changes.** They are unverified source changes, not a completed security milestone.
 - Request-body cancellation and active-session shutdown remain unresolved. No production deployment.
+
+## 2026-11-15 — cancellation-aware backend dialing
+
+- Commit f7bfd62 changes backend selection to `pick(ctx, service)`, uses standard-library `net.Dialer.DialContext`, and checks cancellation before each fallback attempt.
+- Commit 41c58cd adds tests for a pre-cancelled context and cancelled fallback.
+- This only covers **dial and fallback cancellation**, not stream upload/download goroutine cleanup, shutdown, idle timeouts, or bounded total HTTP connections.
+- Exact published commit CI status **not verified**. The GitHub connector's workflow-run lookup only covers PR-triggered runs; empty results cannot establish whether push CI ran. Container git access to github.com is unavailable due to DNS.
+- No production deployment.
