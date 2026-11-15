@@ -31,3 +31,10 @@
 ## Source integrity correction
 
 On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a prior patch had appended a second fragment after the file's end, so the published source could not compile. Commit 3a71e43 replaced the file with one coherent Go source file and preserved the certificate-fingerprint service authorization. This is a **source repair**, not evidence that GitHub CI passed. The previous PASS statements for the published revision are superseded until CI or an exact checkout is tested. Full lifecycle cancellation and resource bounding remain unimplemented. Do not deploy.
+
+## 2026-11-15 — backend EOF bounded-handler patch
+
+- Reviewed the current GitHub source before editing; confirmed the HTTP handler awaited the upload goroutine indefinitely after backend EOF.
+- Commit ec1c9f1 closes request body and backend socket after response EOF, and bounds handler waiting to 500 ms.
+- An equivalent patch to the local Go 1.23.2 working copy passed unit tests, race detector, and vet. **The exact published commit has not been executed locally or confirmed by CI.**
+- IMPORTANT: bounded handler waiting is **not** proof of bounded goroutine lifetime. Request-body read cancellation and shutdown behavior require further adversarial tests. Do not deploy.
