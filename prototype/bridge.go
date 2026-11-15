@@ -133,6 +133,9 @@ type Client struct {
 	// ShutdownTimeout bounds listener shutdown when a handler fails to exit.
 	// Zero uses 5 seconds; negative disables the deadline.
 	ShutdownTimeout time.Duration
+	// MaxLocalConnections caps accepted local TCP sessions. Zero disables the
+	// cap for experiments; production configurations should set a positive value.
+	MaxLocalConnections int
 }
 
 func NewClient(tlsConfig *tls.Config, url, service string) *Client {
@@ -206,6 +209,10 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 	stop := context.AfterFunc(ctx, func() { _ = ln.Close() })
 	defer stop()
 	var active sync.WaitGroup
+	var slots chan struct{}
+	if cl.MaxLocalConnections > 0 {
+		slots = make(chan struct{}, cl.MaxLocalConnections)
+	}
 	for {
 		c, e := ln.Accept()
 		if e != nil {
@@ -223,9 +230,21 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 			_ = c.Close()
 			return cl.waitForSessions(&active)
 		}
+		if slots != nil {
+			select {
+			case slots <- struct{}{}:
+			default:
+				// Reject excess sessions before starting an HTTP request.
+				_ = c.Close()
+				continue
+			}
+		}
 		active.Add(1)
 		go func() {
 			defer active.Done()
+			if slots != nil {
+				defer func() { <-slots }()
+			}
 			_ = cl.HandleContext(ctx, c)
 		}()
 	}
