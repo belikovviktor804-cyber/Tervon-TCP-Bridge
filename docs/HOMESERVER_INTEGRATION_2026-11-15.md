@@ -34,3 +34,11 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - Active backend kill: established session received EOF; both Bridge processes survived, PASS. Reported 1.966s includes the intentional 2s pre-kill delay.
 - Resources: 10 warmup + 100 byte-exact 32768-byte sessions PASS. Server FD 7 -> 7, client FD 7 -> 7. Server RSS 12084 -> 15836 KiB, client RSS 12900 -> 16808 KiB. This short run does not establish absence of memory/goroutine leaks.
 - The scripts still use fixed loopback ports 18443, 19000, 19001; harness checks that they are unoccupied. Dynamic ports and prolonged-load tests remain open.
+
+## Stress test — 500 sessions (user-reported PASS)
+
+- Harness commit `93d056782909a20ca14beaef624dff178499468c`; transient unit `tervon-bridge-stress-v1.service` completed with `Result=success`, `ExecMainStatus=0`.
+- Ten batches of 50 TCP echo sessions, eight concurrent workers, 65536 bytes per session: 500/500 byte-exact PASS, 32768000 bytes (31.25 MiB) total, 7.48s for the transfer phase.
+- Server (Decapsulator): FD 7 -> 7; RSS 12148 -> 16308 KiB (+4160 KiB). Client (Encapsulator): FD 7 -> 7; RSS 13044 -> 26092 KiB (+13048 KiB). Client RSS grew through the ten batches; investigate heap retention with longer repeated cycles and runtime metrics before claiming absence or presence of leaks.
+- End-to-end unit duration 18.962s wall, 1min 7.884s CPU, 422.1M peak unit memory (includes build and test processes).
+- This is a bounded stress test, not an extended soak test; no real two-VPS network testing yet.
