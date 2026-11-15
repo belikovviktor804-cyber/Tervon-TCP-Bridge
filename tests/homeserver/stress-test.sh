@@ -58,6 +58,9 @@ import sys
 import time
 
 pids = {"server": int(sys.argv[1]), "client": int(sys.argv[2])}
+count = int(os.environ.get("BRIDGE_STRESS_CONNECTIONS", "500"))
+if not 1 <= count <= 100000 or count % 50:
+    raise SystemExit("BRIDGE_STRESS_CONNECTIONS must be a multiple of 50 in range 50..100000")
 def stats(pid):
     proc = pathlib.Path(f"/proc/{pid}")
     fd = len(list((proc / "fd").iterdir()))
@@ -92,12 +95,12 @@ print(f"BASELINE: {baseline}", flush=True)
 total = 0
 started = time.monotonic()
 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-    for batch in range(10):
+    for batch in range(count // 50):
         sizes = list(pool.map(echo, range(batch * 50, (batch + 1) * 50)))
         total += sum(sizes)
         time.sleep(0.5)
         snapshot = {name: stats(pid) for name, pid in pids.items()}
-        print(f"BATCH {batch + 1}/10: sessions={(batch + 1)*50}, bytes={total}, resources={snapshot}", flush=True)
+        print(f"BATCH {batch + 1}/{count // 50}: sessions={(batch + 1)*50}, bytes={total}, resources={snapshot}", flush=True)
 time.sleep(2)
 after = {name: stats(pid) for name, pid in pids.items()}
 for name in pids:
@@ -105,9 +108,9 @@ for name in pids:
     if delta > 8:
         raise SystemExit(f"FAIL: {name} FD growth +{delta}")
     print(f"{name}: FD delta {delta}, RSS delta {after[name][1] - baseline[name][1]} KiB", flush=True)
-if total != 500 * 65536:
+if total != count * 65536:
     raise SystemExit(f"FAIL: wrong byte total {total}")
-print(f"PASS: 500 sessions, {total} byte-exact bytes, elapsed {time.monotonic()-started:.2f}s", flush=True)
+print(f"PASS: {count} sessions, {total} byte-exact bytes, elapsed {time.monotonic()-started:.2f}s", flush=True)
 PY
 kill -0 "$SERVER_PID"
 kill -0 "$CLIENT_PID"
