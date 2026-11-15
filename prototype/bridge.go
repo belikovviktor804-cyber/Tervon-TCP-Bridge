@@ -29,7 +29,7 @@ type Server struct {
 	next               map[string]int
 }
 
-func (s *Server) pick(service string) (net.Conn, error) {
+func (s *Server) pick(ctx context.Context, service string) (net.Conn, error) {
 	s.mu.Lock()
 	list := s.Routes[service]
 	if len(list) == 0 {
@@ -49,8 +49,11 @@ func (s *Server) pick(service string) (net.Conn, error) {
 	}
 	var last error
 	for i := range list {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		b := list[(start+i)%len(list)]
-		c, err := net.DialTimeout("tcp", b.Address, timeout)
+		c, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", b.Address)
 		if err == nil {
 			return c, nil
 		}
@@ -84,7 +87,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	c, err := s.pick(service)
+	c, err := s.pick(r.Context(), service)
 	if err != nil {
 		http.Error(w, "backend unavailable", http.StatusBadGateway)
 		return
