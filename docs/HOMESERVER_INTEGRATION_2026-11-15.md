@@ -81,3 +81,11 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - Healthy byte-exact echo via loopback TCP proxy PASS. Proxy discarded both directions while processes remained alive. Active stream stalled as expected; no unexpected EOF or payload. After restoring forwarding, a fresh TCP stream succeeded on first attempt; both bridge processes survived.
 - Unit wall 13.595s, CPU 1min 5.561s, memory peak 419.7M including build/test processes.
 - Limitation: short fault-injection interval, not proof of automatic recovery/timeout of existing stalled TCP streams, long-duration outages, or real network packet loss on remote VPS.
+
+## Full parallel batch — user-reported PASS (2026-11-15)
+
+- `tervon-bridge-batch-v1.service`: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`; `FULL PARALLEL BATCH PASSED`. Two lanes completed independently: integration exit=0, Go checks exit=0.
+- Integration suite PASS: parallel 8 × 131072 bytes; backend recovery (failure handling 0.008s); active backend drop; resource test 100 sessions (FD 7→7 on both); stress 500 × 65536 bytes (32768000 byte-exact bytes, 7.39s transfer, FD delta 0 both); hold 8 sessions × 60s (9797632 byte-exact bytes, active FD 15→7 after close); remote Decapsulator SIGKILL/restart and first-attempt fresh connection recovery; proxy blackhole and first-attempt fresh connection recovery.
+- Go lane PASS: `go build ./...`, `go vet ./...`, `go test -count=1 ./...`, `go test -race -count=1 ./...`. Go package test durations: 2.771s ordinary, 3.723s race (main package).
+- Whole unit wall 1min 36.645s; CPU 4min 9.741s; peak memory 755.7M (includes build/test processes).
+- Caveats: integration scenarios are sequential within their lane because they share loopback ports; Go checks run concurrently with integration. No long-term stall cleanup or remote multi-VPS validation yet.
