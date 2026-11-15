@@ -130,6 +130,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type Client struct {
 	HTTP         *http.Client
 	URL, Service string
+	// ShutdownTimeout bounds listener shutdown when a handler fails to exit.
+	// Zero uses 5 seconds; negative disables the deadline.
+	ShutdownTimeout time.Duration
 }
 
 func NewClient(tlsConfig *tls.Config, url, service string) *Client {
@@ -208,7 +211,9 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 		if e != nil {
 			// Do not return while accepted sessions are still running.
 			// Cancellation closes their local TCP sockets via HandleContext.
-			active.Wait()
+			if err := cl.waitForSessions(&active); err != nil {
+				return err
+			}
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -216,14 +221,36 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 		}
 		if ctx.Err() != nil {
 			_ = c.Close()
-			active.Wait()
-			return nil
+			return cl.waitForSessions(&active)
 		}
 		active.Add(1)
 		go func() {
 			defer active.Done()
 			_ = cl.HandleContext(ctx, c)
 		}()
+	}
+}
+
+// waitForSessions bounds the wait, but cannot forcibly terminate a broken HTTP
+// RoundTripper. A timeout is an explicit error, never a successful drain.
+func (cl *Client) waitForSessions(active *sync.WaitGroup) error {
+	done := make(chan struct{})
+	go func() { active.Wait(); close(done) }()
+	timeout := cl.ShutdownTimeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+	if timeout < 0 {
+		<-done
+		return nil
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("shutdown timed out waiting for active TCP sessions")
 	}
 }
 
