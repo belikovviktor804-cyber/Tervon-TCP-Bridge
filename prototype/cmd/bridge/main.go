@@ -15,6 +15,7 @@ import (
  "log"
  "io"
  "net/url"
+ "net"
  "net/http"
  "os"
  "os/signal"
@@ -59,6 +60,7 @@ func load(path string) (config, error) {
    if service == "" || len(backends) == 0 { return c, fmt.Errorf("service routes must be nonempty") }
    for _, backend := range backends {
     if backend.Address == "" { return c, fmt.Errorf("backend address must be nonempty") }
+    if _, _, err := net.SplitHostPort(backend.Address); err != nil { return c, fmt.Errorf("invalid backend address for service %q: %w", service, err) }
    }
   }
   for fingerprint, services := range c.Authorized {
