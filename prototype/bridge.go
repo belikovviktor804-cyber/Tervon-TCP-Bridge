@@ -206,6 +206,8 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 		return err
 	}
 	defer ln.Close()
+	sessionCtx, cancelSessions := context.WithCancel(ctx)
+	defer cancelSessions()
 	stop := context.AfterFunc(ctx, func() { _ = ln.Close() })
 	defer stop()
 	var active sync.WaitGroup
@@ -216,6 +218,9 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 	for {
 		c, e := ln.Accept()
 		if e != nil {
+			// A listener failure must cancel accepted sessions too, even when
+			// the parent context has not been canceled.
+			cancelSessions()
 			// Do not return while accepted sessions are still running.
 			// Cancellation closes their local TCP sockets via HandleContext.
 			if err := cl.waitForSessions(&active); err != nil {
@@ -245,7 +250,7 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 			if slots != nil {
 				defer func() { <-slots }()
 			}
-			_ = cl.HandleContext(ctx, c)
+			_ = cl.HandleContext(sessionCtx, c)
 		}()
 	}
 }
