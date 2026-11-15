@@ -89,3 +89,13 @@ Reproducible checked-in end-to-end harness, post-failure resource/goroutine obse
 - Go lane PASS: `go build ./...`, `go vet ./...`, `go test -count=1 ./...`, `go test -race -count=1 ./...`. Go package test durations: 2.771s ordinary, 3.723s race (main package).
 - Whole unit wall 1min 36.645s; CPU 4min 9.741s; peak memory 755.7M (includes build/test processes).
 - Caveats: integration scenarios are sequential within their lane because they share loopback ports; Go checks run concurrently with integration. No long-term stall cleanup or remote multi-VPS validation yet.
+
+## Pre-live heavier batch — user-reported PASS (2026-11-15)
+
+- `tervon-bridge-prelive-v1.service`: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`; both integration and Go lanes exit=0, `FULL PARALLEL BATCH PASSED`.
+- 8 parallel streams: 1048576 byte-exact bytes. Backend failure handling 0.008s, active-drop 1.965s. Resource 100 sessions: FD 7→7.
+- Stress 1000 sessions: 65536000 byte-exact bytes, elapsed 12.76s; server/client FD delta 0; RSS delta 4160/9876 KiB.
+- Hold 16 connections for 120s: 39124992 byte-exact bytes; FD 23→7 after close on both processes.
+- Decapsulator failure/restart and loopback TCP proxy blackhole/recovery passed; new stream recovered on first attempt in both scenarios.
+- Go build, vet, unit tests and race tests PASS. Unit wall 2min 42.250s; CPU 4min 23.991s; peak memory 786.5M includes build/test processes.
+- Scope: isolated loopback only. Real network packet loss, multi-host interoperability, long-term blackhole liveness and production routing not yet verified.
