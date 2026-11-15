@@ -21,6 +21,10 @@ type Server struct {
 	Routes             map[string][]Backend
 	AuthorizedServices map[[32]byte]map[string]bool
 	DialTimeout        time.Duration
+	// MaxConcurrent caps admitted stream handlers; zero means no cap (experimental only).
+	MaxConcurrent      int
+	admissionOnce      sync.Once
+	admission          chan struct{}
 	mu                 sync.Mutex
 	next               map[string]int
 }
@@ -63,6 +67,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
 		http.Error(w, "authenticated HTTP/2 required", http.StatusUnauthorized)
 		return
+	}
+	if s.MaxConcurrent > 0 {
+		s.admissionOnce.Do(func() { s.admission = make(chan struct{}, s.MaxConcurrent) })
+		select {
+		case s.admission <- struct{}{}:
+			defer func() { <-s.admission }()
+		default:
+			http.Error(w, "stream capacity reached", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	service := r.Header.Get("Tervon-Service")
 	fingerprint := sha256.Sum256(r.TLS.PeerCertificates[0].Raw)
