@@ -27,3 +27,7 @@
 - Equivalent local tests passed on Go 1.23.2 with `go test`, `go test -race` and `go vet`.
 - These tests do not establish complete cancellation safety, bounded goroutine lifetimes or resource limits. GitHub CI status for the published commit has not been verified.
 - No server deployment or production change.
+
+## Source integrity correction
+
+On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a prior patch had appended a second fragment after the file's end, so the published source could not compile. Commit 3a71e43 replaced the file with one coherent Go source file and preserved the certificate-fingerprint service authorization. This is a **source repair**, not evidence that GitHub CI passed. The previous PASS statements for the published revision are superseded until CI or an exact checkout is tested. Full lifecycle cancellation and resource bounding remain unimplemented. Do not deploy.
