@@ -101,3 +101,10 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - After restarting the backend, another new connection echoed 65536 bytes byte-exact without restarting the Encapsulator or Decapsulator.
 - Transient systemd test unit `tervon-bridge-recovery-test.service` exited successfully: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
 - This verifies new-connection recovery only; interrupted established TCP sessions are not automatically resumed, and inter-host connectivity remains untested.
+
+## 2026-11-15 — Active backend process kill (user-reported)
+
+- Controlled loopback backend acknowledged a live TCP tunnel, then its process was terminated with SIGKILL.
+- Client observed EOF (zero bytes), completing 1.966 seconds after entering the blocking receive; both Encapsulator and Decapsulator processes remained alive.
+- `tervon-bridge-active-drop-test.service`: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
+- Caveat: 1.966 seconds includes the test's deliberate approximately 2-second delay before backend kill; this is **not** measured bridge failover latency. EOF is expected session termination, not restoration of an interrupted TCP stream. Resource leaks and post-failure new-session success were not measured in this particular test.
