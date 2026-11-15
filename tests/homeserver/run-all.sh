@@ -77,14 +77,16 @@ client = {
 (d / "server.json").write_text(json.dumps(server))
 (d / "client.json").write_text(json.dumps(client))
 PY
-if [[ "${BRIDGE_TEST_SUITE:-all}" == "hold" ]]; then
+if [[ "${BRIDGE_TEST_SUITE:-all}" == "remote-failure" ]]; then
+  tests=(remote-failure)
+elif [[ "${BRIDGE_TEST_SUITE:-all}" == "hold" ]]; then
   tests=(hold)
 elif [[ "${BRIDGE_TEST_SUITE:-all}" == "stress" ]]; then
   tests=(stress)
 elif [[ "${BRIDGE_TEST_SUITE:-all}" == "all" ]]; then
   tests=(parallel recovery active-drop resource)
 else
-  echo "Invalid BRIDGE_TEST_SUITE (expected all, stress or hold)" >&2
+  echo "Invalid BRIDGE_TEST_SUITE (expected all, stress, hold or remote-failure)" >&2
   exit 2
 fi
 for test in "${tests[@]}"; do
