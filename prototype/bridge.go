@@ -2,8 +2,8 @@ package bridge
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
-"crypto/sha256"
 	"fmt"
 	"io"
 	"net"
@@ -12,15 +12,17 @@ import (
 	"time"
 )
 
-// Backend addresses are trusted server configuration, never client supplied.
+// Backend addresses come from trusted server configuration, never from clients.
 type Backend struct{ Name, Address string }
+
+// Server serves authenticated HTTP/2 TCP byte streams.
+// Routes and AuthorizedServices are immutable while requests are being handled.
 type Server struct {
-	Routes      map[string][]Backend
-	DialTimeout time.Duration
-// AuthorizedServices maps verified client certificate SHA-256 fingerprints to allowed services; nil denies all.
-AuthorizedServices map[[32]byte]map[string]bool
-	mu          sync.Mutex
-	next        map[string]int
+	Routes             map[string][]Backend
+	AuthorizedServices map[[32]byte]map[string]bool
+	DialTimeout        time.Duration
+	mu                 sync.Mutex
+	next               map[string]int
 }
 
 func (s *Server) pick(service string) (net.Conn, error) {
@@ -31,34 +33,41 @@ func (s *Server) pick(service string) (net.Conn, error) {
 		return nil, fmt.Errorf("unknown service")
 	}
 	if s.next == nil {
-		s.next = map[string]int{}
+		s.next = make(map[string]int)
 	}
-	if s.next == nil { s.next = make(map[string]int) }
-start := s.next[service] % len(list)
+	start := s.next[service] % len(list)
 	s.next[service] = (start + 1) % len(list)
 	s.mu.Unlock()
+
 	timeout := s.DialTimeout
-	if timeout == 0 {
+	if timeout <= 0 {
 		timeout = 750 * time.Millisecond
 	}
-	var err error
+	var last error
 	for i := range list {
 		b := list[(start+i)%len(list)]
-		var c net.Conn
-		c, err = net.DialTimeout("tcp", b.Address, timeout)
+		c, err := net.DialTimeout("tcp", b.Address, timeout)
 		if err == nil {
 			return c, nil
 		}
+		last = err
 	}
-	return nil, fmt.Errorf("backends unavailable: %w", err)
+	return nil, fmt.Errorf("backends unavailable: %w", last)
 }
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" || r.URL.Path != "/v1/stream" {
+	if r.Method != http.MethodPost || r.URL.Path != "/v1/stream" {
 		http.NotFound(w, r)
 		return
 	}
-	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 {
-		http.Error(w, "authenticated h2 required", http.StatusUnauthorized)
+	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
+		http.Error(w, "authenticated HTTP/2 required", http.StatusUnauthorized)
+		return
+	}
+	service := r.Header.Get("Tervon-Service")
+	fingerprint := sha256.Sum256(r.TLS.PeerCertificates[0].Raw)
+	if !s.AuthorizedServices[fingerprint][service] {
+		http.Error(w, "service not authorized", http.StatusForbidden)
 		return
 	}
 	c, err := s.pick(service)
@@ -72,20 +81,23 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rc := http.NewResponseController(w)
 	_ = rc.EnableFullDuplex()
 	_ = rc.Flush()
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		_, _ = io.Copy(c, r.Body)
-		if x, ok := c.(*net.TCPConn); ok {
-			_ = x.CloseWrite()
+		if tcp, ok := c.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
 		}
 	}()
 	_, _ = io.Copy(flushWriter{w: w, rc: rc}, c)
 	_ = rc.Flush()
 	_ = r.Body.Close()
+	// A blocked request-body read is a known experimental limitation.
 	<-done
 }
 
+// Client forwards an accepted TCP stream to a remote HTTPS bridge.
 type Client struct {
 	HTTP         *http.Client
 	URL, Service string
@@ -95,12 +107,13 @@ func NewClient(tlsConfig *tls.Config, url, service string) *Client {
 	tr := &http.Transport{TLSClientConfig: tlsConfig, ForceAttemptHTTP2: true, MaxIdleConnsPerHost: 32}
 	return &Client{HTTP: &http.Client{Transport: tr}, URL: url, Service: service}
 }
+
 func (cl *Client) Handle(c net.Conn) error {
 	defer c.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	reader, writer := io.Pipe()
-	req, err := http.NewRequestWithContext(ctx, "POST", cl.URL, reader)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.URL, reader)
 	if err != nil {
 		return err
 	}
@@ -108,7 +121,11 @@ func (cl *Client) Handle(c net.Conn) error {
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.ContentLength = -1
 	upload := make(chan error, 1)
-	go func() { _, e := io.Copy(writer, c); _ = writer.CloseWithError(e); upload <- e }()
+	go func() {
+		_, e := io.Copy(writer, c)
+		_ = writer.CloseWithError(e)
+		upload <- e
+	}()
 	resp, err := cl.HTTP.Do(req)
 	if err != nil {
 		_ = reader.CloseWithError(err)
@@ -125,7 +142,6 @@ func (cl *Client) Handle(c net.Conn) error {
 	if tcp, ok := c.(*net.TCPConn); ok {
 		_ = tcp.CloseWrite()
 	}
-	// On a normal response EOF, allow upstream upload to complete; cancellation closes both.
 	select {
 	case <-upload:
 	case <-time.After(2 * time.Second):
@@ -133,121 +149,17 @@ func (cl *Client) Handle(c net.Conn) error {
 	}
 	return err
 }
+
 func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	defer ln.Close()
-	go func() { <-ctx.Done(); _ = ln.Close() }()
-	for {
-		c, e := ln.Accept()
-		if e != nil {
-			if ctx.Err() != nil {
-				return nil
-			}
-			return e
-		}
-		go func() { _ = cl.Handle(c) }()
-	}
-}
-
-type flushWriter struct {
-	w  http.ResponseWriter
-	rc *http.ResponseController
-}
-
-func (f flushWriter) Write(p []byte) (int, error) {
-	n, e := f.w.Write(p)
-	if e == nil {
-		e = f.rc.Flush()
-	}
-	return n, e
-}	service := r.Header.Get("Tervon-Service")
-	fingerprint := sha256.Sum256(r.TLS.PeerCertificates[0].Raw)
-	if !s.AuthorizedServices[fingerprint][service] { http.Error(w, "service not authorized", http.StatusForbidden); return }
-	c, err := s.pick(r.Header.Get("Tervon-Service"))
-	if err != nil {
-		http.Error(w, "backend unavailable", http.StatusBadGateway)
-		return
-	}
-	defer c.Close()
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.WriteHeader(http.StatusOK)
-	rc := http.NewResponseController(w)
-	_ = rc.EnableFullDuplex()
-	_ = rc.Flush()
-	done := make(chan struct{})
 	go func() {
-		defer close(done)
-		_, _ = io.Copy(c, r.Body)
-		if x, ok := c.(*net.TCPConn); ok {
-			_ = x.CloseWrite()
-		}
+		<-ctx.Done()
+		_ = ln.Close()
 	}()
-	_, _ = io.Copy(flushWriter{w: w, rc: rc}, c)
-	_ = rc.Flush()
-	_ = r.Body.Close()
-	<-done
-}
-
-type Client struct {
-	HTTP         *http.Client
-	URL, Service string
-}
-
-func NewClient(tlsConfig *tls.Config, url, service string) *Client {
-	tr := &http.Transport{TLSClientConfig: tlsConfig, ForceAttemptHTTP2: true, MaxIdleConnsPerHost: 32}
-	return &Client{HTTP: &http.Client{Transport: tr}, URL: url, Service: service}
-}
-func (cl *Client) Handle(c net.Conn) error {
-	defer c.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	reader, writer := io.Pipe()
-	req, err := http.NewRequestWithContext(ctx, "POST", cl.URL, reader)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Tervon-Service", cl.Service)
-	req.Header.Set("Content-Type", "application/octet-stream")
-	req.ContentLength = -1
-	upload := make(chan error, 1)
-	go func() { _, e := io.Copy(writer, c); _ = writer.CloseWithError(e); upload <- e }()
-	resp, err := cl.HTTP.Do(req)
-	if err != nil {
-		_ = reader.CloseWithError(err)
-		_ = writer.CloseWithError(err)
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		_ = reader.Close()
-		_ = writer.Close()
-		return fmt.Errorf("remote status %d", resp.StatusCode)
-	}
-	_, err = io.Copy(c, resp.Body)
-	if tcp, ok := c.(*net.TCPConn); ok {
-		_ = tcp.CloseWrite()
-	}
-	// On a normal response EOF, allow upstream upload to complete; cancellation closes both.
-	select {
-	case <-upload:
-	case <-time.After(2 * time.Second):
-		cancel()
-	}
-	if errors.Is(err, io.EOF) {
-		return nil
-	}
-	return err
-}
-func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	defer ln.Close()
-	go func() { <-ctx.Done(); _ = ln.Close() }()
 	for {
 		c, e := ln.Accept()
 		if e != nil {
