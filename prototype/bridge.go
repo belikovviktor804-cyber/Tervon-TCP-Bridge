@@ -132,10 +132,19 @@ func NewClient(tlsConfig *tls.Config, url, service string) *Client {
 }
 
 func (cl *Client) Handle(c net.Conn) error {
+	return cl.HandleContext(context.Background(), c)
+}
+
+// HandleContext cancels HTTP forwarding and unblocks local reads on shutdown.
+func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	defer c.Close()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+	stop := context.AfterFunc(ctx, func() { _ = c.Close() })
+	defer stop()
 	reader, writer := io.Pipe()
+	defer reader.Close()
+	defer writer.Close()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.URL, reader)
 	if err != nil {
 		return err
@@ -191,7 +200,7 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 			}
 			return e
 		}
-		go func() { _ = cl.Handle(c) }()
+		go func() { _ = cl.HandleContext(ctx, c) }()
 	}
 }
 
