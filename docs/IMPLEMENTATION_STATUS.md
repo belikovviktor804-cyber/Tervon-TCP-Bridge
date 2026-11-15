@@ -93,3 +93,11 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - Eight concurrent loopback sessions, 131072 bytes each (1048576 bytes total): all eight byte-exact PASS. systemd transient unit `tervon-bridge-parallel-test.service` ended `Result=success`, `ExecMainStatus=0`.
 - An earlier SSH console closed unexpectedly; test subprocesses were orphaned and manually terminated. No evidence of host OOM or sshd crash in inspected logs. Cause of console closure not established.
 - These results are user-provided console evidence, not independently retrieved CI artifacts. The loopback test does not prove multi-host connectivity, fault recovery, throughput, or production readiness.
+
+## 2026-11-15 — Backend outage/recovery integration evidence (user-reported)
+
+- On isolated Homeserver loopback test, healthy backend echoed 65536 bytes byte-exact.
+- After stopping the backend, a new connection returned no backend data and completed in 0.008 s (test-defined success; exact HTTP/2 error classification not asserted).
+- After restarting the backend, another new connection echoed 65536 bytes byte-exact without restarting the Encapsulator or Decapsulator.
+- Transient systemd test unit `tervon-bridge-recovery-test.service` exited successfully: `ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`.
+- This verifies new-connection recovery only; interrupted established TCP sessions are not automatically resumed, and inter-host connectivity remains untested.
