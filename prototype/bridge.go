@@ -180,10 +180,16 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	if tcp, ok := c.(*net.TCPConn); ok {
 		_ = tcp.CloseWrite()
 	}
+	// A remote EOF can arrive while the local peer is still uploading.
+	// Interrupt that read rather than leaving a session goroutine behind.
+	_ = c.Close()
+	_ = reader.Close()
+	_ = writer.Close()
+	cancel()
 	select {
 	case <-upload:
 	case <-time.After(2 * time.Second):
-		cancel()
+		return fmt.Errorf("upload goroutine did not terminate after cancellation")
 	}
 	return err
 }
