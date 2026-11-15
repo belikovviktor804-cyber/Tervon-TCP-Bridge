@@ -45,3 +45,27 @@ func TestLoadRejectsInvalidServerAuthorization(t *testing.T) {
   if _, err := load(p); err == nil { t.Errorf("case %d accepted invalid authorization", i) }
  }
 }
+
+func TestLoadRejectsInvalidBackendAddresses(t *testing.T) {
+	cases := []string{"not-a-host-port", "127.0.0.1", "[::1"}
+	for _, address := range cases {
+		p := filepath.Join(t.TempDir(), "config.json")
+		input := fmt.Sprintf(`{"mode":"server","listen":"127.0.0.1:8443","cert_file":"c","key_file":"k","ca_file":"a","max_streams":2,"routes":{"vpn":[{"Name":"backend","Address":%q}]},"authorized":{%q:["vpn"]}}`, address, strings.Repeat("a", 64))
+		if err := os.WriteFile(p, []byte(input), 0600); err != nil { t.Fatal(err) }
+		if _, err := load(p); err == nil { t.Errorf("accepted invalid backend address %q", address) }
+	}
+}
+
+func TestLoadRejectsNonCanonicalStreamURL(t *testing.T) {
+	urls := []string{
+		"https://example.com/v1/stream?x=1",
+		"https://example.com/v1/%73tream",
+		"https://example.com/v1/stream#fragment",
+	}
+	for _, remote := range urls {
+		p := filepath.Join(t.TempDir(), "config.json")
+		input := fmt.Sprintf(`{"mode":"client","listen":"127.0.0.1:9001","cert_file":"c","key_file":"k","ca_file":"a","max_local_connections":2,"remote_url":%q,"service":"vpn","server_name":"example.com"}`, remote)
+		if err := os.WriteFile(p, []byte(input), 0600); err != nil { t.Fatal(err) }
+		if _, err := load(p); err == nil { t.Errorf("accepted noncanonical URL %q", remote) }
+	}
+}
