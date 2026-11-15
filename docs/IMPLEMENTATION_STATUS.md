@@ -77,3 +77,10 @@ On 2026-11-15 a review of GitHub HEAD found prototype/bridge.go malformed: a pri
 - Added `TestLocalConnectionAdmissionCap` to verify rejection and shutdown (commit 9b49df2).
 - Zero still means unlimited, for experimental compatibility; production must explicitly configure a positive cap. This is a total local connection cap, **not** per-IP, per-identity, or rate limiting.
 - The full published revision has not yet been run through CI; do not interpret source publication as a passing test. The implementation still lacks a production executable/configuration and complete end-to-end validation.
+
+## 2026-11-15 — CLI configuration hardening
+
+- Experimental `cmd/bridge` now rejects malformed/empty certificate SHA-256 fingerprints, authorization to services without routes, and empty backend addresses at configuration load time. Client URL query parameters are disallowed. Invalid configuration must fail before opening the listener.
+- Server shutdown timeout now produces nonzero process exit instead of logging a warning and returning success.
+- Added negative authorization configuration regression tests.
+- **Verification gap:** GitHub Actions result for this exact tree remains unverified. The runtime CLI has not been tested with two real VPS or a production PKI. Do not deploy.
