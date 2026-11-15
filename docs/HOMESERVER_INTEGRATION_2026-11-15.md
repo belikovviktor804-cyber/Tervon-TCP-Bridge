@@ -24,3 +24,13 @@ These scripts should be generalized to create temporary certificates, use dynami
 ## Remaining verification
 
 Reproducible checked-in end-to-end harness, post-failure resource/goroutine observation, sustained load, real two-VPS test, security review and exact-commit CI evidence. Do not treat the loopback results as production approval.
+
+## Reproducible harness — 2026-11-15 (user-reported PASS)
+
+- Source revision: `924f2833888aa6c7e6a21a6f44a5665053ad64ff`; `tests/homeserver/run-all.sh` builds the Go binary, generates temporary CA and separate mTLS leaf certificates, writes configs, and invokes the four checked-in tests.
+- `tervon-bridge-suite-v2.service` completed successfully in 19.619s wall time (1min 7.393s aggregate CPU time); peak systemd unit memory 465.7M includes test build and subprocesses, not Bridge RSS alone.
+- Parallel: eight 131072-byte streams, 1048576 bytes total, PASS.
+- Recovery: 65536-byte echo before and after backend restart PASS; unavailable backend request finished in 0.011s, PASS.
+- Active backend kill: established session received EOF; both Bridge processes survived, PASS. Reported 1.966s includes the intentional 2s pre-kill delay.
+- Resources: 10 warmup + 100 byte-exact 32768-byte sessions PASS. Server FD 7 -> 7, client FD 7 -> 7. Server RSS 12084 -> 15836 KiB, client RSS 12900 -> 16808 KiB. This short run does not establish absence of memory/goroutine leaks.
+- The scripts still use fixed loopback ports 18443, 19000, 19001; harness checks that they are unoccupied. Dynamic ports and prolonged-load tests remain open.
