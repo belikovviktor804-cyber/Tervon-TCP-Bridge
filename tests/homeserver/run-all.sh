@@ -11,6 +11,11 @@ umask 077
 RUN="$(mktemp -d "${TMPDIR:-/var/tmp}/tervon-bridge-integration.XXXXXXXX")"
 cleanup() { rm -rf -- "$RUN"; }
 trap cleanup EXIT
+# Transient systemd units may have no HOME or XDG cache variables.
+# Keep Go build cache private to this run; never write into production trees.
+export GOCACHE="$RUN/go-cache"
+export GOTMPDIR="$RUN/go-tmp"
+mkdir -p "$GOCACHE" "$GOTMPDIR"
 for port in 18443 19000 19001; do
   if ss -H -ltn "sport = :$port" | grep -q .; then
     echo "STOP: test port $port already occupied" >&2
