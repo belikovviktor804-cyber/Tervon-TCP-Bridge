@@ -1,0 +1,11 @@
+{
+  "mode": "client",
+  "listen": "127.0.0.1:19001",
+  "cert_file": "/etc/tervon-tcp-bridge/pki/client.crt",
+  "key_file": "/etc/tervon-tcp-bridge/pki/client.key",
+  "ca_file": "/etc/tervon-tcp-bridge/pki/server-ca.crt",
+  "server_name": "bridge.example.org",
+  "remote_url": "https://bridge.example.org:18443/v1/stream",
+  "service": "vpn",
+  "max_local_connections": 32
+}

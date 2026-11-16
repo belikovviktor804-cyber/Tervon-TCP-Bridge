@@ -1,0 +1,25 @@
+# Local Python test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Go builds and test artifacts
+/prototype/bridge
+*.test
+*.out
+coverage*/
+
+# Local credentials and host-specific configurations
+*.key
+*.p12
+*.pfx
+*.pem
+*.crt
+*.env
+.env*
+!*.example
+
+# Local binaries and archives
+/release-artifacts/
+*.tar.gz
+*.zip

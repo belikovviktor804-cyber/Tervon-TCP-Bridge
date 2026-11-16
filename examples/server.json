@@ -1,0 +1,14 @@
+{
+  "mode": "server",
+  "listen": "127.0.0.1:18443",
+  "cert_file": "/etc/tervon-tcp-bridge/pki/server.crt",
+  "key_file": "/etc/tervon-tcp-bridge/pki/server.key",
+  "ca_file": "/etc/tervon-tcp-bridge/pki/client-ca.crt",
+  "max_streams": 32,
+  "routes": {
+    "vpn": [{"Name": "local-vpn-backend", "Address": "127.0.0.1:19000"}]
+  },
+  "authorized": {
+    "REPLACE_WITH_CLIENT_CERT_DER_SHA256_64_HEX": ["vpn"]
+  }
+}

@@ -1,0 +1,19 @@
+[Unit]
+Description=Tervon TCP Bridge Decapsulator (example)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=tervon-bridge
+ExecStart=/opt/tervon-tcp-bridge/bridge -config /etc/tervon-tcp-bridge/server.json
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
