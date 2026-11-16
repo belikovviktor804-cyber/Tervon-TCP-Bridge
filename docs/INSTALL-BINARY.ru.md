@@ -26,7 +26,7 @@ Decapsulator (mode=server)
 
 ## 2. Получение программы
 
-На странице [Releases](https://github.com/belikovviktor804-cyber/Tervon-TCP-Bridge/releases) выберите опубликованный выпуск для `linux/amd64`. Скачайте два файла: `tervon-bridge-linux-amd64` и `SHA256SUMS`. Сверьте контрольную сумму:
+На странице [Releases](https://github.com/tervon-software/Tervon-TCP-Bridge/releases) выберите опубликованный выпуск для `linux/amd64`. Скачайте два файла: `tervon-bridge-linux-amd64` и `SHA256SUMS`. Сверьте контрольную сумму:
 
 ```bash
 sha256sum -c SHA256SUMS
