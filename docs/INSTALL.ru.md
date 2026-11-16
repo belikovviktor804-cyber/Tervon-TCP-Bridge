@@ -1,54 +1,241 @@
 # Установка Tervon TCP Bridge
 
-Документ соответствует CLI в `prototype/cmd/bridge/main.go` на коммите `83c9848`. Это инструкция для **новой изолированной установки**; не заменяйте действующие службы Homeserver/finserver автоматически.
+Это руководство описывает новую установку Tervon TCP Bridge на двух Linux-серверах. Один сервер принимает локальные TCP-подключения (**Encapsulator**), второй доставляет их к заранее разрешённому TCP-сервису (**Decapsulator**).
 
-## 1. Требования
+В примерах используются вымышленные адреса и отдельные порты. Они не относятся к действующей инфраструктуре Tervon VPN.
 
-Linux x86_64, Go версии не ниже указанной в `prototype/go.mod` (для подтверждённой сборки использовался Go 1.25.5), сетевой доступ от Encapsulator к HTTPS-адресу Decapsulator, сертификаты CA и отдельные клиентский/серверный сертификаты. Нужны существующий локальный TCP backend на удалённом узле и разрешение сетевого доступа только к необходимому порту.
+## 1. Что понадобится
 
-## 2. Получение и сборка — на отдельном стенде
+- Два Linux-сервера архитектуры x86-64.
+- Подготовленный бинарный файл `tervon-bridge-linux-amd64`, полученный из авторизованного релиза проекта.
+- TCP-сервис на принимающем сервере, например Xray на `127.0.0.1:19000`.
+- Сетевое соединение от Encapsulator до HTTPS-порта Decapsulator.
+- Собственный центр сертификации (CA) и отдельные сертификаты для клиента и сервера.
+- Доступ администратора для первоначальной настройки systemd и каталогов.
 
-```bash
-git clone git@github.com:belikovviktor804-cyber/Tervon-TCP-Bridge.git
-cd Tervon-TCP-Bridge
-git checkout 83c98482048d130041e89f545db5885ade090f2b
-cd prototype
-go build -trimpath -o bridge ./cmd/bridge
-./bridge -config /path/to/config.json
+Для обычной установки **Go и исходный код не нужны**: программа поставляется готовым бинарным файлом.
+
+## 2. Схема примера
+
+```text
+Сервер A (Encapsulator)                   Сервер B (Decapsulator)
+127.0.0.1:19001                           bridge.example.org:18443
+        │                                            │
+        └──────────── HTTPS/2 + mTLS ────────────────┘
+                                                     │
+                                                     ▼
+                                            127.0.0.1:19000
+                                              TCP backend
 ```
 
-Последняя команда **запускает** процесс и требует существующего конфигурационного файла. Запускайте только в изолированном тестовом окружении. Не подменяйте ею уже работающий `/opt/tervon-tcp-bridge/bridge`: у существующего бинарника установлен признак `vcs.modified=true`, и идентичность новой сборки не доказана.
+В примере имя сервиса — `vpn`. Это логическое имя маршрута, одинаковое в клиентской и серверной конфигурациях.
 
-## 3. PKI и доступ
+## 3. Установите бинарный файл
 
-Используйте доверенный CA, отдельные сертификаты для сервера и клиента, TLS 1.3 и проверяемое DNS-имя сервера. Клиентский сертификат должен быть разрешён на сервере по SHA-256 **DER leaf-сертификата**. Для проверки отпечатка:
+На **каждом** сервере получите бинарник из доверенного источника и проверьте опубликованную контрольную сумму SHA-256:
+
+```bash
+sha256sum ./tervon-bridge-linux-amd64
+```
+
+Сравните результат с контрольной суммой именно того релиза, который устанавливаете. После проверки:
+
+```bash
+sudo install -d -m 755 /opt/tervon-tcp-bridge
+sudo install -m 755 ./tervon-bridge-linux-amd64 /opt/tervon-tcp-bridge/bridge
+sudo install -d -m 750 /etc/tervon-tcp-bridge/pki
+```
+
+Команды предназначены для **новой установки**. Не выполняйте их поверх уже действующего бинарника без отдельного плана обновления.
+
+## 4. Подготовьте сертификаты
+
+Для межсерверного канала применяется **mTLS**: сервер проверяет сертификат клиента, а клиент — сертификат сервера. Сертификаты должны быть выпущены доверенным CA, а серверный сертификат — содержать DNS-имя `bridge.example.org` в SAN.
+
+Расположите файлы на сервере A:
+
+```text
+/etc/tervon-tcp-bridge/pki/client.crt
+/etc/tervon-tcp-bridge/pki/client.key
+/etc/tervon-tcp-bridge/pki/server-ca.crt
+```
+
+На сервере B:
+
+```text
+/etc/tervon-tcp-bridge/pki/server.crt
+/etc/tervon-tcp-bridge/pki/server.key
+/etc/tervon-tcp-bridge/pki/client-ca.crt
+```
+
+Приватные ключи должны читаться только учётной записью соответствующей службы. Не помещайте их в репозиторий и не отправляйте вместе с диагностическими журналами.
+
+Для авторизации клиента серверу нужен SHA-256 отпечаток **DER-представления клиентского сертификата**:
 
 ```bash
 openssl x509 -in client.crt -outform DER | sha256sum
 ```
 
-Запишите полученные 64 шестнадцатеричных символа в `authorized` серверного JSON. Приватные ключи не помещайте в Git, не отправляйте в чат, выдавайте минимально необходимые права доступа. `server_name` должен соответствовать SAN сертификата сервера. Не отключайте проверку сертификата.
+Полученные 64 шестнадцатеричных символа используются как ключ в объекте `authorized`.
 
-## 4. Конфигурация
+## 5. Настройте Decapsulator на сервере B
 
-Скопируйте `examples/server.json` и `examples/client.json` в **новые** пути, замените плейсхолдеры и проверьте адреса. На сервере `routes` перечисляет только разрешённые backend. Клиент подключается к `/v1/stream` через HTTPS/2. Описание полей: [CONFIGURATION.ru.md](CONFIGURATION.ru.md).
+Создайте `/etc/tervon-tcp-bridge/server.json`:
 
-Порядок первого запуска на стенде: сначала локальный TCP backend, затем Decapsulator, затем Encapsulator, затем клиентский TCP-протокол. Используйте отдельные тестовые порты, не пересекающиеся с работающими службами.
-
-## 5. systemd
-
-Шаблоны `systemd/*.service.example` предназначены для адаптации на новом хосте. Не копируйте их поверх действующих unit-файлов без отдельного решения. Проверьте абсолютные пути, доступ к ключам и учётную запись службы. Привилегии root по умолчанию не требуются, если файлы и порт доступны выделенному пользователю.
-
-## 6. Действующая инсталляция (для ориентира, НЕ команда установки)
-
-Homeserver: бинарник `/opt/tervon-tcp-bridge/bridge`, конфигурация `/etc/tervon-tcp-bridge/client.json`, unit `tervon-bridge-client.service`, локальный TCP listener `127.0.0.1:55635`. Параллельно существует лабораторная SOCKS5-служба, использующая тот же бинарник. Реальные пути конфигурации и unit Decapsulator на finserver в предоставленных данных **не подтверждены**.
-
-## 7. Безопасная проверка без вмешательства
-
-```bash
-systemctl show tervon-bridge-client.service -p ExecStart -p MainPID -p ActiveState
-sha256sum /opt/tervon-tcp-bridge/bridge
-journalctl -u tervon-bridge-client.service -n 50 --no-pager
+```json
+{
+  "mode": "server",
+  "listen": "0.0.0.0:18443",
+  "cert_file": "/etc/tervon-tcp-bridge/pki/server.crt",
+  "key_file": "/etc/tervon-tcp-bridge/pki/server.key",
+  "ca_file": "/etc/tervon-tcp-bridge/pki/client-ca.crt",
+  "max_streams": 32,
+  "routes": {
+    "vpn": [
+      { "Name": "local-vpn-backend", "Address": "127.0.0.1:19000" }
+    ]
+  },
+  "authorized": {
+    "REPLACE_WITH_CLIENT_CERT_DER_SHA256_64_HEX": ["vpn"]
+  }
+}
 ```
 
-Не выводите в общий лог приватные ключи или полный JSON с секретами. Порядок отката — [RELEASE.ru.md](RELEASE.ru.md).
+Замените отпечаток клиента действительным значением. Убедитесь, что backend действительно слушает `127.0.0.1:19000`. Откройте порт `18443/tcp` только для нужных источников в сетевом экране. Если используется обратный прокси, адрес `listen` можно оставить локальным и настроить прокси отдельно; пример выше рассчитан на прямое HTTPS/2-соединение с Bridge.
+
+## 6. Настройте Encapsulator на сервере A
+
+Создайте `/etc/tervon-tcp-bridge/client.json`:
+
+```json
+{
+  "mode": "client",
+  "listen": "127.0.0.1:19001",
+  "cert_file": "/etc/tervon-tcp-bridge/pki/client.crt",
+  "key_file": "/etc/tervon-tcp-bridge/pki/client.key",
+  "ca_file": "/etc/tervon-tcp-bridge/pki/server-ca.crt",
+  "server_name": "bridge.example.org",
+  "remote_url": "https://bridge.example.org:18443/v1/stream",
+  "service": "vpn",
+  "max_local_connections": 32
+}
+```
+
+`server_name` должен совпадать с DNS-именем в сертификате сервера. `remote_url` указывает на удалённый Decapsulator, а `service` — на один из маршрутов, разрешённых клиенту на сервере B.
+
+Локальный `listen` привязан к `127.0.0.1`: соединяться с ним сможет приложение на том же сервере, например Xray.
+
+## 7. Запустите службы через systemd
+
+Для новой установки можно создать два отдельных unit-файла. Сначала подготовьте права на конфигурацию и ключи для выбранной учётной записи службы. Пример ниже использует выделенного системного пользователя `tervon-bridge` и предполагает, что он уже создан и имеет доступ на чтение необходимых файлов.
+
+**Сервер B — `/etc/systemd/system/tervon-bridge-server.service`:**
+
+```ini
+[Unit]
+Description=Tervon TCP Bridge Decapsulator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tervon-bridge
+Group=tervon-bridge
+ExecStart=/opt/tervon-tcp-bridge/bridge -config /etc/tervon-tcp-bridge/server.json
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Сервер A — `/etc/systemd/system/tervon-bridge-client.service`:**
+
+```ini
+[Unit]
+Description=Tervon TCP Bridge Encapsulator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tervon-bridge
+Group=tervon-bridge
+ExecStart=/opt/tervon-tcp-bridge/bridge -config /etc/tervon-tcp-bridge/client.json
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+На новой машине создайте системную учётную запись (если её ещё нет):
+
+```bash
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin tervon-bridge
+```
+
+Перед запуском назначьте владельца и права на конфигурации и ключи так, чтобы они были доступны `tervon-bridge`, но не другим пользователям. Например, для подготовленного каталога с сертификатами:
+
+```bash
+sudo chown -R root:tervon-bridge /etc/tervon-tcp-bridge
+sudo find /etc/tervon-tcp-bridge -type d -exec chmod 750 {} +
+sudo find /etc/tervon-tcp-bridge -type f -exec chmod 640 {} +
+```
+
+На сервере B запустите сначала backend, затем Decapsulator; на сервере A — Encapsulator:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now tervon-bridge-server.service
+```
+
+На сервере A:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now tervon-bridge-client.service
+```
+
+## 8. Подключите TCP-приложение
+
+Укажите вашему локальному TCP-сервису на сервере A адрес `127.0.0.1:19001`. Для Xray это может быть адресом outbound-подключения. На сервере B данные поступят к backend `127.0.0.1:19000`.
+
+Bridge не изменяет настройки внутреннего протокола: сертификаты и параметры VLESS/Trojan/другого TCP-сервиса остаются в ведении самого приложения.
+
+## 9. Проверьте состояние
+
+На соответствующих серверах:
+
+```bash
+systemctl is-active tervon-bridge-server.service
+systemctl is-active tervon-bridge-client.service
+journalctl -u tervon-bridge-server.service -n 30 --no-pager
+journalctl -u tervon-bridge-client.service -n 30 --no-pager
+```
+
+Для проверки TLS-имени и доверия к серверу с сервера A:
+
+```bash
+openssl s_client \
+  -connect bridge.example.org:18443 \
+  -servername bridge.example.org \
+  -verify_hostname bridge.example.org \
+  -verify_return_error \
+  -CAfile /etc/tervon-tcp-bridge/pki/server-ca.crt \
+  -alpn h2 -brief </dev/null
+```
+
+Эта команда проверяет серверный сертификат. Полноценное прикладное подключение через Bridge требует клиентский сертификат и разрешённый сервис; его удобнее проверить через подключённое TCP-приложение.
+
+## 10. Обслуживание
+
+Храните конфигурации и ключи отдельно от бинарника. Перед обновлением сверяйте SHA-256 нового файла и готовьте отдельный путь для новой версии. Рабочую службу переключайте только в согласованное окно обслуживания. Журналы и состояние systemd обычно позволяют быстро определить, на какой стороне возникла проблема.
+
+Подробности параметров: [Конфигурация](CONFIGURATION.ru.md). Порядок работы с релизами: [Обслуживание и релизы](RELEASE.ru.md).
+
+---
+
+**Примечание:** примеры рассчитаны на новую инфраструктуру. Существующие Homeserver и finserver работают со своими проверенными конфигурациями; установка по этому руководству не требует менять их.
