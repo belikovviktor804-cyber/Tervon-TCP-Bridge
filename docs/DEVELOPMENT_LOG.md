@@ -296,3 +296,12 @@
 - `TERVON_M0_BIN=/opt/tervon-tcp-bridge/bridge` — checksum-pinned copied installed M0, subprocess loopback mTLS HTTP/2 /v1/stream: **legacy_client_to_current_server PASS** (65,536 byte-exact bytes) and **current_client_to_legacy_server PASS** (65,536 byte-exact bytes). `M1_REAL_M0=PASS`.
 - `M1_VERIFY_RESULT=PASS`, `M1_VERIFY_SHA=5ae795f0a6f342724f6dc894f0e82b7f4402f867`, `M1_VERIFY_PRODUCTION_CHANGES=NONE`, `M1_VERIFY_NOTE=code_level_only_no_production_deployment`.
 - `M1_REAL_V100=NOT_RUN`: published v1.0.0 executable not supplied to the opt-in test. Separate historical-release compatibility gate or documented equivalent evidence remains open. Custom non-cancelable `io.ReadCloser` limitation also remains under assessment. **M1 IN_PROGRESS**, M2 not started.
+
+
+## 2026-11-17 — M1 deployment preparation requested; no production changes
+
+- User authorized a controlled M1 installation with a backup of the working M0. The M1 code's Homeserver compatibility PASS remains tied to `5ae795f0a6f342724f6dc894f0e82b7f4402f867`.
+- Added guarded installer `tests/homeserver/deploy-m1-with-m0-backup.sh`: read-only service and running SHA inspection; root-only M0 binary/unit/config backup; checksum-gated candidate; atomic replacement; restart of one explicitly selected bridge unit; running-process SHA verification; automatic and manual rollback. Corrected recovery behavior for failed restart and interrupted deployment.
+- CI workflow now checks installer Bash syntax; **this does not constitute an actual install or rollback E2E test**.
+- Added `docs/DEPLOY-M1-WITH-M0-BACKUP.ru.md`: Finserver first, Homeserver second, /v1 preserved during binary upgrade, /v2 enablement separate, real TCP verification mandatory.
+- **Status: PREPARED_NOT_DEPLOYED**. Finserver unit/path/SHA not yet provided. Production services untouched. Installation and rollback PASS cannot be claimed yet.
