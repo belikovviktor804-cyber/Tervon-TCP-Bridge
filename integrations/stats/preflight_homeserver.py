@@ -32,6 +32,143 @@ def command(*argv: str) -> tuple[int, str]:
         return 127, ""
 
 
+def _nginx_tokens(source: str) -> list[str]:
+    """Minimal fail-closed nginx lexer for auth preflight, not a config editor.
+
+    Handles quoted/escaped braces and comments so nested blocks cannot
+    trick a flat regular expression. Rejects malformed syntax.
+    """
+    tokens: list[str] = []
+    word: list[str] = []
+    quote: str | None = None
+    escaped = False
+    comment = False
+
+    def flush() -> None:
+        if word:
+            tokens.append("".join(word))
+            word.clear()
+
+    for char in source:
+        if comment:
+            if char == "\n":
+                comment = False
+            continue
+        if escaped:
+            word.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+            else:
+                word.append(char)
+            continue
+        if char in ('"', "'"):
+            quote = char
+        elif char == "#":
+            flush()
+            comment = True
+        elif char in "{};":
+            flush()
+            tokens.append(char)
+        elif char.isspace():
+            flush()
+        else:
+            word.append(char)
+    if escaped or quote is not None:
+        raise ValueError("malformed nginx quoting")
+    flush()
+    return tokens
+
+
+def _admin_auth_locations(source: str) -> list[dict]:
+    """Collect direct auth directives from explicit /admin/ locations.
+
+    Nested directives do not count as the parent's auth. Nested auth
+    overrides or includes are treated as ambiguous and blocked.
+    """
+    stack: list[dict] = []
+    statement: list[str] = []
+    locations: list[dict] = []
+
+    for token in _nginx_tokens(source):
+        if token == "{":
+            if not statement:
+                raise ValueError("anonymous nginx block")
+            is_location = statement[0] == "location"
+            target = statement[1:]
+            explicit_admin = (
+                is_location
+                and target in (["/admin/"], ["^~", "/admin/"],
+                               ["=", "/admin/"])
+                and not any(frame["is_location"] for frame in stack)
+            )
+            stack.append({
+                "is_location": is_location,
+                "candidate": explicit_admin,
+                "auth": [],
+                "files": [],
+                "ambiguous": False,
+            })
+            statement = []
+        elif token == ";":
+            if not statement:
+                raise ValueError("empty nginx directive")
+            name, args = statement[0], statement[1:]
+            for parent in stack[:-1]:
+                if parent["candidate"] and name in (
+                    "auth_basic", "auth_basic_user_file", "include"
+                ):
+                    parent["ambiguous"] = True
+            if stack and stack[-1]["candidate"]:
+                frame = stack[-1]
+                if name == "auth_basic":
+                    frame["auth"].append(args)
+                elif name == "auth_basic_user_file":
+                    frame["files"].append(args)
+                elif name == "include":
+                    frame["ambiguous"] = True
+            statement = []
+        elif token == "}":
+            if statement or not stack:
+                raise ValueError("malformed nginx block")
+            frame = stack.pop()
+            if frame["candidate"]:
+                locations.append(frame)
+        else:
+            statement.append(token)
+
+    if statement or stack:
+        raise ValueError("incomplete nginx configuration")
+    return locations
+
+
+def _verified_admin_auth(source: str) -> bool:
+    locations = _admin_auth_locations(source)
+    if not locations:
+        return False
+    for location in locations:
+        if location["ambiguous"]:
+            return False
+        if len(location["auth"]) != 1 or len(location["files"]) != 1:
+            return False
+        auth, auth_file = location["auth"][0], location["files"][0]
+        if len(auth) != 1 or not auth[0] or auth[0].lower() == "off":
+            return False
+        if len(auth_file) != 1:
+            return False
+        path = auth_file[0]
+        if not path or "$" in path or not Path(path).is_absolute():
+            return False
+        if not stat.S_ISREG(Path(path).stat().st_mode):
+            return False
+    return True
+
+
 def checks() -> list[tuple[str, str, str]]:
     results: list[tuple[str, str, str]] = []
 
@@ -83,39 +220,17 @@ def checks() -> list[tuple[str, str, str]]:
            if not version or int(version.group(1)) < 235
            else "systemd version supports directive; runtime sandbox unverified")
 
-    # Inspect the explicit /admin/ auth boundary. nginx permits optional
-    # location modifiers ("^~" and "="); the old regex rejected both.
-    # Fail closed on unknown location shapes, nested blocks, missing auth,
-    # variables or a non-regular htpasswd. Never print the secret path.
+    # Check direct auth directives even when /admin/ contains nested blocks.
+    # Any ambiguity fails closed; never expose auth file paths or contents.
     try:
-        source = NGINX_CONFIG.read_text(encoding="utf-8")
-        locations = re.findall(
-            r"(?m)^[ \t]*location[ \t]+(?:(?:=|\^~)[ \t]+)?"
-            r"/admin/[ \t]*\{([^{}]*)\}", source,
+        verified = _verified_admin_auth(
+            NGINX_CONFIG.read_text(encoding="utf-8")
         )
-        verified = False
-        for body in locations:
-            auth = re.search(
-                r"(?m)^[ \t]*auth_basic[ \t]+([^;]+);", body,
-            )
-            auth_file = re.search(
-                r"(?m)^[ \t]*auth_basic_user_file[ \t]+([^;]+);", body,
-            )
-            if not auth or auth.group(1).strip().strip('"\'').lower() == "off":
-                continue
-            if not auth_file:
-                continue
-            path = auth_file.group(1).strip().strip('"\'')
-            if not path or "$" in path or not Path(path).is_absolute():
-                continue
-            if stat.S_ISREG(Path(path).stat().st_mode):
-                verified = True
-                break
         record("ADMIN_HTPASSWD", verified,
                "configured admin auth file exists" if verified
                else "explicit /admin/ auth and regular literal file not verified")
-    except (OSError, UnicodeError):
-        record("ADMIN_HTPASSWD", False, "cannot inspect admin auth file")
+    except (OSError, UnicodeError, ValueError):
+        record("ADMIN_HTPASSWD", False, "cannot verify admin auth safely")
 
     # The application may need read access to the existing venv when run as
     # DynamicUser; this requires a separate on-host permission test.
