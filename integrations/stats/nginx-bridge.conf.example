@@ -6,6 +6,8 @@
 # No new authentication database or credentials are needed.
 
 location = /bridge {
+    auth_basic "Tervon Bridge monitoring";
+    auth_basic_user_file __EXISTING_ADMIN_HTPASSWD_FILE__;
     return 308 /bridge/;
 }
 
