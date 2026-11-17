@@ -187,6 +187,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         encoder = framing.NewEncoder(target)
         target = encoder
     }
+    if encoder!=nil {defer encoder.Abort()}
 	var downloadErr error
 	if s.Metrics != nil {
 		_, downloadErr = io.Copy(telemetry.CountingWriter{Writer: target, Add: s.Metrics.AddDownload}, c)
@@ -312,6 +313,7 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
             encoder = framing.NewEncoder(writer)
             target = encoder
         }
+        if encoder!=nil {defer encoder.Abort()}
 		if cl.Metrics != nil {
 			_, e = io.Copy(telemetry.CountingWriter{Writer: target, Add: cl.Metrics.AddUpload}, c)
 		} else {
