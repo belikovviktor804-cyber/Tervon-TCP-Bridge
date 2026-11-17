@@ -54,6 +54,7 @@ type State struct {
     last time.Time
     samples uint64
     useful uint64
+    streakUseful uint64
     padded uint64
     active bool
 }
@@ -76,15 +77,17 @@ func (s *State) Observe(at time.Time, usefulFrameBytes uint64) uint64 {
         s.active = false
         s.started = time.Time{}
         s.samples = 0
+        s.streakUseful = 0
     }
     s.last = at
     if s.started.IsZero() { s.started = at }
     if s.samples < math.MaxUint64 { s.samples++ }
     s.useful = saturatingAdd(s.useful, usefulFrameBytes)
+    s.streakUseful = saturatingAdd(s.streakUseful, usefulFrameBytes)
     // Budget uses a capped ratio and saturation-safe integer arithmetic.
     if !s.active && s.samples >= s.policy.MinSamples &&
         !at.Before(s.started) && at.Sub(s.started) >= s.policy.MinDuration &&
-        s.useful >= s.policy.MinUsefulBytes {
+        s.streakUseful >= s.policy.MinUsefulBytes {
         s.active = true
     }
     if !s.active || usefulFrameBytes < s.policy.MinFrameBytes { return 0 }
