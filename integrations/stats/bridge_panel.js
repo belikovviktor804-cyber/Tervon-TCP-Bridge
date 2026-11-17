@@ -1,4 +1,4 @@
-/* Homeserver-only Bridge panel; requires authenticated same-origin API.
+/* Homeserver-only Bridge panel; uses public read-only same-origin API.
  * Include only after bridge_panel.html; no credentials or private addresses.
  */
 (() => {
