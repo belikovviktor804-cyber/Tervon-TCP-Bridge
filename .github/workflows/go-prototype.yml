@@ -4,6 +4,7 @@ on:
     paths:
       - 'prototype/**'
       - 'tests/homeserver/verify-m1.sh'
+      - 'tests/homeserver/deploy-m1-with-m0-backup.sh'
       - '.github/workflows/go-prototype.yml'
   pull_request:
     paths:
@@ -29,6 +30,8 @@ jobs:
         run: gofmt -l .
       - name: Check isolated M1 verification script syntax
         run: bash -n ../tests/homeserver/verify-m1.sh
+      - name: Check guarded deployment script syntax
+        run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
       - name: Build all packages including CLI
         run: go build ./...
       - name: Vet
