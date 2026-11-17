@@ -19,3 +19,14 @@
 ## Правило ведения журнала
 
 После каждого значимого изменения в текущем модуле фиксировать branch, SHA, изменённые файлы, проверяемый вопрос, команды, среду, результат, ограничения и влияние на production. Нельзя заменять подтверждённые проверки планируемыми.
+
+## 2026-11-17 — M1: stream adapter, проверка ожидается
+
+- **Ветка:** `work/m1-framing`.
+- **Коммиты кода:** `a839354cbbb3b358fbf83d25974296000b3f4927`, `87bb1fe46cb2f2da9d4aec22ff75ed02ff1f3061`.
+- **Добавлено:** `prototype/framing/stream.go` и `prototype/framing/stream_test.go`.
+- **Реализовано в исходниках:** bounded DATA framing для произвольного byte stream, FIN для half-close, запрет записи после FIN, обнаружение неожиданного EOF до FIN, чтение маленькими порциями.
+- **Тесты:** добавлены тестовые сценарии; **выполнение тестов на этих коммитах пока НЕ ПОДТВЕРЖДЕНО**. Статус `UNVERIFIED`.
+- **Не реализовано:** HTTP/2 transport negotiation, server/client integration, framed E2E и совместимость.
+- **Production:** не изменялся. M1 остаётся `IN_PROGRESS`.
+- **Следующая проверка на Homeserver:** `go test -race -count=1 ./...`, `go vet ./...`, `go test -run 'TestStream' -v ./framing`; фиксировать точный SHA.
