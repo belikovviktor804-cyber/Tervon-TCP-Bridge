@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
 
+#### M2 — correction batch: accurate wire overhead and early PAD rejection (2026-11-18)
+
+- **Source checkpoint before documentation:** `4c86d7417c2bf4db65c29f900ead0e02f494dfb7` on `work/m2-adaptive-padding`. Draft PR #1 still open and not merged.
+- **Metrics:** separate PAD payload and total PAD wire overhead (PAD payload + 10-byte TBF1 header per PAD frame); per-direction frame counts and wire overhead percentages in JSON and Prometheus; saturation-safe snapshot arithmetic. Actual TCP payload metrics remain unchanged.
+- **Parser hardening:** writer rejects PAD payload >4096 bytes; receiver detects overlarge PAD directly from TBF1 header *before allocation*. Test simulates forged oversized wire header, not a permitted writer frame.
+- **Tests:** updated telemetry tests for PAD frame/header accounting and uint64 saturation; adjusted frame rejection tests.
+- **Latest full CI:** **NOT VERIFIED on these commits**. Last independently checked successful CI remains run #44195491683 for earlier SHA `fe4bc73f492845007c67ecc5d24c890e1b3f3f60`. GitHub workflow-run lookup currently has no newer confirmed result; do not claim latest SHA PASS.
+- **Pending inside M2:** full current-SHA build/vet/unit/race/fuzz, benchmark CPU and allocations, end-to-end traffic overhead and short-flow performance, controlled live verification/rollback. **No M3 and no deployment until gates PASS.** Working M1 services unchanged.
+
 #### M2 — next code checkpoint (2026-11-18, NOT VERIFIED on latest SHA)
 
 - Source branch `work/m2-adaptive-padding` is still a **draft PR #1** against `work/m1-framing`.
