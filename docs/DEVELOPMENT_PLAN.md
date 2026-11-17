@@ -26,6 +26,12 @@
 - **Разделять два разных вида проверок:** локальный loopback `/metrics/v1` Bridge допустим и обязателен для проверки **закрытого интерфейса сбора телеметрии**, но **не используется как замена внешней проверке веб-сайта**. Не публиковать приватный endpoint метрик.
 - Любая диагностика сначала read-only; не менять nginx, DNS, firewall, TLS, Prometheus и работающий Bridge без отдельного плана и согласованного шага.
 
+## Подтверждённая установка изолированного Bridge Stats (2026-11-17)
+
+- **Homeserver installer PASS** на commit `33a44290921393467d462d285fd9ace300241892`: `GIT_SSH_REMOTE/GIT_BRANCH/GIT_HEAD/GIT_CLEAN/PORT_8894/NEW_UNIT/APP_DIRECTORY/PYTHON_DEPS/SYSTEMD_VERSION/ADMIN_HTPASSWD=PASS`, `DYNAMIC_USER_ACCESS=CHECK` (проверен фактическим успешным запуском и HTTP), `NO_CHANGES=PASS`. После systemd start: `LOOPBACK_STATUS=PASS`, `METRICS_STATUS=UNAVAILABLE_EXPECTED`, `LOOPBACK_LISTENER=PASS`, `NEW_SERVICE=PASS`, `NGINX=UNCHANGED`, `BRIDGE_DATA_PLANE=UNCHANGED`, `WEBSITE_INTEGRATION=NOT_YET_ENABLED`. Unit включён в автозапуск; доступ только 127.0.0.1:8894.
+- **Фактические статусы:** отдельная stats-служба **DEPLOYED + LOCAL PASS**; внешний `/bridge/` **NOT DEPLOYED**; локальная телеметрия работающего M1 **NOT ENABLED**. Не считать `unavailable` реальными метриками и не объявлять мониторинг полностью подключённым.
+- **Следующий шаг в текущем M1:** read-only аудит действующего nginx-конфига, проверка отсутствия конфликтующих locations, затем отдельное безопасное добавление только `/bridge` и `/bridge/` без авторизации с backup, `nginx -t`, контролируемым reload и rollback. Сохранить `/admin/` Basic Auth, `/infrastructure/`, M1 и dashboard. Реальный публичный доступ проверять только из внешней сети по настоящему DNS/TLS.
+
 ## Изменение решения оператора по доступу к Bridge Stats (2026-11-17, позднее)
 
 - **Текущее решение:** публичные `/bridge`, `/bridge/` и `/bridge/api/status` на `stats.xrayvless.online` **без HTTP Basic Auth**. Ранее записанные требования Basic Auth для **Bridge** ниже являются историческими и заменены этим решением. **`/admin/`, `/admin/api/` и их авторизация не меняются.** Существующий `/infrastructure/` не менять.
