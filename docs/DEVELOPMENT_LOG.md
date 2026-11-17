@@ -247,3 +247,12 @@
 - **Fuzz:** `FuzzReadFrame` 30s — PASS, **1 347 631** executions, 11 interesting corpus total; `FuzzStreamDecoder` ~31s — PASS, **1 211 473** executions, 15 interesting corpus total. Не интерпретировать как доказательство отсутствия любых ошибок.
 - **Ограничения:** проверка кодовая/loopback; отдельного cross-version E2E с реальным бинарником v1.0.0 не было; 500ms early-backend-EOF fail-closed требует отдельной оценки; production deployment не выполнялся. `M1_VERIFY_RESULT=PASS` относится к командам скрипта, не ко всем критериям релиза.
 - **Решение:** M1 **CODE_VERIFIED_PASS**, но **IN_PROGRESS** до совместимости и подтверждения оставшихся критериев; M2 не начинать.
+
+
+## 2026-11-17 — M1: bidirectional legacy v1 wire contract regression (CI PASS)
+
+- **Baseline Homeserver PASS:** `e2313ab8375be3d9a7934e8b1c462a17e1fa3286`, Go 1.25.5 linux/amd64, complete `verify-m1.sh` result `M1_VERIFY_RESULT=PASS`. Сохранено в предыдущей записи; не распространять на новые изменения.
+- **Code commit:** `e26792c61d91b605d43bf6ff76f370f667c7ddab`. Новый `prototype/legacy_wire_compat_test.go` проверяет старый raw HTTP/2 request без TBF1 headers против нового `/v1/stream` сервера и новый `/v1/stream` клиент против старого raw HTTP/2 server contract. Оба сценария используют тестовые сертификаты, loopback и бинарный payload. Это **wire-contract simulation**, а не фактический запуск старого v1.0.0 бинарника.
+- **CI/verification commits:** `dd09b1cf2b1311d896ffb1ffd08daa38ea43374c` и `ce551cfeed2c4ecdcf7dbc760a7e45fa7e16281b` расширяют 3-кратный race-regression фильтр до `TestLegacy*` в CI и Homeserver-скрипте.
+- **CI:** [run #44039980495](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44039980495) — SUCCESS/PASS на `ce551cfeed2c4ecdcf7dbc760a7e45fa7e16281b`; Go build, vet, unit, race, 3x framed/legacy race, два fuzz-target по 15s, bash syntax.
+- **Pending:** новый код не прогнан на Homeserver; отдельно проверить фактическую совместимость со старым бинарником v1.0.0 в изолированном стенде, не трогая production. Оценить bounded 500ms early backend EOF fail-closed. **M1 IN_PROGRESS**, M2 не начинать.
