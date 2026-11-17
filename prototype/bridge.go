@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"tervon-tcp-bridge/telemetry"
@@ -139,7 +138,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = rc.Flush()
 
 	done := make(chan error, 1)
-	var uploadFailed atomic.Bool
 	go func() {
 		var source io.Reader = r.Body
 		if framed { source = framing.NewDecoder(source) }
@@ -150,7 +148,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_, uploadErr = io.Copy(c, source)
 		}
 		if uploadErr != nil {
-			uploadFailed.Store(true)
 			// Never forward a truncated or malformed framed upload as a
 			// successful TCP half-close to the backend.
 			_ = c.Close()
@@ -168,24 +165,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, downloadErr = io.Copy(target, c)
 	}
-	// A failed backend read or HTTP write must never be represented as a
-	// clean framed FIN. The receiver must see a truncated stream instead.
-	if downloadErr == nil && encoder != nil && !uploadFailed.Load() {
+	// For framed streams a clean response FIN requires a completed and
+	// validated request FIN. Backend EOF alone is not sufficient: upload
+	// decoding may still be blocked or may fail after the backend closes.
+	// A backend that finishes before request EOF fails closed after a bounded
+	// wait, rather than forging a successful response FIN.
+	var uploadErr error
+	if framed && downloadErr == nil {
+		select {
+		case uploadErr = <-done:
+		case <-time.After(500 * time.Millisecond):
+			uploadErr = fmt.Errorf("framed upload did not finish before backend EOF")
+		}
+	}
+	if downloadErr == nil && uploadErr == nil && encoder != nil {
 		downloadErr = encoder.CloseWrite()
 	}
-	if downloadErr == nil {
+	if downloadErr == nil && uploadErr == nil {
 		_ = rc.Flush()
-	} else {
-		_ = c.Close()
 	}
-	// Stop the upload after backend EOF, including when the client never
-	// sends its request EOF. This bounds handler wait, not goroutine lifetime.
+	// Close the body and backend to interrupt any outstanding upload read.
 	_ = r.Body.Close()
 	_ = c.Close()
-	select {
-	case <-done:
-	case <-time.After(500 * time.Millisecond):
-		// Outstanding request-body reads still require a cancellation audit.
+	if !framed || downloadErr != nil {
+		select {
+		case <-done:
+		case <-time.After(500 * time.Millisecond):
+			// HTTP request-body reads are not guaranteed to be interruptible.
+		}
 	}
 }
 
