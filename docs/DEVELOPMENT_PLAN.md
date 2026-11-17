@@ -170,7 +170,18 @@
 - **Статус M1 (актуальный, 2026-11-17):** **DEPLOYED на Homeserver и Finserver, TBF1 `/v2/stream` LIVE CONNECTIVITY PASS**; это не выпуск v1.0.1. Ранее перечисленные version/negotiation, integration и negative/E2E tests реализованы и проверены. Единственный отдельно отмеченный инженерный вопрос перед формальным закрытием — 500ms fail-closed/непрерываемый `io.ReadCloser`. **Не требовать v1.0.0 compatibility.**
 - **Приоритет записей:** исторические утверждения M0 ниже в документе отражают состояние на момент записи; текущие статусы задаются заголовками очереди модулей и этим журналом. Не трактовать старое «M1 не начинать» как действующее ограничение после завершения M0.
 
-### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
+### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
+
+#### M2 — verified integrated code gate (2026-11-18)
+
+- **CI failure:** GitHub Actions [run #44200049897](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200049897) at `85c10507c7b2f0c49e930091c914ae507ff80c05` — FAIL in unit tests, because two legacy telemetry endpoint tests still required `padding_state=NOT_IMPLEMENTED` after the M2 local contract changed to `OFF`. Build and vet were already PASS. Earlier malformed workflow was repaired in commit `85c10507c7b2f0c49e930091c914ae507ff80c05`.
+- **Corrections:** `prototype/telemetry/http_integration_test.go` commit `604652273b432b290f279921362d4d8e894ff854`; `prototype/telemetry/listener_test.go` commit `820e705e8f5f8a2a7e8246c7a0413483c053594f`. Tests now require Padding OFF by default and Jitter NOT_IMPLEMENTED.
+- **Fully verified source SHA:** `820e705e8f5f8a2a7e8246c7a0413483c053594f`, [GitHub Actions run #44200189036](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200189036), Ubuntu runner Go **1.23.0 linux/amd64**, job `test` **SUCCESS/PASS**. Build/vet/unit/race, repeated M1 regression, repeated M2 padding policy race, repeated M2 HTTP/2 E2E race, bounded M2 PAD fuzz and both M1 fuzz targets passed.
+- **Fuzz counts:** `FuzzPaddingDecoder` **1,189,092** executions / 20 corpus total; `FuzzReadFrame` **1,280,882** executions / 11 total; `FuzzStreamDecoder` **1,218,455** executions / 14 total. Bounded 15s runs, not exhaustive.
+- **CPU/alloc diagnostic:** `BenchmarkPaddingObserve-4` **18.10 ns/op, 0 B/op, 0 allocs/op** on hosted runner; only detector hot path, not TLS/HTTP2/network or end-to-end overhead.
+- **Remaining before M2 PASS:** quantify performance on short/intermittent/sustained traffic and full frame+TLS/HTTP2 overhead, verify actual Homeserver/Finserver controlled live route with backup and rollback, and record per-node evidence. `gofmt -l` is a **non-blocking** CI step, not a formatting PASS. **No production changes, no release, no M3.**
+
+
 
 #### M2 — strict wire budget correction (2026-11-18, awaiting current-SHA CI)
 
