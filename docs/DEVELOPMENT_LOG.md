@@ -286,3 +286,13 @@
 - No server commands executed, no production deployment, no M2 work. Next gate: CI PASS on corrected code, followed by isolated Homeserver test with `TERVON_M0_BIN=/opt/tervon-tcp-bridge/bridge`; retain M1 IN_PROGRESS until verified.
 
 - **CI recovery verified:** [run #44044975373](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44044975373) on `307c59564f3a49317227488e32c2e8f7b57a7719` — **SUCCESS/PASS** (bash syntax, build, vet, unit, race, repeated M1 regressions, FuzzReadFrame, FuzzStreamDecoder). This does not exercise the opt-in installed M0/v1.0.0 binary compatibility checks.
+
+
+## 2026-11-17 — Homeserver M1 verification: deployed M0 compatibility PASS
+
+- User ran isolated checkout at `/opt/tervon/bridge-m0-check/build/repo`, branch `work/m1-framing`, SHA **`5ae795f0a6f342724f6dc894f0e82b7f4402f867`**, Go **1.25.5 linux/amd64**.
+- `go build ./...` **PASS**; `go vet ./...` **PASS**; `go test -race -count=1 -timeout=120s ./...` **PASS**; repeated M1 race regressions `-count=3` **PASS**.
+- `FuzzReadFrame` 30s / **1,336,459 executions PASS**; `FuzzStreamDecoder` 30s / **1,258,600 executions PASS**. No crashes reported.
+- `TERVON_M0_BIN=/opt/tervon-tcp-bridge/bridge` — checksum-pinned copied installed M0, subprocess loopback mTLS HTTP/2 /v1/stream: **legacy_client_to_current_server PASS** (65,536 byte-exact bytes) and **current_client_to_legacy_server PASS** (65,536 byte-exact bytes). `M1_REAL_M0=PASS`.
+- `M1_VERIFY_RESULT=PASS`, `M1_VERIFY_SHA=5ae795f0a6f342724f6dc894f0e82b7f4402f867`, `M1_VERIFY_PRODUCTION_CHANGES=NONE`, `M1_VERIFY_NOTE=code_level_only_no_production_deployment`.
+- `M1_REAL_V100=NOT_RUN`: published v1.0.0 executable not supplied to the opt-in test. Separate historical-release compatibility gate or documented equivalent evidence remains open. Custom non-cancelable `io.ReadCloser` limitation also remains under assessment. **M1 IN_PROGRESS**, M2 not started.
