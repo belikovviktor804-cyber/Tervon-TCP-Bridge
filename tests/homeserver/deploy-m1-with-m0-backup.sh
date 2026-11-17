@@ -6,7 +6,10 @@
 set -Eeuo pipefail
 umask 077
 
-binary=/opt/tervon-tcp-bridge/bridge
+# Resolve the binary from the selected live systemd unit. On Finserver
+# M0 actually runs /opt/tervon-bridge-linux-amd64; the similarly named
+# /opt/tervon-tcp-bridge/bridge is an inactive historical v1.0.0 artifact.
+# Never overwrite a binary merely because it exists on disk.
 backup_root=/opt/tervon-tcp-bridge/backups
 mode=${1:-}
 unit=${2:-}
@@ -16,14 +19,24 @@ case "$unit" in
 esac
 case "$mode" in inspect|install|rollback) ;; *) echo "FAIL: expected inspect/install/rollback" >&2; exit 2 ;; esac
 if (( EUID != 0 )); then echo "FAIL: run as root" >&2; exit 2; fi
-for cmd in systemctl sha256sum flock cp mv mktemp awk mkdir chmod readlink; do
+for cmd in systemctl sha256sum flock cp mv mktemp awk mkdir chmod readlink sleep; do
   command -v "$cmd" >/dev/null || { echo "FAIL: missing $cmd" >&2; exit 2; }
 done
 if [[ ! -f "$binary" || -L "$binary" ]]; then echo "FAIL: unexpected active binary" >&2; exit 2; fi
 fragment=$(systemctl show "$unit" -p FragmentPath --value)
 exec_line=$(systemctl show "$unit" -p ExecStart --value)
-if [[ ! -f "$fragment" || "$exec_line" != *"path=$binary "* ]]; then
-  echo "FAIL: unit does not execute the expected binary" >&2; exit 2
+if [[ ! -f "$fragment" || ! "$exec_line" =~ (^|[[:space:]])path=([^[:space:];]+) ]]; then
+  echo "FAIL: cannot identify the selected unit executable" >&2; exit 2
+fi
+binary=${BASH_REMATCH[2]}
+case "$unit:$binary" in
+  tervon-bridge-client.service:/opt/tervon-tcp-bridge/bridge|\
+  tervon-bridge-server.service:/opt/tervon-bridge-linux-amd64|\
+  tervon-bridge-server.service:/opt/tervon-tcp-bridge/bridge) ;;
+  *) echo "FAIL: unexpected live executable path: $binary" >&2; exit 2 ;;
+esac
+if [[ ! -f "$binary" || -L "$binary" ]]; then
+  echo "FAIL: selected live executable is missing or symlinked" >&2; exit 2
 fi
 installed_sha=$(sha256sum "$binary" | awk '{print $1}')
 pid=$(systemctl show "$unit" -p MainPID --value)
@@ -55,6 +68,12 @@ verify_active() {
   [[ -e "/proc/$current_pid/exe" ]] || return 1
   current_sha=$(sha256sum "/proc/$current_pid/exe" | awk '{print $1}')
   [[ "$current_sha" == "$wanted" ]] || return 1
+  sleep 2
+  [[ "$(systemctl is-active "$unit")" == active ]] || return 1
+  current_pid=$(systemctl show "$unit" -p MainPID --value)
+  [[ "$current_pid" =~ ^[0-9]+$ && "$current_pid" != 0 ]] || return 1
+  [[ -e "/proc/$current_pid/exe" ]] || return 1
+  [[ "$(sha256sum "/proc/$current_pid/exe" | awk '{print $1}')" == "$wanted" ]]
 }
 replace_binary() {
   local src=$1 temp
@@ -122,7 +141,8 @@ if [[ "$mode" == rollback ]]; then
   [[ -f "$backup/bridge" && -f "$backup/manifest" ]] || { echo "FAIL: incomplete backup" >&2; exit 2; }
   saved_unit=$(awk -F= '$1=="UNIT"{print $2}' "$backup/manifest")
   old_sha=$(awk -F= '$1=="OLD_SHA256"{print $2}' "$backup/manifest")
-  [[ "$saved_unit" == "$unit" && "$old_sha" =~ ^[a-f0-9]{64}$ ]] || { echo "FAIL: backup manifest mismatch" >&2; exit 2; }
+  saved_binary=$(awk -F= '$1=="BINARY"{print $2}' "$backup/manifest")
+  [[ "$saved_unit" == "$unit" && "$saved_binary" == "$binary" && "$old_sha" =~ ^[a-f0-9]{64}$ ]] || { echo "FAIL: backup manifest mismatch" >&2; exit 2; }
   [[ "$(sha256sum "$backup/bridge" | awk '{print $1}')" == "$old_sha" ]] || { echo "FAIL: backup checksum mismatch" >&2; exit 2; }
   replace_binary "$backup/bridge"
   systemctl restart "$unit"
