@@ -113,6 +113,11 @@ func readFrame(r io.Reader, allowPadding bool) (Frame, error) {
 	if size > MaxPayload {
 		return Frame{}, ErrSize
 	}
+    // PAD frames have a much smaller negotiated resource cap. Reject from
+    // the header before allocating or attempting to read payload bytes.
+    if kind == TypePadding && size > 4096 {
+        return Frame{}, ErrMalformed
+    }
 	if (kind == TypeFIN && size != 0) || ((kind == TypeData || kind == TypePadding) && size == 0) {
 		return Frame{}, ErrMalformed
 	}
