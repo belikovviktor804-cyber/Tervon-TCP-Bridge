@@ -38,7 +38,16 @@ func (d *Decoder) Read(p []byte) (int,error) {
   if errors.Is(err,io.EOF) { return 0,ErrMalformed }
   return 0,err
  }
- if f.Type==TypeFIN { d.finished=true; return 0,io.EOF }
+ if f.Type==TypeFIN {
+  // FIN must terminate the framed direction. A trailing frame or byte
+  // is a protocol violation, not a second independent stream.
+  var extra [1]byte
+  n,err:=d.r.Read(extra[:])
+  if n!=0 || err==nil { return 0,ErrMalformed }
+  if !errors.Is(err,io.EOF) { return 0,err }
+  d.finished=true
+  return 0,io.EOF
+ }
  d.pending=f.Payload
  n:=copy(p,d.pending); d.pending=d.pending[n:]
  return n,nil
