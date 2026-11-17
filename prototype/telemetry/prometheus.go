@@ -34,6 +34,8 @@ func (r *Registry) writePrometheus(w http.ResponseWriter) {
     fmt.Fprintf(w, "# TYPE tervon_bridge_padding_download_wire_overhead_bytes_total counter\ntervon_bridge_padding_download_wire_overhead_bytes_total %d\n", s.PaddingDownloadWireOverheadBytes)
     fmt.Fprintf(w, "# TYPE tervon_bridge_padding_upload_overhead_percent gauge\ntervon_bridge_padding_upload_overhead_percent %g\n", s.PaddingUploadOverheadPercent)
     fmt.Fprintf(w, "# TYPE tervon_bridge_padding_download_overhead_percent gauge\ntervon_bridge_padding_download_overhead_percent %g\n", s.PaddingDownloadOverheadPercent)
+    fmt.Fprintf(w, "# TYPE tervon_bridge_padding_upload_wire_overhead_percent gauge\ntervon_bridge_padding_upload_wire_overhead_percent %g\n", s.PaddingUploadWireOverheadPercent)
+    fmt.Fprintf(w, "# TYPE tervon_bridge_padding_download_wire_overhead_percent gauge\ntervon_bridge_padding_download_wire_overhead_percent %g\n", s.PaddingDownloadWireOverheadPercent)
 	fmt.Fprintf(w, "# TYPE tervon_bridge_backend_dial_success_total counter\ntervon_bridge_backend_dial_success_total %d\n", s.BackendDialSuccess)
 	fmt.Fprintf(w, "# TYPE tervon_bridge_backend_dial_failure_total counter\ntervon_bridge_backend_dial_failure_total %d\n", s.BackendDialFailure)
 	fmt.Fprintf(w, "# TYPE tervon_bridge_tls13_h2_mtls_requests_total counter\ntervon_bridge_tls13_h2_mtls_requests_total %d\n", s.TLS13H2MTLSRequests)
