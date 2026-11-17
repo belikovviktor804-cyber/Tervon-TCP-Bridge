@@ -106,7 +106,9 @@ def atomic_copy_bytes(path: Path, data: bytes, reference: Path) -> None:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        shutil.copystat(reference, temporary, follow_symlinks=False)
+        # Preserve the live vhost's metadata, not the private 0600 backup.
+        shutil.copystat(path if path.exists() else reference,
+                        temporary, follow_symlinks=False)
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):
