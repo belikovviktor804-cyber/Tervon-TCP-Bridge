@@ -305,3 +305,12 @@
 - CI workflow now checks installer Bash syntax; **this does not constitute an actual install or rollback E2E test**.
 - Added `docs/DEPLOY-M1-WITH-M0-BACKUP.ru.md`: Finserver first, Homeserver second, /v1 preserved during binary upgrade, /v2 enablement separate, real TCP verification mandatory.
 - **Status: PREPARED_NOT_DEPLOYED**. Finserver unit/path/SHA not yet provided. Production services untouched. Installation and rollback PASS cannot be claimed yet.
+
+
+## 2026-11-17 — Live-host preflight reveals actual Finserver M0 executable
+
+- Finserver user evidence: `tervon-bridge-server.service` active, MainPID `35365`, ExecStart **`/opt/tervon-bridge-linux-amd64 -config /etc/tervon-tcp-bridge/server.json`**. `/proc/35365/exe` SHA-256 `fbc927f33cd0198329bb21ff0b40a5d4e8240bc9a92d3d62c1d9c4e4ec30fc0c` = active M0. `/opt/tervon-tcp-bridge/bridge` SHA-256 `5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2` = **inactive historical v1.0.0**.
+- Homeserver `inspect` PASS: active and running `/opt/tervon-tcp-bridge/bridge` SHA `fbc927f33cd0198329bb21ff0b40a5d4e8240bc9a92d3d62c1d9c4e4ec30fc0c`, PID `2304526`.
+- Separate Finserver services: echo-test and SOCKS5 production active, SOCKS5 lab failed. None are to be changed during M1.
+- **Deployment safety correction** `e1e1975cbec0070e761ce4718dd1cf783b070045`, `bd062278e78a502208927f011a0f5760472521f2`: deployment script resolves live binary from selected systemd ExecStart, restricts allowed paths, checks running/on-disk hashes, backs up and restores the actual binary path. This prevents overwriting inactive v1.0.0 on Finserver.
+- User directive: no new test environments or unnecessary test files on hosts; deploy directly to live servers with M0 backup and rollback, verifying real traffic. **Not yet deployed**.
