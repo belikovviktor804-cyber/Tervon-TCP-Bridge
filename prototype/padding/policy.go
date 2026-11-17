@@ -22,6 +22,20 @@ type Policy struct {
     MinFrameBytes uint64
 }
 
+// DefaultPolicy is intentionally conservative and is not enabled by default.
+// Values are provisional pending M2 performance measurements.
+func DefaultPolicy() Policy {
+    return Policy{
+        MinDuration: 2*time.Second,
+        MinUsefulBytes: 64*1024,
+        MinSamples: 5,
+        MaxInterSampleGap: time.Second,
+        RatioPercent: 5,
+        MaxPaddingPerFrame: 512,
+        MinFrameBytes: 512,
+    }
+}
+
 func (p Policy) Validate() error {
     if p.MinDuration <= 0 || p.MinUsefulBytes == 0 || p.MinSamples < 2 ||
         p.MaxInterSampleGap <= 0 || p.RatioPercent == 0 || p.RatioPercent > 25 ||
