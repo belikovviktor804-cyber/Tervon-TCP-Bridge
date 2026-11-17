@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"sync"
+    "strings"
 	"testing"
 	"time"
 )
@@ -40,7 +41,7 @@ func TestHTTP(t *testing.T) {
 			if err := json.Unmarshal(w.Body.Bytes(), &s); err != nil {
 				t.Fatal(err)
 			}
-			if s.PaddingState != "NOT_IMPLEMENTED" || s.JitterState != "NOT_IMPLEMENTED" {
+			if s.PaddingState != "OFF" || s.JitterState != "NOT_IMPLEMENTED" {
 				t.Fatalf("incorrect capability states %+v", s)
 			}
 			if w.Header().Get("Cache-Control") != "no-store" {
@@ -82,4 +83,43 @@ func TestConcurrent(t *testing.T) {
 	if s.SessionsActive != 0 || s.SessionsCompleted != 16000 || s.UploadBytes != 16000 || s.Errors[ReasonBackend] != 16000 {
 		t.Fatalf("concurrency %+v", s)
 	}
+}
+
+func TestPaddingMetricsAndTransitions(t *testing.T){
+    r:=New()
+    if s:=r.Snapshot();s.PaddingState!="OFF" || s.PaddingUploadBytes!=0 {t.Fatalf("initial: %+v",s)}
+    r.SetPaddingConfigured(true)
+    r.AddUpload(10000)
+    r.AddDownload(20000)
+    r.PaddingUploadActive(true)
+    r.AddPaddingUpload(500)
+    r.PaddingDownloadActive(true)
+    r.AddPaddingDownload(300)
+    active:=r.Snapshot()
+    if active.PaddingState!="ACTIVE" || active.PaddingUploadState!="ACTIVE" || active.PaddingDownloadState!="ACTIVE" {
+        t.Fatalf("active: %+v",active)
+    }
+    if active.PaddingUploadBytes!=500 || active.PaddingDownloadBytes!=300 ||
+       active.PaddingUploadOverheadPercent!=5 || active.PaddingDownloadOverheadPercent!=1.5 {
+        t.Fatalf("padding accounting: %+v",active)
+    }
+    r.PaddingUploadActive(false)
+    r.PaddingDownloadActive(false)
+    done:=r.Snapshot()
+    if done.PaddingState!="OFF" || done.PaddingUploadTransitions!=2 ||
+       done.PaddingDownloadTransitions!=2 || done.PaddingUploadBytes!=500 {
+        t.Fatalf("final: %+v",done)
+    }
+}
+
+func TestPaddingMetricsPrometheus(t *testing.T) {
+    r:=New()
+    r.AddPaddingUpload(3)
+    rec:=httptest.NewRecorder()
+    r.Handler().ServeHTTP(rec,httptest.NewRequest("GET","/metrics",nil))
+    if rec.Code!=200 {t.Fatalf("status: %d",rec.Code)}
+    content:=rec.Body.String()
+    if !strings.Contains(content,"tervon_bridge_padding_upload_bytes_total 3\n") {
+        t.Fatalf("missing padding metric: %q",content)
+    }
 }
