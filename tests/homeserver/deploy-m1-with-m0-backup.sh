@@ -16,7 +16,7 @@ case "$unit" in
 esac
 case "$mode" in inspect|install|rollback) ;; *) echo "FAIL: expected inspect/install/rollback" >&2; exit 2 ;; esac
 if (( EUID != 0 )); then echo "FAIL: run as root" >&2; exit 2; fi
-for cmd in systemctl sha256sum flock cp mv mktemp awk mkdir chmod; do
+for cmd in systemctl sha256sum flock cp mv mktemp awk mkdir chmod readlink; do
   command -v "$cmd" >/dev/null || { echo "FAIL: missing $cmd" >&2; exit 2; }
 done
 if [[ ! -f "$binary" || -L "$binary" ]]; then echo "FAIL: unexpected active binary" >&2; exit 2; fi
@@ -115,7 +115,10 @@ fi
 if [[ "$mode" == rollback ]]; then
   backup=${3:-}
   if [[ -z "$backup" || -L "$backup" || ! -d "$backup" ]]; then echo "FAIL: invalid backup" >&2; exit 2; fi
-  case "$backup" in "$backup_root"/m0-*) ;; *) echo "FAIL: backup outside controlled directory" >&2; exit 2 ;; esac
+  backup=$(readlink -f -- "$backup")
+  if [[ ! "$backup" =~ ^/opt/tervon-tcp-bridge/backups/m0-[[:alnum:]]{8}$ ]]; then
+    echo "FAIL: backup outside controlled directory" >&2; exit 2
+  fi
   [[ -f "$backup/bridge" && -f "$backup/manifest" ]] || { echo "FAIL: incomplete backup" >&2; exit 2; }
   saved_unit=$(awk -F= '$1=="UNIT"{print $2}' "$backup/manifest")
   old_sha=$(awk -F= '$1=="OLD_SHA256"{print $2}' "$backup/manifest")
