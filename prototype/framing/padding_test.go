@@ -151,3 +151,7 @@ func TestPaddingAbortClearsActivityWithoutFIN(t *testing.T){
     if err:=e.CloseWrite();!errors.Is(err,io.ErrClosedPipe){t.Fatalf("forged FIN: %v",err)}
     if _,err:=io.ReadAll(NewPaddingDecoder(bytes.NewReader(b.Bytes())));!errors.Is(err,ErrMalformed){t.Fatalf("abort produced clean FIN: %v",err)}
 }
+
+func TestM2PaddingHeaderConstantMatchesFraming(t *testing.T){
+    if padding.FrameOverheadBytes!=HeaderSize{t.Fatalf("padding overhead=%d framing header=%d",padding.FrameOverheadBytes,HeaderSize)}
+}
