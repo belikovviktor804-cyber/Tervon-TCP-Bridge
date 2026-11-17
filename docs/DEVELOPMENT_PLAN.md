@@ -172,6 +172,14 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
 
+#### M2 — strict wire budget correction (2026-11-18, awaiting current-SHA CI)
+
+- **Source checkpoint before this docs commit:** `d786966f96df12bcc236dc555fe5ff43ba58bdf4`; feature branch `work/m2-adaptive-padding`, draft PR #1.
+- **Code:** `padding.State` now tracks PAD payload and PAD wire overhead separately. `Observe` refuses PAD unless the remaining cumulative `RatioPercent` budget covers **both** the 10-byte TBF1 PAD header and all planned PAD payload bytes. This replaces the earlier payload-only enforcement and keeps the real wire overhead within the configured ratio.
+- **Tests:** `TestBudgetIncludesPaddingFrameHeader`, updated cumulative-budget and overflow tests, and `TestM2PaddingHeaderConstantMatchesFraming` to catch mismatch between frame codec and policy accounting.
+- **Status:** IMPLEMENTED / TESTS WRITTEN, latest CI **NOT VERIFIED**; don't extrapolate PASS #44195491683 to post-telemetry and strict-budget changes. Not deployed; no working service changed; no release.
+- **Next gate:** full latest-SHA GitHub CI and evidence, then measure performance/allocations and controlled live verification with rollback. M2 remains IN_PROGRESS.
+
 #### M2 — correction batch: accurate wire overhead and early PAD rejection (2026-11-18)
 
 - **Source checkpoint before documentation:** `4c86d7417c2bf4db65c29f900ead0e02f494dfb7` on `work/m2-adaptive-padding`. Draft PR #1 still open and not merged.
