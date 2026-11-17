@@ -203,3 +203,15 @@
 - **Tests:** `TestLegacyV1StreamRemainsByteExact` verifies unframed `/v1/stream` round-trip with binary payload and handler termination; `TestFramedMalformedUploadClosesBackend` accepts Linux TCP reset as an expected closed-connection outcome, while rejecting unrelated read errors.
 - **Source of truth:** `docs/DEVELOPMENT_PLAN.md` now records active branch, code SHA, last verified PASS, pending tests, known lifecycle risk, and strict M1 exit gate.
 - **Evidence:** tests not yet run at the new SHA. **M1 IN_PROGRESS**, no release, no Homeserver service changes.
+
+
+## 2026-11-17 — M1: server upload lifecycle join and cancellation regression (UNVERIFIED)
+
+- **Branch:** `work/m1-framing`; baseline HEAD before edits: `af966bc77c719bd39b11508c9576c4239c0f60a8`.
+- **Code commits:** `e3c365daea873bfad2331a84b5271392a3f9fd3d` (server upload worker join), `ddd72e2faa61d1732321c18d76089222af22e377` (cancellation E2E).
+- **Changed:** `prototype/bridge.go` replaces a 500 ms best-effort join with an unconditional upload-worker join after closing the request body and backend. `prototype/framed_integration_test.go` adds `TestFramedCancelRequestBodyReaderReleasesServerWorker`.
+- **Question:** can a canceled HTTP/2 upload leave the backend socket or request handler alive after an incomplete TBF1 stream?
+- **Tests:** NOT RUN on these commits. The available environment has no direct Homeserver access; GitHub code write alone is not a verified test result.
+- **Open risk:** `r.Body.Close()` is not proven to wake a blocked HTTP/2 body read on every failure path; unconditional join could hang if the reader cannot be interrupted. The new test checks one cancellation path, not all leak scenarios. If this test hangs, correct cancellation semantics within M1 before any module promotion.
+- **Required verification on isolated Homeserver checkout:** `go test -race -count=1 ./...`, `go vet ./...`, `go test -race -count=1 -run 'TestFramedCancelRequestBodyReaderReleasesServerWorker|TestFramed|TestLegacyV1StreamRemainsByteExact' -v .`, plus separate fuzz runs for `FuzzReadFrame` and `FuzzStreamDecoder`; record exact HEAD and clean working tree.
+- **Status:** M1 IN_PROGRESS / UNVERIFIED; release NONE; production services untouched. Do not proceed to M2 before integrated PASS.
