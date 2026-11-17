@@ -67,3 +67,57 @@ func TestStreamRejectSecondFIN(t *testing.T) {
  _,err:=io.ReadAll(NewDecoder(&b))
  if !errors.Is(err,ErrMalformed) {t.Fatalf("second FIN accepted: %v",err)}
 }
+
+type failingWriter struct{ err error }
+func (w failingWriter) Write([]byte)(int,error){return 0,w.err}
+
+func TestStreamEncoderWriteFailureIsTerminal(t *testing.T) {
+ sentinel:=errors.New("write failed")
+ enc:=NewEncoder(failingWriter{sentinel})
+ if n,err:=enc.Write([]byte("data"));n!=0 || !errors.Is(err,sentinel) {t.Fatalf("write: %d %v",n,err)}
+ if _,err:=enc.Write([]byte("retry"));!errors.Is(err,io.ErrClosedPipe) {t.Fatalf("retry after failure: %v",err)}
+ if err:=enc.CloseWrite();!errors.Is(err,io.ErrClosedPipe) {t.Fatalf("FIN after failure: %v",err)}
+}
+func TestStreamEncoderCloseWriteFailureIsTerminal(t *testing.T) {
+ sentinel:=errors.New("FIN write failed")
+ enc:=NewEncoder(failingWriter{sentinel})
+ if err:=enc.CloseWrite();!errors.Is(err,sentinel) {t.Fatalf("close: %v",err)}
+ if err:=enc.CloseWrite();!errors.Is(err,io.ErrClosedPipe) {t.Fatalf("second close: %v",err)}
+}
+func TestStreamRejectTruncatedPayload(t *testing.T) {
+ var b bytes.Buffer
+ if err:=WriteFrame(&b,TypeData,[]byte("payload"));err!=nil {t.Fatal(err)}
+ raw:=b.Bytes()
+ for n:=HeaderSize;n<len(raw);n++ {
+  _,err:=io.ReadAll(NewDecoder(bytes.NewReader(raw[:n])))
+  if !errors.Is(err,ErrMalformed) {t.Fatalf("truncated at %d: %v",n,err)}
+ }
+}
+func FuzzStreamDecoder(f *testing.F) {
+ f.Add([]byte{})
+ f.Add([]byte("TBF1"))
+ var valid bytes.Buffer
+ enc:=NewEncoder(&valid)
+ _,_=enc.Write([]byte("payload"))
+ _=enc.CloseWrite()
+ f.Add(valid.Bytes())
+ var missingFIN bytes.Buffer
+ _=WriteFrame(&missingFIN,TypeData,[]byte("payload"))
+ f.Add(missingFIN.Bytes())
+ f.Fuzz(func(t *testing.T,data []byte){
+  if len(data)>2*MaxPayload+2*HeaderSize+100 {return}
+  _,err:=io.ReadAll(NewDecoder(bytes.NewReader(data)))
+  if err==nil {
+   // Every accepted stream must end with exactly one FIN and no tail.
+   raw:=bytes.NewReader(data)
+   for {
+    frame,e:=ReadFrame(raw)
+    if e!=nil {t.Fatalf("decoder accepted invalid frame: %v",e)}
+    if frame.Type==TypeFIN {
+     if raw.Len()!=0 {t.Fatal("accepted bytes after FIN")}
+     break
+    }
+   }
+  }
+ })
+}
