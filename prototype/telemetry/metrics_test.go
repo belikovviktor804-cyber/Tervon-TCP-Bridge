@@ -100,6 +100,9 @@ func TestPaddingMetricsAndTransitions(t *testing.T){
         t.Fatalf("active: %+v",active)
     }
     if active.PaddingUploadBytes!=500 || active.PaddingDownloadBytes!=300 ||
+       active.PaddingUploadFrames!=1 || active.PaddingDownloadFrames!=1 ||
+       active.PaddingUploadWireOverheadBytes!=510 || active.PaddingDownloadWireOverheadBytes!=310 ||
+       active.PaddingUploadWireOverheadPercent!=5.1 || active.PaddingDownloadWireOverheadPercent!=1.55 ||
        active.PaddingUploadOverheadPercent!=5 || active.PaddingDownloadOverheadPercent!=1.5 {
         t.Fatalf("padding accounting: %+v",active)
     }
@@ -122,4 +125,9 @@ func TestPaddingMetricsPrometheus(t *testing.T) {
     if !strings.Contains(content,"tervon_bridge_padding_upload_bytes_total 3\n") {
         t.Fatalf("missing padding metric: %q",content)
     }
+}
+
+func TestPaddingWireOverheadSaturates(t *testing.T) {
+    if padWireBytes(10,2)!=30 {t.Fatal("missing two wire headers")}
+    if padWireBytes(^uint64(0),1)!=^uint64(0){t.Fatal("wire accounting overflow")}
 }
