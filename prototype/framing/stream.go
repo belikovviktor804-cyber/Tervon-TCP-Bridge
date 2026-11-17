@@ -17,6 +17,9 @@ type Encoder struct {
     closed bool
     pad *padding.State
     now func() time.Time
+    onPadding func(uint64)
+    onActivity func(bool)
+    reportedActive bool
 }
 
 func NewEncoder(w io.Writer) *Encoder { return &Encoder{w:w} }
@@ -29,6 +32,23 @@ func NewPaddingEncoder(w io.Writer, policy padding.Policy) (*Encoder,error) {
     return &Encoder{w:w,pad:state,now:time.Now},nil
 }
 
+// SetObservers installs bounded, synchronous aggregate callbacks. The callbacks
+// must not block or retain payloads. They report only emitted PAD bytes and
+// ACTIVE/OFF transitions, and are invoked by the encoder's single writer.
+func (e *Encoder) SetObservers(onPadding func(uint64), onActivity func(bool)) {
+    e.onPadding=onPadding
+    e.onActivity=onActivity
+}
+func (e *Encoder) updateActive(v bool) {
+    if e.reportedActive==v{return}
+    e.reportedActive=v
+    if e.onActivity!=nil{e.onActivity(v)}
+}
+func (e *Encoder) fail() {
+    e.closed=true
+    e.updateActive(false)
+}
+
 func (e *Encoder) Write(p []byte) (int,error) {
     if e.closed {return 0,io.ErrClosedPipe}
     total:=0
@@ -36,17 +56,19 @@ func (e *Encoder) Write(p []byte) (int,error) {
         n:=len(p)
         if n>MaxPayload {n=MaxPayload}
         if err:=WriteFrame(e.w,TypeData,p[:n]);err!=nil{
-            e.closed=true
+            e.fail()
             return total,err
         }
         total+=n
         if e.pad!=nil{
             count:=e.pad.Observe(e.now(),uint64(n))
+            e.updateActive(e.pad.Active())
             if count>0{
                 // Only emit padding after DATA, never by delaying a DATA frame.
                 pad:=make([]byte,int(count))
-                if _,err:=rand.Read(pad);err!=nil{e.closed=true;return total,err}
-                if err:=WritePaddingFrame(e.w,pad);err!=nil{e.closed=true;return total,err}
+                if _,err:=rand.Read(pad);err!=nil{e.fail();return total,err}
+                if err:=WritePaddingFrame(e.w,pad);err!=nil{e.fail();return total,err}
+                if e.onPadding!=nil{e.onPadding(count)}
             }
         }
         p=p[n:]
@@ -56,6 +78,7 @@ func (e *Encoder) Write(p []byte) (int,error) {
 func (e *Encoder) CloseWrite() error {
     if e.closed{return io.ErrClosedPipe}
     e.closed=true
+    e.updateActive(false)
     return WriteFrame(e.w,TypeFIN,nil)
 }
 func (e *Encoder) PaddingBytes() uint64 {
