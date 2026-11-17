@@ -49,3 +49,15 @@
 - **Known risks requiring correction before M1 PASS:** framed decoder errors in server upload are not yet propagated to handler; trailing frames after FIN are not rejected; existing connection shutdown can interrupt half-close; no explicit proof of cancellation/goroutine cleanup or production compatibility. These are open issues, not PASS.
 - **Next verification:** on isolated Homeserver clone run `go test -race -count=1 ./...`, `go vet ./...`, `go test -run 'TestFramed' -v ./...` and report exact SHA. Do not deploy.
 - **M1:** IN_PROGRESS. Production: NONE.
+
+## 2026-11-17 — M1: подтверждённый интеграционный PASS (частичный)
+
+- **Проверенный commit:** `dd1ede2679c1a507ad9bdca344d13ed18d5ebc03`.
+- **Среда:** Homeserver, изолированный checkout; работающие службы не затрагивались.
+- **`go test -race -count=1 ./...`:** PASS для `tervon-tcp-bridge`, `cmd/bridge`, `framing`, `telemetry`.
+- **`go vet ./...`:** PASS (без замечаний).
+- **`go test -race -count=1 -run 'TestFramed' -v ./...`:** PASS: `TestFramedByteExact`, `TestFramedRejectVersionBeforeDial`. Остальные пакеты ожидаемо сообщили `no tests to run`.
+- **`git status --short`:** чистое дерево.
+- **Что доказано:** базовая byte-exact передача через opt-in `/v2/stream`, отказ при несовместимой версии до backend dial.
+- **Что НЕ доказано:** корректный half-close при всех направлениях, propagation ошибок кадрирования, запрет данных после FIN, cancellation, отсутствие зависших горутин, отдельный длительный fuzz-run и совместимость со старым сервером.
+- **Статус:** интеграционный smoke PASS, **M1 IN_PROGRESS**, production не изменён.
