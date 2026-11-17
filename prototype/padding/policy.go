@@ -10,6 +10,10 @@ import (
 
 var ErrConfig = errors.New("padding: invalid policy")
 
+// FrameOverheadBytes is the fixed TBF1 header size for a PAD frame.
+// A regression test in framing must keep this aligned with HeaderSize.
+const FrameOverheadBytes uint64 = 10
+
 // Policy applies independently to each stream direction.
 // RatioPercent is a hard cumulative budget (padding / useful bytes).
 type Policy struct {
@@ -56,6 +60,7 @@ type State struct {
     useful uint64
     streakUseful uint64
     padded uint64
+    paddedWire uint64
     active bool
 }
 
@@ -67,6 +72,7 @@ func New(p Policy) (*State, error) {
 func (s *State) Active() bool { return s.active }
 func (s *State) UsefulBytes() uint64 { return s.useful }
 func (s *State) PaddingBytes() uint64 { return s.padded }
+func (s *State) PaddingWireBytes() uint64 { return s.paddedWire }
 
 // Observe returns a permitted count of padding bytes, but NEVER writes them.
 // No padding is permitted before a stable sequence of substantial samples.
@@ -92,12 +98,16 @@ func (s *State) Observe(at time.Time, usefulFrameBytes uint64) uint64 {
     }
     if !s.active || usefulFrameBytes < s.policy.MinFrameBytes { return 0 }
     budget := fractionOf(s.useful, s.policy.RatioPercent, 100)
-    if budget <= s.padded { return 0 }
-    remaining := budget - s.padded
+    if budget <= s.paddedWire { return 0 }
+    remaining := budget - s.paddedWire
+    if remaining <= FrameOverheadBytes { return 0 }
+    remaining -= FrameOverheadBytes
     desired := usefulFrameBytes / 16 // 6.25% target, bounded by the budget.
     if desired > s.policy.MaxPaddingPerFrame { desired = s.policy.MaxPaddingPerFrame }
     if desired > remaining { desired = remaining }
-    s.padded += desired // <= budget <= MaxUint64
+    if desired == 0 { return 0 }
+    s.padded += desired
+    s.paddedWire += desired + FrameOverheadBytes // <= budget <= MaxUint64
     return desired
 }
 
