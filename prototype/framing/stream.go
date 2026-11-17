@@ -75,6 +75,12 @@ func (e *Encoder) Write(p []byte) (int,error) {
     }
     return total,nil
 }
+// Abort marks the encoder terminal without writing FIN. Use after a failed
+// stream to release activity accounting; never forge successful half-close.
+func (e *Encoder) Abort() {
+    e.fail()
+}
+
 func (e *Encoder) CloseWrite() error {
     if e.closed{return io.ErrClosedPipe}
     e.closed=true
