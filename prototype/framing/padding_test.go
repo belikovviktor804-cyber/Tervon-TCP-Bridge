@@ -110,3 +110,24 @@ func TestPaddingDecoderRejectsExcessAndPlacement(t *testing.T){
         })
     }
 }
+
+func TestPaddingEncoderCallbacksAndFinalOff(t *testing.T){
+    p:=padding.DefaultPolicy()
+    p.MinDuration=time.Nanosecond
+    p.MinSamples=2
+    p.MinUsefulBytes=1024
+    var wire bytes.Buffer
+    enc,err:=NewPaddingEncoder(&wire,p);if err!=nil{t.Fatal(err)}
+    var emitted uint64
+    changes:=[]bool{}
+    enc.SetObservers(func(n uint64){emitted+=n},func(active bool){changes=append(changes,active)})
+    t0:=time.Unix(123,0)
+    i:=0
+    enc.now=func()time.Time{i++;return t0.Add(time.Duration(i)*time.Millisecond)}
+    for j:=0;j<10;j++{
+        if _,err:=enc.Write(bytes.Repeat([]byte{0,1},2048));err!=nil{t.Fatal(err)}
+    }
+    if err:=enc.CloseWrite();err!=nil{t.Fatal(err)}
+    if emitted==0 || emitted!=enc.PaddingBytes(){t.Fatalf("accounting emitted=%d state=%d",emitted,enc.PaddingBytes())}
+    if len(changes)!=2 || !changes[0] || changes[1]{t.Fatalf("active transition leak: %v",changes)}
+}
