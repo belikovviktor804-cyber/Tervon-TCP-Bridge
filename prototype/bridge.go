@@ -186,15 +186,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if downloadErr == nil && uploadErr == nil {
 		_ = rc.Flush()
 	}
-	// Close the body and backend to interrupt any outstanding upload read.
+	// Ensure every upload worker is joined before returning from this handler.
+	// In particular, the HTTP/2 request body belongs to the handler: a
+	// detached reader could outlive its request and retain the backend socket.
 	_ = r.Body.Close()
 	_ = c.Close()
 	if !uploadObserved {
-		select {
-		case <-done:
-		case <-time.After(500 * time.Millisecond):
-			// HTTP request-body reads are not guaranteed to be interruptible.
-		}
+		<-done
 	}
 }
 
