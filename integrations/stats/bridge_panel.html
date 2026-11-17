@@ -1,0 +1,20 @@
+<!-- Embeddable Bridge panel. Include bridge_panel.js after this fragment.
+     Requires a separately reviewed, authenticated same-origin /bridge/api/status.
+     No live dashboard routes or services are changed by this file. -->
+<section id="tb-panel" class="tb-panel" aria-labelledby="tb-heading">
+  <h2 id="tb-heading">Tervon TCP Bridge — Homeserver</h2>
+  <p id="tb-status" role="status" aria-live="polite">Статистика загружается…</p>
+  <p class="tb-meta">Обновлено: <time id="tb-updated">—</time></p>
+  <div class="tb-grid">
+    <div><span>Активные TCP-сессии</span><strong id="tb-sessions-active">—</strong></div>
+    <div><span>Начато / завершено / отклонено</span><strong id="tb-sessions-counts">—</strong></div>
+    <div><span>Полезный трафик ↑ / ↓</span><strong id="tb-bytes">—</strong></div>
+    <div><span>Backend: успешно / ошибки</span><strong id="tb-backend">—</strong></div>
+    <div><span>Установка соединения p50 / p95 / p99</span><strong id="tb-latency">—</strong></div>
+    <div><span>Подтверждённые TLS 1.3 + H2 + mTLS</span><strong id="tb-tls">—</strong></div>
+    <div><span>Uptime / goroutines / память</span><strong id="tb-runtime">—</strong></div>
+    <div><span>Padding / Jitter</span><strong id="tb-adaptation">—</strong></div>
+    <div><span>Ошибки (суммарно)</span><strong id="tb-errors">—</strong></div>
+  </div>
+  <p class="tb-footnote">Отображаются только агрегированные показатели локального Encapsulator на Homeserver. Полезные байты не равны полному сетевому трафику.</p>
+</section>
