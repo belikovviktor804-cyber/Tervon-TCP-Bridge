@@ -468,3 +468,10 @@
 - **Status:** CODE PREPARED, CI pending at this log entry, **NGINX NOT MODIFIED**, **PUBLIC ROUTE NOT DEPLOYED**. Need CI PASS, then guarded Homeserver installation, and independent external real-DNS HTTPS verification.
 
 - **CI PASS:** [GitHub Actions #44088851859](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44088851859), tested source SHA `835f22d1b24fbd320d86351925318b2575819a09`, **completed SUCCESS**. All stats Python tests (including guarded nginx installer and fail-closed layout regression), stats JS, Go build/vet/unit/race/repeated M1 and bounded fuzz passed. Later `4b3e5401` and `ccb26845` are documentation-only commits. **Actual nginx install NOT RUN** at this point.
+
+## 2026-11-17 — Public /bridge/ nginx integration: INSTALL + RELOAD PASS
+
+- Operator ran `sudo python3 integrations/stats/install-site-nginx.py install` after SSH fast-forward `33a4429..694f790` on branch `work/m1-framing`; exact checkout `694f79076af9be5a55d2d0bb8120ee5ebad377cf`.
+- Actual Homeserver output: `NGINX_SYNTAX=PASS`, `NGINX_RELOAD=PASS`, `PUBLIC_BRIDGE_LOCATIONS=INSTALLED`, `BACKUP=AVAILABLE_FOR_ROLLBACK`, `EXTERNAL_DNS_TLS_CHECK=NOT_YET_VERIFIED`. Only new public no-auth `/bridge` and `/bridge/` locations added; installer does not change Bridge M1, `/admin/` auth, `/infrastructure/`, DNS, TLS or firewall.
+- **Status:** nginx configuration **INSTALLED + RELOAD PASS**; separate local stats service **DEPLOYED + LOCAL PASS**; **external public route NOT VERIFIED**; Bridge M1 telemetry **NOT ENABLED**, so `unavailable` is expected. Attempted external fetch using assistant web retrieval returned no usable HTTP response, not evidence of external failure or success.
+- Next: independent external client GET with real DNS/SNI/certificate validation: `/bridge/` 200, `/bridge/api/status` 200 with only Homeserver `unavailable`, `/admin/` 401 without credentials, `/metrics/v1` not 200. No further nginx modifications until verified.
