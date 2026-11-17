@@ -19,6 +19,16 @@ class NginxTemplateTests(unittest.TestCase):
         self.assertIn("auth_basic_user_file __EXISTING_ADMIN_HTPASSWD_FILE__;", content)
         self.assertIn("proxy_pass http://127.0.0.1:8894;", content)
 
+    def test_exact_redirect_is_also_protected(self):
+        block = re.search(
+            r"location\s*=\s*/bridge\s*\{([^{}]*)\}",
+            TEMPLATE,
+        )
+        self.assertIsNotNone(block)
+        content = block.group(1)
+        self.assertIn("auth_basic_user_file __EXISTING_ADMIN_HTPASSWD_FILE__;", content)
+        self.assertIn("return 308 /bridge/;", content)
+
     def test_no_external_endpoint_or_existing_monitor_rewrite(self):
         self.assertNotIn("finserver", TEMPLATE.lower())
         self.assertNotIn("proxy_pass http://127.0.0.1:8893", TEMPLATE)
