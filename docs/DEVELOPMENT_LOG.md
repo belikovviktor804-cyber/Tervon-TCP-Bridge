@@ -453,3 +453,10 @@
 - **Status:** CODE PREPARED, NEW_SERVICE NOT DEPLOYED, NGINX UNCHANGED, Bridge M1 running. Next: full CI PASS then operator retry isolated service install; only after `NEW_SERVICE=PASS` and loopback listener verified proceed to separate public nginx step.
 
 - **Полный CI PASS:** [GitHub Actions #44086808700](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44086808700), tested source SHA `2c716c821a41a9ce7b3f71fe69501b290c927b5e`, completed **SUCCESS**. Python readiness and nginx public template tests, shell syntax, stats JS, Go build/vet/unit/race/repeated regression/fuzz passed. Later commits `d2cd65cc` and `ee8f94c8` only documentation. **Homeserver retry NOT YET EXECUTED**; `NEW_SERVICE=PASS` still not confirmed; public nginx not applied.
+
+## 2026-11-17 — Homeserver isolated Bridge Stats deployment PASS
+
+- Operator ran installer from clean SSH checkout `work/m1-framing`, SHA `33a44290921393467d462d285fd9ace300241892`.
+- Preflight: SSH remote, branch, SHA, clean worktree, port, unit, app directory, Python deps, systemd, admin htpasswd all **PASS**. `DYNAMIC_USER_ACCESS=CHECK` validated at runtime by successful HTTP response. Non-blocking systemd-analyze warnings concern existing xfs_scrub and Suricata units; no change to those units.
+- Actual installer output: `LOOPBACK_STATUS=PASS`, `METRICS_STATUS=UNAVAILABLE_EXPECTED`, `LOOPBACK_LISTENER=PASS`, `NEW_SERVICE=PASS`, `NGINX=UNCHANGED`, `BRIDGE_DATA_PLANE=UNCHANGED`, `WEBSITE_INTEGRATION=NOT_YET_ENABLED`. New unit enabled by systemd symlink. **SERVICE DEPLOYED + LOCAL PASS**; Bridge metrics not yet enabled; public nginx page not yet deployed.
+- Next step: read-only audit of effective stats nginx vhost before public `/bridge/` integration without Basic Auth. Preserve `/admin/` auth and `/infrastructure/`, verify nginx syntax, rollback, and external real-DNS TLS route.
