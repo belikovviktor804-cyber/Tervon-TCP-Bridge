@@ -172,6 +172,17 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
 
+#### M2 — TBF1 PAD negotiation и decoder, кодовый пакет (2026-11-18, UNVERIFIED)
+
+- **Ветка:** `work/m2-adaptive-padding`. Draft PR: https://github.com/tervon-software/Tervon-TCP-Bridge/pull/1 (base `work/m1-framing`, **не сливать без PASS**).
+- **Реализован код (но ещё не подтверждён тестами):** `prototype/framing/framing.go` — новый TypePadding=3 только через WritePaddingFrame/ReadFrameWithPadding, legacy ReadFrame и WriteFrame сохраняют жёсткий отказ. `prototype/framing/stream.go` — NewPaddingEncoder/Decoder; PAD после DATA и перед FIN, PAD удаляется до TCP backend; crypto/rand; decoder запрещает PAD до DATA, повторный PAD, >4096 байт на PAD и >25% накопленного полезного объёма.
+- **Согласование:** в `prototype/bridge.go` строгий capability `tbf1-fin,pad1` на /v2/stream, симметричные request/response заголовки, отказ 426 при неподдерживаемом PAD. Старый `tbf1-fin` остаётся default. **Никакого автоматического silent fallback**, потенциально скрывающего ошибку.
+- **Конфигурация:** `prototype/cmd/bridge/main.go` принимает `padding_enabled` (по умолчанию false), только с /v2/stream на клиенте; `padding.DefaultPolicy()` — предварительные консервативные лимиты, НЕ оптимизированные экспериментально.
+- **Тесты записаны:** `prototype/framing/padding_test.go`, `prototype/padding_integration_test.go`, `prototype/padding/policy_test.go`. Проверяют byte-exact, legacy rejection, повреждение/излишки PAD, CAP mismatch, полномочный HTTP/2 mTLS, короткие потоки, OFF, лимиты, изоляцию направлений.
+- **Результат:** CODE_COMMITTED, **CI PASS NOT VERIFIED**, Homeserver/live NOT_RUN, production changes NONE, release NONE. Ожидаются лог GitHub CI, gofmt/vet/race/fuzz и оценка накладных затрат.
+- **Незакрытые части М2:** telemetry PAD по направлениям, config policy bounds/hysteresis, проверка качества адаптации на устойчивых/порционных потоках и измерение CPU/heap/latency, контролируемая live проверка с backup/rollback.
+- **Правило безопасности:** не устанавливать M2 на Homeserver/Finserver и не менять действующий TBF1 до подтверждённой проверки кода и отдельного контролируемого решения.
+
 #### M2 — первый пакет (2026-11-18, UNVERIFIED)
 
 - **Ветка:** `work/m2-adaptive-padding`, основана на M1 docs closure `58a9b61542749f27bef2586d9eb0db1dbaacee05`.
