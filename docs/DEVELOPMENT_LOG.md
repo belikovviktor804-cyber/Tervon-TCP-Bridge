@@ -274,3 +274,13 @@
 - **Fix:** `797f2d93726ded3ef27632ee2e4d590a005ec4fa` restored complete conditional block and final result output in `verify-m1.sh`.
 - **Reverification:** [run #44041281072](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44041281072), SHA `797f2d93726ded3ef27632ee2e4d590a005ec4fa`, **SUCCESS/PASS**: bash syntax, build, vet, unit, race, 3x targeted regression, both 15s fuzz targets.
 - **Important:** opt-in real v1.0.0 compatibility test is compiled but skipped in default CI without `TERVON_V100_BIN`. It remains NOT_RUN with actual release binary. Latest user-confirmed Homeserver PASS remains `8aedaf9e518e9cfbb60529d4ff32c0acb90dabad`. **M1 IN_PROGRESS** until cross-version E2E evidence.
+
+
+## 2026-11-17 — M1 read-only audit and correction batch
+
+- Confirmed M0 is installed and operational: Homeserver `/opt/tervon-tcp-bridge/bridge`, `tervon-bridge-client.service`, SHA-256 `fbc927f33cd0198329bb21ff0b40a5d4e8240bc9a92d3d62c1d9c4e4ec30fc0c`. It differs from published v1.0.0 by design; do not misidentify it as an unknown build.
+- Audited M1 against completed M0 baseline `1805f9a4117afdeba6121f893d855db7be655014`. Found incorrect clean TCP half-close after malformed framed download, incomplete installed-M0 compatibility gate, and known limitation of non-cancelable custom `io.ReadCloser`.
+- Code correction `22a2bfeb11953350891780b1a10993d3c77b4c28`: framed download errors abort local TCP using `SetLinger(0)` instead of signaling successful EOF; regression test `dcf3b5b27ff795ee076003cea2607b6c4fcc080b` checks actual TCP read error.
+- Test harness `8c84e6e56628955af3d036370d7ea51c9e703ae6`: separate checksum-pinned installed M0 and official v1.0.0 compatibility checks; no production processes or configuration touched.
+- Initial M0 verification shell addition `5dc48cf87097f556055d6c6d3d62234b42715cb4` caused syntax failure, CI #44044892316 FAIL at `bash -n`; repaired in `307c59564f3a49317227488e32c2e8f7b57a7719`. **Re-run CI pending** at documentation time; never treat a failed run as PASS.
+- No server commands executed, no production deployment, no M2 work. Next gate: CI PASS on corrected code, followed by isolated Homeserver test with `TERVON_M0_BIN=/opt/tervon-tcp-bridge/bridge`; retain M1 IN_PROGRESS until verified.
