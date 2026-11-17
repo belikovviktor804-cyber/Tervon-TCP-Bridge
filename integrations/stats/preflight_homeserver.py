@@ -49,7 +49,7 @@ def checks() -> list[tuple[str, str, str]]:
     code, sha = command("git", "rev-parse", "HEAD")
     record("GIT_HEAD", code == 0 and bool(re.fullmatch(r"[0-9a-f]{40}", sha)),
            "commit unavailable" if code != 0 else "commit verified locally")
-    code, status = command("git", "status", "--porcelain")
+    code, status = command("git", "--no-optional-locks", "status", "--porcelain")
     record("GIT_CLEAN", code == 0 and not status,
            "uncommitted changes; do not overwrite" if status else "clean checkout")
 
