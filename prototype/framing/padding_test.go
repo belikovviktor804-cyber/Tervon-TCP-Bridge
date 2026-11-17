@@ -82,3 +82,31 @@ func FuzzPaddingDecoder(f *testing.F){
         _,_ =io.ReadAll(NewPaddingDecoder(bytes.NewReader(data)))
     })
 }
+
+func TestPaddingDecoderRejectsExcessAndPlacement(t *testing.T){
+    cases:=map[string]func(*bytes.Buffer){
+        "pad-before-data":func(b *bytes.Buffer){_ = WritePaddingFrame(b,[]byte{1})},
+        "double-pad":func(b *bytes.Buffer){
+            _=WriteFrame(b,TypeData,bytes.Repeat([]byte{1},1024))
+            _=WritePaddingFrame(b,[]byte{1})
+            _=WritePaddingFrame(b,[]byte{2})
+        },
+        "frame-cap":func(b *bytes.Buffer){
+            _=WriteFrame(b,TypeData,bytes.Repeat([]byte{1},16384))
+            _=WritePaddingFrame(b,make([]byte,4097))
+        },
+        "ratio-cap":func(b *bytes.Buffer){
+            _=WriteFrame(b,TypeData,bytes.Repeat([]byte{1},100))
+            _=WritePaddingFrame(b,make([]byte,26))
+        },
+    }
+    for name,build:=range cases {
+        t.Run(name,func(t *testing.T){
+            var b bytes.Buffer
+            build(&b)
+            _=WriteFrame(&b,TypeFIN,nil)
+            _,err:=io.ReadAll(NewPaddingDecoder(&b))
+            if !errors.Is(err,ErrMalformed){t.Fatalf("invalid padding accepted: %v",err)}
+        })
+    }
+}
