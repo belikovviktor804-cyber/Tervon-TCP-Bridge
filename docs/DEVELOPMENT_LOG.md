@@ -494,3 +494,11 @@
 - Operator fast-forwarded SSH checkout `work/m1-framing` from `694f790` to `935b9a8` and executed the presentation-only copy command for `bridge_panel.html` and `bridge_panel.css` into `/opt/tervon/bridge-stats/`. No service reload was requested.
 - Operator's local HTTP GET `http://127.0.0.1:8894/bridge/` returned HTML with `/static/style.css` and `/static/monitor-theme.css?v=20261020-1`. **SHARED CSS REFERENCES=PASS**. This does **not** prove that public nginx serves these assets to a browser; visual parity still awaits observation.
 - Stats backend service remains separately installed; actual Bridge M1 metrics still **NOT ENABLED**. Next step only if visual style remains wrong: diagnose public CSS HTTP status and mapping; avoid new interface or changes to running Bridge.
+
+## 2026-11-17 — request: Bridge navigation in all monitor pages and actual Homeserver metrics
+
+- Operator requested a `TCP Bridge` navigation link on all existing site pages and actual metrics collection; also reported a new bug (description pending).
+- Reviewed actual `vpn.zip` snippets: live `index.html` and `ai-prosecutor.html` both use `<nav class="site-nav">`; page implementations differ (multiline vs compact), so no global HTML replacement. Current site has more templates than the supplied archive; do not guess their structures.
+- Prepared `integrations/stats/add-site-nav-link.py` (commit `64d1436d`): **dry-run by default** against only current `/opt/xray-blocker/web-dashboard/templates/*.html`, requires exactly one existing `site-nav` each, idempotent, preserves surrounding HTML, per-file rollback backup before an opt-in `--apply`. No new service, dependency, nginx or Bridge changes. Unit tests commit `429d433b`.
+- Bridge CLI source has existing `metrics_listen` gated to a literal loopback listener and a `telemetry.New()` Registry; existing stats adapter accepts only local `/metrics/v1`. Production M1 metrics remain disabled; enabling the existing CLI listener requires checking actual live unit, config path/port and a controlled restart/rollback; **not performed**, do not risk running M1 while the bug is not yet described.
+- **Status:** NAV CODE PREPARED, SITE FILES UNCHANGED, METRICS NOT ENABLED, BUG INFORMATION PENDING.
