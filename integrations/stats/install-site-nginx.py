@@ -83,9 +83,12 @@ def render_site(original: str) -> str:
     """
     lines = original.splitlines(keepends=True)
     starts = [i for i, line in enumerate(lines) if SERVER.match(line)]
+    # Reject extra server declarations even if they use an inline body.
+    all_servers = [i for i, line in enumerate(lines)
+                   if re.match(r"^\\s*server\\s*\\{", line)]
     https = [i for i, line in enumerate(lines) if HTTPS.match(line)]
     names = [i for i, line in enumerate(lines) if NAME.match(line)]
-    if len(starts) != 2 or len(https) != 1 or len(names) != 2:
+    if len(starts) != 2 or len(all_servers) != 2 or len(https) != 1 or len(names) != 2:
         raise ValueError("unexpected stats vhost layout")
     if not (starts[1] < https[0] <= starts[1] + 4):
         raise ValueError("HTTPS listen is not near expected second server opener")
