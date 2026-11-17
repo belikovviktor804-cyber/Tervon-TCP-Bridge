@@ -316,3 +316,12 @@
 - User directive: no new test environments or unnecessary test files on hosts; deploy directly to live servers with M0 backup and rollback, verifying real traffic. **Not yet deployed**.
 
 - **Corrected live-path installer CI PASS:** [GitHub Actions #44046731395](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44046731395), tested script/code commit `bd062278e78a502208927f011a0f5760472521f2`, completed SUCCESS (Bash syntax, Go build/vet/unit/race, repeated M1 regression, bounded fuzz). This is **not** a live deployment/rollback test. Next: install on Finserver first, then Homeserver, verify real traffic and keep M0 backups.
+
+
+## 2026-11-17 — First live Finserver M1 activation FAILED; M0 automatic rollback PASS
+
+- User-confirmed preflight on Finserver: `tervon-bridge-server.service`, active executable `/opt/tervon-bridge-linux-amd64`, PID `35365`, disk and process M0 SHA `fbc927f33cd0198329bb21ff0b40a5d4e8240bc9a92d3d62c1d9c4e4ec30fc0c`.
+- User transferred M1 candidate and confirmed matching SHA across Homeserver and Finserver. Candidate SHA `e42545d56ad05e94280466ddf92dfbcaa4955d716511f839de2eec0ae21675e5`.
+- Live `install tervon-bridge-server.service` created backup `/opt/tervon-tcp-bridge/backups/m0-qVNyeBJK` and attempted restart. **`FAIL: M1 restart/verification`**. Installer automatically restored backed-up M0 and reported **`M0_AUTO_ROLLBACK=PASS`**.
+- **No M1 deployment PASS**. Root cause not yet known: could be process start failure or SHA/liveness verification. Need read-only Finserver journal/systemd/process SHA evidence before modifying anything. **Do not repeat install** or update Homeserver until failure is explained and corrected.
+- Separate working SOCKS5/echo services were not targeted by the installer.
