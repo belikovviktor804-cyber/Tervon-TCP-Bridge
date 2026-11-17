@@ -33,7 +33,8 @@ class UnitTemplateTests(unittest.TestCase):
         self.assertNotIn("unified_monitor:app", UNIT)
         self.assertNotIn("8893", UNIT)
         self.assertIn("proxy_pass http://127.0.0.1:8894;", NGINX)
-        self.assertNotIn("auth_basic off;", NGINX)
+        self.assertEqual(NGINX.count("auth_basic off;"), 2)
+        self.assertNotIn("auth_basic_user_file", NGINX)
 
 
 if __name__ == "__main__":
