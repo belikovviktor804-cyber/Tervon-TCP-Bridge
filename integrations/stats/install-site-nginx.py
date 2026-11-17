@@ -182,6 +182,10 @@ def install(repo: Path) -> None:
         try:
             nginx_test()
             print("NGINX_CONFIG_ROLLBACK=PASS")
+            # Do not accumulate stale backups after a verified failed install.
+            BACKUP.unlink(missing_ok=True)
+            BACKUP_DIR.rmdir()
+            SNIPPET_DIR.rmdir()
         except Exception:
             print("NGINX_CONFIG_ROLLBACK=NEEDS_MANUAL_REVIEW")
         raise
@@ -204,6 +208,9 @@ def rollback(repo: Path) -> None:
         if result.returncode != 0:
             raise RuntimeError("nginx reload failed during rollback")
         SNIPPET.unlink()
+        BACKUP.unlink()
+        BACKUP_DIR.rmdir()
+        SNIPPET_DIR.rmdir()
         print("NGINX_ROLLBACK=PASS")
     except Exception:
         atomic_copy_bytes(SITE, current, BACKUP)
