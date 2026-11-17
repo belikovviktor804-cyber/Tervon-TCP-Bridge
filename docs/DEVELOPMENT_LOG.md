@@ -504,3 +504,11 @@
 - **Status:** NAV CODE PREPARED, SITE FILES UNCHANGED, METRICS NOT ENABLED, BUG INFORMATION PENDING.
 
 - **CI PASS** [GitHub Actions #44095066056](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44095066056), tested SHA `429d433b514f22047628811e8f15d67a51d6b0b5`, **SUCCESS** (navigation unit tests + full existing suite); later `7a4671db` documentation only. This confirms code tests, **not deployment to site**.
+
+## 2026-11-17 — FAIL: attempt to enable live Homeserver M1 telemetry; rollback invoked
+
+- Operator command used existing client unit `tervon-bridge-client.service` (`ExecStart=/opt/tervon-tcp-bridge/bridge -config /etc/tervon-tcp-bridge/client.json`), free loopback port 8895, and attempted to add `metrics_listen=127.0.0.1:8895` to active config. `CONFIG_PREFLIGHT=PASS`; then restarted the live Bridge client and immediately tried GET `http://127.0.0.1:8895/metrics/v1`.
+- **Observed FAIL:** curl `(7) Failed to connect` to 8895; JSON parser subsequently failed on empty stdin; Python apport traceback is a consequence of failed parse, not an identified Bridge error. Shell ERR trap ran rollback and printed `METRICS_ACTIVATION=ROLLBACK`. Code never reached dashboard env update or dashboard reload.
+- **Rollback scope per issued script:** restore original client.json from `client.json.before-metrics`, remove new `/etc/tervon/bridge-stats.env` (preflight required nonexistent), restart client and stats services. `ROLLBACK` message alone does NOT prove live connectivity or effective restored config; require read-only verification.
+- **No further restart until diagnosis.** Suspected causes not established: absence of listener support in deployed binary, startup timing, config parse/startup failure, or restrictions. Next read-only checks: `systemctl show` active states and PID, `ss` listeners 8895, `journalctl -u tervon-bridge-client.service -n 45` filtered for secrets, file sha256 vs expected running M1, JSON presence/absence of metrics_listen. Recover working service first, then isolate metric support against actual binary before new attempt.
+- **Status:** TELEMETRY ACTIVATION FAIL; rollback invoked but SERVICE RECOVERY NOT YET VERIFIED. User's unrelated newly discovered bug still not described.
