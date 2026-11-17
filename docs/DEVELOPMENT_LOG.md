@@ -284,3 +284,5 @@
 - Test harness `8c84e6e56628955af3d036370d7ea51c9e703ae6`: separate checksum-pinned installed M0 and official v1.0.0 compatibility checks; no production processes or configuration touched.
 - Initial M0 verification shell addition `5dc48cf87097f556055d6c6d3d62234b42715cb4` caused syntax failure, CI #44044892316 FAIL at `bash -n`; repaired in `307c59564f3a49317227488e32c2e8f7b57a7719`. **Re-run CI pending** at documentation time; never treat a failed run as PASS.
 - No server commands executed, no production deployment, no M2 work. Next gate: CI PASS on corrected code, followed by isolated Homeserver test with `TERVON_M0_BIN=/opt/tervon-tcp-bridge/bridge`; retain M1 IN_PROGRESS until verified.
+
+- **CI recovery verified:** [run #44044975373](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44044975373) on `307c59564f3a49317227488e32c2e8f7b57a7719` — **SUCCESS/PASS** (bash syntax, build, vet, unit, race, repeated M1 regressions, FuzzReadFrame, FuzzStreamDecoder). This does not exercise the opt-in installed M0/v1.0.0 binary compatibility checks.
