@@ -29,6 +29,7 @@
 - `stats.xrayvless.online` получает **только локальные метрики Encapsulator на Homeserver**. Finserver в мониторинге сайта не участвует: не создавать удалённый сборщик, туннель, relay, внешний metrics listener или показатели Finserver.
 - Подготовленный адаптер `integrations/stats/bridge_metrics.py` читает один приватный loopback `/metrics/v1`; подготовленные `bridge_panel.html`, `bridge_panel.js`, `bridge_panel.css` — **только исходники, не установка**.
 - Перед добавлением `/bridge/api/status` проверить фактическую авторизацию сайта. Существующий `/infrastructure/api/infrastructure` и его семипольный контракт не изменять.
+- Проверка nginx на Homeserver подтвердила `/admin/` и `/admin/api/` с HTTP Basic Auth и upstream 8000, а `/infrastructure/` с upstream 8893 без видимой авторизации. Для Bridge выбран **отдельный** `/bridge/` с тем же локальным nginx `auth_basic_user_file` и **отдельным** loopback-only FastAPI приложением `integrations/stats/bridge_site.py`. Не встраивать в действующий `unified_monitor.py` и не менять инфраструктурный API. Порт 8894 — кандидат, не подтверждён как свободный. Шаблон `integrations/stats/nginx-bridge.conf.example` не применять без аудита и согласования; обязательны `nginx -t`, внешний 401 без учётных данных и 200 с учётными данными, откат.
 - Полный PASS CI адаптера не равен внедрению на сайте. Действующие службы, nginx и Bridge не изменять без согласованного плана и отката. M1 остаётся текущим модулем.
 
 ## Неизменные правила работы
