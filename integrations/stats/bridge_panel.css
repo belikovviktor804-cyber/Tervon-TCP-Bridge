@@ -1,35 +1,7 @@
-/* Optional scoped styling for the Homeserver-only Bridge panel.
- * Colors inherit the existing monitoring site's theme where possible.
- */
-.tb-panel {
-  color: inherit;
-  max-width: 100%;
-}
-.tb-panel .tb-meta,
-.tb-panel .tb-footnote {
-  color: var(--text-muted, #667085);
-  font-size: 0.875rem;
-}
-.tb-panel .tb-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
-  gap: 0.75rem;
-  margin: 1rem 0;
-}
-.tb-panel .tb-grid > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  border: 1px solid var(--border-color, #d0d5dd);
-  border-radius: 0.5rem;
-  padding: 0.9rem;
-}
-.tb-panel .tb-grid span {
-  color: var(--text-muted, #667085);
-  font-size: 0.875rem;
-}
-.tb-panel .tb-grid strong {
-  font-size: 1.1rem;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
+/* Bridge-specific spacing only. Typography, colors, cards and navigation
+   come from the existing /static/style.css and /static/monitor-theme.css. */
+.tb-panel .panel { margin-bottom: 1.5rem; }
+.tb-panel .tb-meta,.tb-panel .tb-footnote { color: var(--text-muted); font-size: .875rem; }
+.tb-panel .tb-meta { margin-top: .5rem; }
+.tb-panel .stats-grid .number { font-size: clamp(1rem, 1.9vw, 1.65rem); overflow-wrap: anywhere; }
+.tb-panel .tb-footnote { padding-bottom: 1rem; }
