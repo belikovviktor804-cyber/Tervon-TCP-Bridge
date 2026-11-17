@@ -172,6 +172,16 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
 
+#### M2 — next code checkpoint (2026-11-18, NOT VERIFIED on latest SHA)
+
+- Source branch `work/m2-adaptive-padding` is still a **draft PR #1** against `work/m1-framing`.
+- Fixed active-state cleanup on failed streams: `Encoder.Abort()` clears state without sending FIN; both client/server defer it for failed/incomplete sessions. Regression test checks no false FIN.
+- Extended HTTP/2 mTLS integration with test-only rapid detector thresholds to require **actual PAD emission in upload and download**, verify byte-exact echo and no leaked ACTIVE after stream close. This is new code/test, **not a verified PASS**.
+- Corrected classifier to reset **current-burst useful bytes** after long idle gaps, preserving cumulative byte/overhead accounting. Regression test blocks short post-idle burst from reactivating using historic bytes.
+- CI now additionally runs 3x M2 race E2E, 15s M2 decoder fuzz and detector CPU/allocation benchmark (`f12a657798f840e804ee56fc579f8376123f0ad0`).
+- Contract and controlled verification requirements: `docs/M2_PADDING_PROTOCOL.md`.
+- **Last confirmed PASS remains** initial GitHub Actions #44195491683 at `fe4bc73...`. Latest implementation includes subsequent code/telemetry/test changes; **latest CI PASS not yet confirmed**. Homeserver and Finserver production stay on M1; no modifications performed. M2 IN_PROGRESS, v1.0.1 NOT_RELEASED.
+
 #### M2 — telemetry extension and follow-up tests (2026-11-18, awaiting CI)
 
 - Added aggregate PAD metrics in `prototype/telemetry/metrics.go` and `prototype/telemetry/prometheus.go`: upload/download PAD bytes, overhead% relative to application bytes, ACTIVE/OFF per direction and transition counts. The metric intentionally counts **PAD payload only**, not TBF1 frame headers, HTTP/2 or TLS overhead. No IDs, IPs, payload content or dynamic labels.
