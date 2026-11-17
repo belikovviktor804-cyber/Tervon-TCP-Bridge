@@ -34,7 +34,15 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 2
 fi
 
+# Verify the exact branch tip over SSH before testing: never certify stale code.
+git fetch --quiet origin work/m1-framing
 sha="$(git rev-parse HEAD)"
+remote_sha="$(git rev-parse FETCH_HEAD)"
+if [[ "$sha" != "$remote_sha" ]]; then
+  echo "FAIL: local HEAD $sha differs from remote branch $remote_sha" >&2
+  echo "Update this isolated checkout with git merge --ff-only FETCH_HEAD, then rerun." >&2
+  exit 2
+fi
 echo "M1_VERIFY_BRANCH=$branch"
 echo "M1_VERIFY_SHA=$sha"
 echo "M1_VERIFY_GO=$(go version)"
