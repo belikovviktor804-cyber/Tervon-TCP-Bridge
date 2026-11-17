@@ -46,7 +46,7 @@ class PreflightTests(unittest.TestCase):
                 (0, "work/m1-framing"),
             ("git", "rev-parse", "HEAD"):
                 (0, "a" * 40),
-            ("git", "status", "--porcelain"):
+            ("git", "--no-optional-locks", "status", "--porcelain"):
                 (0, ""),
             ("ss", "-H", "-ltn", "( sport = :8894 )"):
                 (0, ""),
