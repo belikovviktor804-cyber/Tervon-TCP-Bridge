@@ -12,6 +12,7 @@ const (
 	Version    byte = 1
 	TypeData   byte = 1
 	TypeFIN    byte = 2
+	TypePadding byte = 3
 	MaxPayload      = 64 * 1024
 	HeaderSize      = 10
 )
@@ -29,7 +30,9 @@ type Frame struct {
 	Payload []byte
 }
 
-// WriteFrame writes a single bounded frame. A failed write invalidates the stream.
+// WriteFrame writes M1 DATA/FIN only. Padding requires explicit negotiation
+// and WritePaddingFrame; never silently enable it on legacy streams.
+// A failed write invalidates the stream.
 func WriteFrame(w io.Writer, kind byte, payload []byte) error {
 	if kind != TypeData && kind != TypeFIN {
 		return ErrType
@@ -43,15 +46,7 @@ func WriteFrame(w io.Writer, kind byte, payload []byte) error {
 	if kind == TypeData && len(payload) == 0 {
 		return ErrMalformed
 	}
-	var h [HeaderSize]byte
-	copy(h[:4], magic[:])
-	h[4] = Version
-	h[5] = kind
-	binary.BigEndian.PutUint32(h[6:], uint32(len(payload)))
-	if err := writeAll(w, h[:]); err != nil {
-		return err
-	}
-	return writeAll(w, payload)
+	return writeFrame(w, kind, payload)
 }
 func writeAll(w io.Writer, b []byte) error {
 	for len(b) > 0 {
@@ -70,9 +65,32 @@ func writeAll(w io.Writer, b []byte) error {
 	return nil
 }
 
+// WritePaddingFrame sends an agreed padding-only frame. The caller must ensure
+// that the peer negotiated pad1. Padding is never included in useful payload.
+func WritePaddingFrame(w io.Writer, payload []byte) error {
+    if len(payload) == 0 { return ErrMalformed }
+    if len(payload) > MaxPayload { return ErrSize }
+    return writeFrame(w, TypePadding, payload)
+}
+
+func writeFrame(w io.Writer, kind byte, payload []byte) error {
+    var h [HeaderSize]byte
+    copy(h[:4], magic[:])
+    h[4] = Version
+    h[5] = kind
+    binary.BigEndian.PutUint32(h[6:], uint32(len(payload)))
+    if err := writeAll(w, h[:]); err != nil { return err }
+    return writeAll(w, payload)
+}
+
 // ReadFrame limits allocations before reading payload. A partial header is malformed;
 // clean EOF between frames is returned as io.EOF.
-func ReadFrame(r io.Reader) (Frame, error) {
+func ReadFrame(r io.Reader) (Frame, error) { return readFrame(r, false) }
+
+// ReadFrameWithPadding is allowed only after pad1 capability negotiation.
+func ReadFrameWithPadding(r io.Reader) (Frame, error) { return readFrame(r, true) }
+
+func readFrame(r io.Reader, allowPadding bool) (Frame, error) {
 	var h [HeaderSize]byte
 	n, err := io.ReadFull(r, h[:])
 	if err != nil {
@@ -88,14 +106,14 @@ func ReadFrame(r io.Reader) (Frame, error) {
 		return Frame{}, ErrVersion
 	}
 	kind := h[5]
-	if kind != TypeData && kind != TypeFIN {
+	if kind != TypeData && kind != TypeFIN && !(allowPadding && kind == TypePadding) {
 		return Frame{}, ErrType
 	}
 	size := binary.BigEndian.Uint32(h[6:])
 	if size > MaxPayload {
 		return Frame{}, ErrSize
 	}
-	if (kind == TypeFIN && size != 0) || (kind == TypeData && size == 0) {
+	if (kind == TypeFIN && size != 0) || ((kind == TypeData || kind == TypePadding) && size == 0) {
 		return Frame{}, ErrMalformed
 	}
 	p := make([]byte, int(size))
