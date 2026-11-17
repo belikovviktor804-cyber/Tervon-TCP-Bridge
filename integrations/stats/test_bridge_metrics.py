@@ -68,42 +68,40 @@ class BridgeMetricsTests(unittest.TestCase):
         Handler.payload = snapshot()
         Handler.status = 200
 
-    def test_two_nodes_independent_and_sanitized(self):
-        collector = module.BridgeMetricsCollector({
-            "homeserver": self.endpoint, "finserver": self.endpoint
-        })
+    def test_homeserver_only_and_sanitized(self):
+        collector = module.BridgeMetricsCollector(self.endpoint)
         result = collector.collect()
         self.assertEqual(result["schema"], "tervon.bridge.dashboard.v1")
-        for name in ("homeserver", "finserver"):
-            node = result["nodes"][name]
-            self.assertEqual(node["status"], "ok")
-            self.assertEqual(node["metrics"]["sessions_active"], 2)
-            self.assertEqual(node["metrics"]["errors"]["timeout"], 1)
-            self.assertEqual(node["metrics"]["padding_state"], "NOT_IMPLEMENTED")
-            self.assertNotIn("schema", node["metrics"])
-            self.assertNotIn("client_ip", node["metrics"])
+        self.assertEqual(set(result["nodes"]), {"homeserver"})
+        node = result["nodes"]["homeserver"]
+        self.assertEqual(node["status"], "ok")
+        self.assertEqual(node["metrics"]["sessions_active"], 2)
+        self.assertEqual(node["metrics"]["errors"]["timeout"], 1)
+        self.assertEqual(node["metrics"]["padding_state"], "NOT_IMPLEMENTED")
+        self.assertNotIn("schema", node["metrics"])
+        self.assertNotIn("client_ip", node["metrics"])
 
     def test_unavailable_does_not_raise(self):
         Handler.status = 503
-        node = module.BridgeMetricsCollector({"homeserver": self.endpoint}).collect()
+        node = module.BridgeMetricsCollector(self.endpoint).collect()
         self.assertEqual(node["nodes"]["homeserver"], {
             "status": "unavailable", "metrics": None
         })
 
     def test_invalid_payload_fails_closed(self):
         Handler.payload = {"schema": "wrong", "secret": "not-for-dashboard"}
-        node = module.BridgeMetricsCollector({"homeserver": self.endpoint}).collect()
+        node = module.BridgeMetricsCollector(self.endpoint).collect()
         self.assertEqual(node["nodes"]["homeserver"]["status"], "unavailable")
         self.assertNotIn("secret", json.dumps(node))
 
     def test_redirect_rejected(self):
         Handler.status = 302
-        node = module.BridgeMetricsCollector({"homeserver": self.endpoint}).collect()
+        node = module.BridgeMetricsCollector(self.endpoint).collect()
         self.assertEqual(node["nodes"]["homeserver"]["status"], "unavailable")
 
     def test_oversized_payload_rejected(self):
         Handler.payload = {"padding": "x" * (module.MAX_RESPONSE_BYTES + 1)}
-        node = module.BridgeMetricsCollector({"homeserver": self.endpoint}).collect()
+        node = module.BridgeMetricsCollector(self.endpoint).collect()
         self.assertEqual(node["nodes"]["homeserver"]["status"], "unavailable")
 
     def test_non_loopback_rejected(self):
@@ -117,11 +115,11 @@ class BridgeMetricsTests(unittest.TestCase):
             "http://127.0.0.1:1234@evil.example/metrics/v1",
         ):
             with self.subTest(url=url), self.assertRaises(ValueError):
-                module.BridgeMetricsCollector({"homeserver": url})
+                module.BridgeMetricsCollector(url)
 
-    def test_unknown_node_rejected(self):
+    def test_remote_node_configuration_rejected(self):
         with self.assertRaises(ValueError):
-            module.BridgeMetricsCollector({"arbitrary": self.endpoint})
+            module.BridgeMetricsCollector({"finserver": self.endpoint})
 
 
 if __name__ == "__main__":
