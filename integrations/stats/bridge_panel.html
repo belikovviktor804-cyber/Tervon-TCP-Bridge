@@ -1,20 +1,39 @@
-<!-- Embeddable Bridge panel. Include bridge_panel.js after this fragment.
-     Requires a separately reviewed, public read-only same-origin /bridge/api/status.
-     No live dashboard routes or services are changed by this file. -->
-<section id="tb-panel" class="tb-panel" aria-labelledby="tb-heading">
-  <h2 id="tb-heading">Tervon TCP Bridge — Homeserver</h2>
-  <p id="tb-status" role="status" aria-live="polite">Статистика загружается…</p>
-  <p class="tb-meta">Обновлено: <time id="tb-updated">—</time></p>
-  <div class="tb-grid">
-    <div><span>Активные TCP-сессии</span><strong id="tb-sessions-active">—</strong></div>
-    <div><span>Начато / завершено / отклонено</span><strong id="tb-sessions-counts">—</strong></div>
-    <div><span>Полезный трафик ↑ / ↓</span><strong id="tb-bytes">—</strong></div>
-    <div><span>Backend: успешно / ошибки</span><strong id="tb-backend">—</strong></div>
-    <div><span>Установка соединения p50 / p95 / p99</span><strong id="tb-latency">—</strong></div>
-    <div><span>Подтверждённые TLS 1.3 + H2 + mTLS</span><strong id="tb-tls">—</strong></div>
-    <div><span>Uptime / goroutines / память</span><strong id="tb-runtime">—</strong></div>
-    <div><span>Padding / Jitter</span><strong id="tb-adaptation">—</strong></div>
-    <div><span>Ошибки (суммарно)</span><strong id="tb-errors">—</strong></div>
+<!-- Bridge uses the existing monitoring site's assets and navigation.
+     The local-only metrics adapter remains separate; this is presentation only. -->
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/monitor-theme.css?v=20261020-1">
+<div class="container">
+<nav class="site-nav" aria-label="Навигация мониторинга">
+<a href="/health">Сервер</a>
+<a href="/inventory">ПО и службы</a>
+<a href="/sensors">Датчики защиты</a>
+<a href="/all">Блокировки</a>
+<a href="/blacklist">Чёрный список</a>
+<a href="/crowdsec">Защита</a>
+<a href="/ai-prosecutor">AI-Prosecutor</a>
+<a href="/infrastructure/">Инфраструктура</a>
+<a href="/dns">DNS</a>
+<a href="/">Обзор</a>
+<a href="/bridge/" class="active" aria-current="page">TCP Bridge</a>
+<a href="/admin/">Admin</a>
+</nav>
+<main id="tb-panel" class="tb-panel">
+  <h1 class="page-title">Tervon TCP Bridge</h1>
+  <div class="panel">
+    <p id="tb-status" role="status" aria-live="polite">Статистика загружается…</p>
+    <p class="tb-meta">Обновлено: <time id="tb-updated">—</time></p>
   </div>
-  <p class="tb-footnote">Отображаются только агрегированные показатели локального Encapsulator на Homeserver. Полезные байты не равны полному сетевому трафику.</p>
-</section>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="number" id="tb-sessions-active">—</div><div class="label">Активные TCP-сессии</div></div>
+    <div class="stat-card"><div class="number" id="tb-sessions-counts">—</div><div class="label">Начато / завершено / отклонено</div></div>
+    <div class="stat-card"><div class="number" id="tb-bytes">—</div><div class="label">Полезный трафик ↑ / ↓</div></div>
+    <div class="stat-card"><div class="number" id="tb-backend">—</div><div class="label">Backend: успешно / ошибки</div></div>
+    <div class="stat-card"><div class="number" id="tb-latency">—</div><div class="label">Соединение p50 / p95 / p99, мс</div></div>
+    <div class="stat-card"><div class="number" id="tb-tls">—</div><div class="label">TLS 1.3 + HTTP/2 + mTLS</div></div>
+    <div class="stat-card"><div class="number" id="tb-runtime">—</div><div class="label">Uptime / goroutines / память</div></div>
+    <div class="stat-card"><div class="number" id="tb-adaptation">—</div><div class="label">Padding / Jitter</div></div>
+    <div class="stat-card"><div class="number" id="tb-errors">—</div><div class="label">Ошибки (суммарно)</div></div>
+  </div>
+  <p class="tb-footnote">Агрегированные показатели только Encapsulator на Homeserver. Полезные байты не равны общему сетевому трафику.</p>
+</main>
+</div>
