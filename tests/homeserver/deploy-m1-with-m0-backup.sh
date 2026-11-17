@@ -22,7 +22,6 @@ if (( EUID != 0 )); then echo "FAIL: run as root" >&2; exit 2; fi
 for cmd in systemctl sha256sum flock cp mv mktemp awk mkdir chmod readlink sleep; do
   command -v "$cmd" >/dev/null || { echo "FAIL: missing $cmd" >&2; exit 2; }
 done
-if [[ ! -f "$binary" || -L "$binary" ]]; then echo "FAIL: unexpected active binary" >&2; exit 2; fi
 fragment=$(systemctl show "$unit" -p FragmentPath --value)
 exec_line=$(systemctl show "$unit" -p ExecStart --value)
 if [[ ! -f "$fragment" || ! "$exec_line" =~ (^|[[:space:]])path=([^[:space:];]+) ]]; then
@@ -52,7 +51,7 @@ if [[ "$mode" != rollback ]]; then
   fi
 fi
 if [[ "$mode" == inspect ]]; then
-  printf 'SERVICE=%s\nUNIT=%s\nRUNNING_PID=%s\nACTIVE_SHA256=%s\nRUNNING_SHA256=%s\n' "$unit" "$fragment" "$pid" "$installed_sha" "$running_sha"
+  printf 'SERVICE=%s\nUNIT=%s\nBINARY=%s\nRUNNING_PID=%s\nACTIVE_SHA256=%s\nRUNNING_SHA256=%s\n' "$unit" "$fragment" "$binary" "$pid" "$installed_sha" "$running_sha"
   exit 0
 fi
 mkdir -p "$backup_root"
@@ -113,7 +112,7 @@ if [[ "$mode" == install ]]; then
   if [[ -d /etc/tervon-tcp-bridge ]]; then
     cp -a /etc/tervon-tcp-bridge "$backup/config"
   fi
-  printf 'UNIT=%s\nOLD_SHA256=%s\nNEW_SHA256=%s\n' "$unit" "$installed_sha" "$new_sha" >"$backup/manifest"
+  printf 'UNIT=%s\nBINARY=%s\nOLD_SHA256=%s\nNEW_SHA256=%s\n' "$unit" "$binary" "$installed_sha" "$new_sha" >"$backup/manifest"
   if [[ "$(sha256sum "$backup/bridge" | awk '{print $1}')" != "$installed_sha" ]]; then
     echo "FAIL: backup integrity check" >&2; exit 1
   fi
