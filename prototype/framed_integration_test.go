@@ -5,6 +5,7 @@ import (
  "context"
  "crypto/sha256"
  "crypto/tls"
+ "errors"
  "fmt"
  "io"
  "net"
@@ -13,6 +14,7 @@ import (
  "strings"
  "testing"
  "time"
+ "tervon-tcp-bridge/framing"
 )
 
 func TestFramedByteExact(t *testing.T) {
@@ -116,4 +118,32 @@ func TestFramedHalfCloseResponseAfterUploadEOF(t *testing.T) {
  case <-time.After(4*time.Second):t.Fatal("handler did not terminate")}
  select {case err:=<-backendDone:if err!=nil {t.Fatal(err)}
  case <-time.After(4*time.Second):t.Fatal("backend did not terminate")}
+}
+
+func TestFramedRejectsTruncatedDownload(t *testing.T) {
+ cert,pool:=cert(t)
+ handler:=http.HandlerFunc(func(w http.ResponseWriter,r *http.Request) {
+  if r.URL.Path!="/v2/stream" {http.NotFound(w,r);return}
+  w.Header().Set("Tervon-Wire-Version","1")
+  w.Header().Set("Tervon-Wire-Capability","tbf1-fin")
+  w.WriteHeader(http.StatusOK)
+  _,_=w.Write([]byte("TBF1")) // Incomplete frame header, no FIN.
+ })
+ hs:=httptest.NewUnstartedServer(handler)
+ hs.EnableHTTP2=true
+ hs.TLS=&tls.Config{Certificates:[]tls.Certificate{cert},ClientAuth:tls.RequireAndVerifyClientCert,ClientCAs:pool,NextProtos:[]string{"h2"}}
+ hs.StartTLS()
+ defer hs.Close()
+ cl:=NewClient(&tls.Config{RootCAs:pool,ServerName:"example.com",Certificates:[]tls.Certificate{cert}},hs.URL+"/v2/stream","vpn")
+ defer cl.HTTP.CloseIdleConnections()
+ a,peer:=net.Pipe()
+ defer peer.Close()
+ result:=make(chan error,1)
+ go func(){result<-cl.Handle(a)}()
+ select {
+ case err:=<-result:
+  if !errors.Is(err,framing.ErrMalformed) {t.Fatalf("truncated framed response: got %v, want ErrMalformed",err)}
+ case <-time.After(5*time.Second):
+  t.Fatal("truncated framed response blocked handler")
+ }
 }
