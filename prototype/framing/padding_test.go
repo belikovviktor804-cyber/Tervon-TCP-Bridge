@@ -131,3 +131,23 @@ func TestPaddingEncoderCallbacksAndFinalOff(t *testing.T){
     if emitted==0 || emitted!=enc.PaddingBytes(){t.Fatalf("accounting emitted=%d state=%d",emitted,enc.PaddingBytes())}
     if len(changes)!=2 || !changes[0] || changes[1]{t.Fatalf("active transition leak: %v",changes)}
 }
+
+func TestPaddingAbortClearsActivityWithoutFIN(t *testing.T){
+    p:=padding.DefaultPolicy()
+    p.MinDuration=time.Nanosecond
+    p.MinSamples=2
+    p.MinUsefulBytes=1024
+    var b bytes.Buffer
+    e,err:=NewPaddingEncoder(&b,p);if err!=nil{t.Fatal(err)}
+    events:=[]bool{}
+    e.SetObservers(nil,func(active bool){events=append(events,active)})
+    clock:=time.Unix(1234,0)
+    e.now=func()time.Time{clock=clock.Add(time.Millisecond);return clock}
+    for i:=0;i<5;i++{if _,err:=e.Write(bytes.Repeat([]byte{2},1024));err!=nil{t.Fatal(err)}}
+    e.Abort()
+    e.Abort()
+    if len(events)!=2 || !events[0] || events[1]{t.Fatalf("invalid transitions %v",events)}
+    if _,err:=e.Write([]byte("post-abort"));!errors.Is(err,io.ErrClosedPipe){t.Fatalf("accepted write after abort: %v",err)}
+    if err:=e.CloseWrite();!errors.Is(err,io.ErrClosedPipe){t.Fatalf("forged FIN: %v",err)}
+    if _,err:=io.ReadAll(NewPaddingDecoder(bytes.NewReader(b.Bytes())));!errors.Is(err,ErrMalformed){t.Fatalf("abort produced clean FIN: %v",err)}
+}
