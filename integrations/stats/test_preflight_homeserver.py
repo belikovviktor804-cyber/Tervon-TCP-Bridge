@@ -95,5 +95,65 @@ class PreflightTests(unittest.TestCase):
                             for k, status, _ in rows))
 
 
+    def test_nginx_admin_location_modifiers(self):
+        for modifier in ("", "^~ ", "= "):
+            with self.subTest(modifier=modifier):
+                self.nginx.write_text(
+                    f'location {modifier}/admin/ {{\n'
+                    '  auth_basic "Admin";\n'
+                    f'  auth_basic_user_file "{self.auth}";\n'
+                    '}\n', encoding="utf-8"
+                )
+                with patch.object(module, "command", side_effect=self.command):
+                    rows = module.checks()
+                self.assertTrue(any(
+                    k == "ADMIN_HTPASSWD" and status == "PASS"
+                    for k, status, _ in rows
+                ))
+
+    def test_nginx_admin_auth_fail_closed(self):
+        cases = {
+            "auth_off":
+                f'location ^~ /admin/ {{\n'
+                '  auth_basic off;\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '}\n',
+            "commented_auth":
+                'location ^~ /admin/ {\n'
+                '  # auth_basic "Admin";\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '}\n',
+            "missing_file":
+                'location = /admin/ {\n'
+                '  auth_basic "Admin";\n'
+                '}\n',
+            "variable_file":
+                'location ^~ /admin/ {\n'
+                '  auth_basic "Admin";\n'
+                '  auth_basic_user_file $unknown;\n'
+                '}\n',
+            "other_location_only":
+                'location ^~ /admin/api/ {\n'
+                '  auth_basic "Admin";\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '}\n',
+            "nested_block":
+                'location ^~ /admin/ {\n'
+                '  if ($request_method = POST) { return 405; }\n'
+                '  auth_basic "Admin";\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '}\n',
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label):
+                self.nginx.write_text(source, encoding="utf-8")
+                with patch.object(module, "command", side_effect=self.command):
+                    rows = module.checks()
+                self.assertTrue(any(
+                    k == "ADMIN_HTPASSWD" and status == "BLOCKED"
+                    for k, status, _ in rows
+                ))
+
+
 if __name__ == "__main__":
     unittest.main()
