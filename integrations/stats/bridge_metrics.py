@@ -1,8 +1,8 @@
 """Read-only, fail-closed adapter for private Tervon TCP Bridge JSON metrics.
 
 This module does not register FastAPI routes or modify the running dashboard.
-Each endpoint must be an explicit literal loopback address. Remote nodes
-require a separately reviewed, authenticated local transport/relay.
+The only source is the Homeserver Bridge on a literal loopback address.
+No remote-node collection or transport is implemented.
 """
 
 from __future__ import annotations
@@ -91,42 +91,34 @@ def _snapshot(raw: object) -> dict:
 
 
 class BridgeMetricsCollector:
-    """Fixed-node, loopback-only metrics reader; failures never block data plane."""
+    """Homeserver-only loopback metrics reader; never blocks the data plane."""
 
-    def __init__(self, endpoints: dict[str, str], timeout: float = 1.0):
-        if not isinstance(endpoints, dict) or not endpoints:
-            raise ValueError("at least one endpoint required")
+    def __init__(self, endpoint: str, timeout: float = 1.0):
         if not (0 < timeout <= 2):
             raise ValueError("timeout must be in (0, 2] seconds")
-        if any(name not in ("homeserver", "finserver") for name in endpoints):
-            raise ValueError("unsupported node name")
-        self.endpoints = {
-            name: _validated_endpoint(url) for name, url in endpoints.items()
-        }
+        self.endpoint = _validated_endpoint(endpoint)
         self.timeout = timeout
         self.opener = build_opener(ProxyHandler({}), _NoRedirect())
 
     def collect(self) -> dict:
-        nodes = {}
-        for name, endpoint in self.endpoints.items():
-            try:
-                req = Request(endpoint, method="GET", headers={
-                    "Accept": "application/json",
-                })
-                with self.opener.open(req, timeout=self.timeout) as response:
-                    if response.status != 200:
-                        raise ValueError("unexpected HTTP status")
-                    payload = response.read(MAX_RESPONSE_BYTES + 1)
-                if len(payload) > MAX_RESPONSE_BYTES:
-                    raise ValueError("metrics payload too large")
-                raw = json.loads(payload)
-                nodes[name] = {"status": "ok", "metrics": _snapshot(raw)}
-            except (HTTPError, URLError, OSError, TimeoutError, ValueError,
-                    TypeError, json.JSONDecodeError):
-                # Never surface endpoint details or response bodies to website.
-                nodes[name] = {"status": "unavailable", "metrics": None}
+        try:
+            req = Request(self.endpoint, method="GET", headers={
+                "Accept": "application/json",
+            })
+            with self.opener.open(req, timeout=self.timeout) as response:
+                if response.status != 200:
+                    raise ValueError("unexpected HTTP status")
+                payload = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(payload) > MAX_RESPONSE_BYTES:
+                raise ValueError("metrics payload too large")
+            raw = json.loads(payload)
+            node = {"status": "ok", "metrics": _snapshot(raw)}
+        except (HTTPError, URLError, OSError, TimeoutError, ValueError,
+                TypeError, json.JSONDecodeError):
+            # Do not surface endpoint details or response bodies to the site.
+            node = {"status": "unavailable", "metrics": None}
         return {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "schema": "tervon.bridge.dashboard.v1",
-            "nodes": nodes,
+            "nodes": {"homeserver": node},
         }
