@@ -74,11 +74,28 @@ func (s *State) UsefulBytes() uint64 { return s.useful }
 func (s *State) PaddingBytes() uint64 { return s.padded }
 func (s *State) PaddingWireBytes() uint64 { return s.paddedWire }
 
+// ObserveSmallFrame is the fast path for a frame too small to justify
+// padding. It accounts useful bytes but deliberately resets the sustained
+// burst classifier: a stream of interactive small frames must remain OFF.
+// It returns false for eligible sizes so callers can use Observe(at, n).
+func (s *State) ObserveSmallFrame(n uint64) bool {
+    if n == 0 || n >= s.policy.MinFrameBytes { return false }
+    s.useful = saturatingAdd(s.useful, n)
+    s.active = false
+    s.started = time.Time{}
+    s.last = time.Time{}
+    s.samples = 0
+    s.streakUseful = 0
+    return true
+}
+
 // Observe returns a permitted count of padding bytes, but NEVER writes them.
 // No padding is permitted before a stable sequence of substantial samples.
 // Long inactivity resets detection; the cumulative overhead budget is not reset.
 func (s *State) Observe(at time.Time, usefulFrameBytes uint64) uint64 {
-    if at.IsZero() || usefulFrameBytes == 0 { return 0 }
+    if usefulFrameBytes == 0 { return 0 }
+    if s.ObserveSmallFrame(usefulFrameBytes) { return 0 }
+    if at.IsZero() { return 0 }
     if !s.last.IsZero() && (at.Before(s.last) || at.Sub(s.last) > s.policy.MaxInterSampleGap) {
         s.active = false
         s.started = time.Time{}
@@ -96,7 +113,7 @@ func (s *State) Observe(at time.Time, usefulFrameBytes uint64) uint64 {
         s.streakUseful >= s.policy.MinUsefulBytes {
         s.active = true
     }
-    if !s.active || usefulFrameBytes < s.policy.MinFrameBytes { return 0 }
+    if !s.active { return 0 }
     budget := fractionOf(s.useful, s.policy.RatioPercent, 100)
     if budget <= s.paddedWire { return 0 }
     remaining := budget - s.paddedWire
