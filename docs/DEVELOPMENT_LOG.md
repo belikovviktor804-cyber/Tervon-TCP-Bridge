@@ -82,3 +82,12 @@
 - **Git:** `git status --short` пустой.
 - **Доказано:** корректность проверенных сценариев FIN/negotiation и отсутствие выявленных race в текущем тестовом наборе. **Не доказано:** все сетевые failure paths, полный half-close, отмена и отсутствие утечек, длительный fuzz-run.
 - **Статус:** текущий пакет PASS, **M1 IN_PROGRESS**, production без изменений.
+
+## 2026-11-17 — M1: HTTP/2 cancellation regression test (UNVERIFIED)
+
+- **Code commit:** `0658d413cd5e9a604e61d291a9f20892286b08bd`.
+- **Изменение:** `prototype/framed_integration_test.go` — добавлен `TestFramedCancellationReleasesHandler`: поднять тестовый HTTP/2 mTLS bridge и TCP echo backend, проверить обмен данными, отменить родительский context, потребовать завершения `HandleContext` за 4 секунды.
+- **Вопрос:** освобождается ли обработчик активного framed-соединения при отмене контекста после успешного обмена.
+- **Результат:** исходник теста добавлен; исполнение на данном commit **не подтверждено**. Нет оснований считать cancellation PASS.
+- **Открыто:** полноценный half-close и upload/download errors, отсутствие утечек при отказах, fuzz-run; требуется повторная race-проверка.
+- **Статус:** M1 IN_PROGRESS; production NONE. Следующий шаг — запуск тестов на Homeserver, исправление ошибок в M1.
