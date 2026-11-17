@@ -13,9 +13,10 @@ import (
     "time"
 
     "tervon-tcp-bridge/padding"
+    "tervon-tcp-bridge/telemetry"
 )
 
-func paddingTestPair(t *testing.T, enabled bool, backend string) (*Client,func()) {
+func paddingTestPair(t *testing.T, enabled bool, backend string, override ...padding.Policy) (*Client,*telemetry.Registry,func()) {
     t.Helper()
     cert,pool:=cert(t)
     srv:=&Server{
@@ -24,7 +25,11 @@ func paddingTestPair(t *testing.T, enabled bool, backend string) (*Client,func()
             sha256.Sum256(cert.Certificate[0]):{"vpn":true},
         },
     }
-    if enabled { p:=padding.DefaultPolicy();srv.PaddingPolicy=&p }
+    p:=padding.DefaultPolicy()
+    if len(override)>0 {p=override[0]}
+    sm:=telemetry.New()
+    srv.Metrics=sm
+    if enabled {srv.PaddingPolicy=&p}
     hs:=httptest.NewUnstartedServer(srv)
     hs.EnableHTTP2=true
     hs.TLS=&tls.Config{
@@ -37,15 +42,17 @@ func paddingTestPair(t *testing.T, enabled bool, backend string) (*Client,func()
         RootCAs:pool,ServerName:"example.com",
         Certificates:[]tls.Certificate{cert},
     },hs.URL+"/v2/stream","vpn")
-    p:=padding.DefaultPolicy()
     cl.PaddingPolicy=&p
-    return cl,func(){cl.HTTP.CloseIdleConnections();hs.Close()}
+    cl.Metrics=telemetry.New()
+    cl.Metrics.SetPaddingConfigured(true)
+    sm.SetPaddingConfigured(enabled)
+    return cl,sm,func(){cl.HTTP.CloseIdleConnections();hs.Close()}
 }
 
 func TestM2PaddingNegotiatedRoundTrip(t *testing.T){
     addr,stop:=echo(t)
     defer stop()
-    cl,closePair:=paddingTestPair(t,true,addr)
+    cl,_,closePair:=paddingTestPair(t,true,addr)
     defer closePair()
     local,peer:=net.Pipe()
     defer peer.Close()
@@ -68,7 +75,7 @@ func TestM2PaddingNegotiatedRoundTrip(t *testing.T){
 }
 
 func TestM2RejectsPaddingWhenServerDisabled(t *testing.T){
-    cl,closePair:=paddingTestPair(t,false,"127.0.0.1:1")
+    cl,_,closePair:=paddingTestPair(t,false,"127.0.0.1:1")
     defer closePair()
     local,peer:=net.Pipe()
     defer peer.Close()
@@ -86,7 +93,7 @@ func TestM2RejectsPaddingWhenServerDisabled(t *testing.T){
 func TestM2DisabledClientRetainsM1Wire(t *testing.T){
     addr,stop:=echo(t)
     defer stop()
-    cl,closePair:=paddingTestPair(t,true,addr)
+    cl,_,closePair:=paddingTestPair(t,true,addr)
     defer closePair()
     cl.PaddingPolicy=nil
     local,peer:=net.Pipe()
@@ -127,4 +134,42 @@ func TestM2WrongCapabilityRejectedBeforeBackend(t *testing.T){
     if err!=nil{t.Fatal(err)}
     defer resp.Body.Close()
     if resp.StatusCode!=http.StatusUpgradeRequired{t.Fatalf("status=%d",resp.StatusCode)}
+}
+
+func TestM2EmitsPADAndPreservesBothDirections(t *testing.T){
+    addr,stop:=echo(t)
+    defer stop()
+    fast:=padding.DefaultPolicy()
+    fast.MinDuration=time.Nanosecond
+    fast.MinSamples=2
+    fast.MinUsefulBytes=1024
+    cl,serverMetrics,closePair:=paddingTestPair(t,true,addr,fast)
+    defer closePair()
+    local,peer:=net.Pipe()
+    defer peer.Close()
+    finished:=make(chan error,1)
+    go func(){finished<-cl.Handle(local)}()
+    _=peer.SetDeadline(time.Now().Add(10*time.Second))
+    payload:=bytes.Repeat([]byte{0,255,1,7},2048)
+    for i:=0;i<8;i++{
+        if _,err:=peer.Write(payload);err!=nil{t.Fatal(err)}
+        got:=make([]byte,len(payload))
+        if _,err:=io.ReadFull(peer,got);err!=nil{t.Fatal(err)}
+        if !bytes.Equal(got,payload){t.Fatal("padded round-trip modified bytes")}
+        time.Sleep(2*time.Millisecond)
+    }
+    _=peer.Close()
+    select{
+    case err:=<-finished:
+        if err!=nil && !errors.Is(err,io.EOF){t.Fatalf("handler: %v",err)}
+    case <-time.After(5*time.Second):t.Fatal("padded session stuck")
+    }
+    clientStats:=cl.Metrics.Snapshot()
+    serverStats:=serverMetrics.Snapshot()
+    if clientStats.PaddingUploadBytes==0 {t.Fatal("no PAD emitted in upload")}
+    if serverStats.PaddingDownloadBytes==0 {t.Fatal("no PAD emitted in download")}
+    if clientStats.PaddingUploadState!="OFF" || serverStats.PaddingDownloadState!="OFF" {
+        t.Fatalf("padding leaked ACTIVE: client=%s server=%s",
+        clientStats.PaddingUploadState,serverStats.PaddingDownloadState)
+    }
 }
