@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"tervon-tcp-bridge/telemetry"
+	"tervon-tcp-bridge/framing"
 )
 
 // Backend addresses come from trusted server configuration, never from clients.
@@ -66,8 +67,13 @@ func (s *Server) pick(ctx context.Context, service string) (net.Conn, error) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || r.URL.Path != "/v1/stream" {
+	if r.Method != http.MethodPost || (r.URL.Path != "/v1/stream" && r.URL.Path != "/v2/stream") {
 		http.NotFound(w, r)
+		return
+	}
+	framed := r.URL.Path == "/v2/stream"
+	if framed && (r.Header.Get("Tervon-Wire-Version") != "1" || r.Header.Get("Tervon-Wire-Capability") != "tbf1-fin") {
+		http.Error(w, "unsupported framed protocol", http.StatusUpgradeRequired)
 		return
 	}
 	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
@@ -122,6 +128,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	})
 	defer stopBackend()
 	w.Header().Set("Content-Type", "application/octet-stream")
+	if framed {
+		w.Header().Set("Tervon-Wire-Version", "1")
+		w.Header().Set("Tervon-Wire-Capability", "tbf1-fin")
+	}
 	w.WriteHeader(http.StatusOK)
 	rc := http.NewResponseController(w)
 	_ = rc.EnableFullDuplex()
@@ -130,20 +140,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		var source io.Reader = r.Body
+		if framed { source = framing.NewDecoder(source) }
 		if s.Metrics != nil {
-			_, _ = io.Copy(telemetry.CountingWriter{Writer: c, Add: s.Metrics.AddUpload}, r.Body)
+			_, _ = io.Copy(telemetry.CountingWriter{Writer: c, Add: s.Metrics.AddUpload}, source)
 		} else {
-			_, _ = io.Copy(c, r.Body)
+			_, _ = io.Copy(c, source)
 		}
 		if tcp, ok := c.(*net.TCPConn); ok {
 			_ = tcp.CloseWrite()
 		}
 	}()
+	var target io.Writer = flushWriter{w: w, rc: rc}
+	var encoder *framing.Encoder
+	if framed { encoder = framing.NewEncoder(target); target = encoder }
 	if s.Metrics != nil {
-		_, _ = io.Copy(telemetry.CountingWriter{Writer: flushWriter{w: w, rc: rc}, Add: s.Metrics.AddDownload}, c)
+		_, _ = io.Copy(telemetry.CountingWriter{Writer: target, Add: s.Metrics.AddDownload}, c)
 	} else {
-		_, _ = io.Copy(flushWriter{w: w, rc: rc}, c)
+		_, _ = io.Copy(target, c)
 	}
+	if encoder != nil { _ = encoder.CloseWrite() }
 	_ = rc.Flush()
 	// Stop the upload after backend EOF, including when the client never
 	// sends its request EOF. This bounds handler wait, not goroutine lifetime.
@@ -196,17 +212,26 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	if err != nil {
 		return err
 	}
+	framed := req.URL.Path == "/v2/stream"
+	if framed {
+		req.Header.Set("Tervon-Wire-Version", "1")
+		req.Header.Set("Tervon-Wire-Capability", "tbf1-fin")
+	}
 	req.Header.Set("Tervon-Service", cl.Service)
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.ContentLength = -1
 	upload := make(chan error, 1)
 	go func() {
 		var e error
+		var target io.Writer = writer
+		var encoder *framing.Encoder
+		if framed { encoder = framing.NewEncoder(writer); target = encoder }
 		if cl.Metrics != nil {
-			_, e = io.Copy(telemetry.CountingWriter{Writer: writer, Add: cl.Metrics.AddUpload}, c)
+			_, e = io.Copy(telemetry.CountingWriter{Writer: target, Add: cl.Metrics.AddUpload}, c)
 		} else {
-			_, e = io.Copy(writer, c)
+			_, e = io.Copy(target, c)
 		}
+		if e == nil && encoder != nil { e = encoder.CloseWrite() }
 		_ = writer.CloseWithError(e)
 		upload <- e
 	}()
@@ -225,10 +250,17 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 		}
 		return fmt.Errorf("remote status %d", resp.StatusCode)
 	}
+	if framed && (resp.Header.Get("Tervon-Wire-Version") != "1" || resp.Header.Get("Tervon-Wire-Capability") != "tbf1-fin") {
+		_ = reader.Close()
+		_ = writer.Close()
+		return fmt.Errorf("remote framed protocol mismatch")
+	}
+	var source io.Reader = resp.Body
+	if framed { source = framing.NewDecoder(source) }
 	if cl.Metrics != nil {
-		_, err = io.Copy(telemetry.CountingWriter{Writer: c, Add: cl.Metrics.AddDownload}, resp.Body)
+		_, err = io.Copy(telemetry.CountingWriter{Writer: c, Add: cl.Metrics.AddDownload}, source)
 	} else {
-		_, err = io.Copy(c, resp.Body)
+		_, err = io.Copy(c, source)
 	}
 	if tcp, ok := c.(*net.TCPConn); ok {
 		_ = tcp.CloseWrite()
