@@ -137,19 +137,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = rc.EnableFullDuplex()
 	_ = rc.Flush()
 
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
 		var source io.Reader = r.Body
 		if framed { source = framing.NewDecoder(source) }
+		var uploadErr error
 		if s.Metrics != nil {
-			_, _ = io.Copy(telemetry.CountingWriter{Writer: c, Add: s.Metrics.AddUpload}, source)
+			_, uploadErr = io.Copy(telemetry.CountingWriter{Writer: c, Add: s.Metrics.AddUpload}, source)
 		} else {
-			_, _ = io.Copy(c, source)
+			_, uploadErr = io.Copy(c, source)
 		}
-		if tcp, ok := c.(*net.TCPConn); ok {
+		if uploadErr != nil {
+			// Never forward a truncated or malformed framed upload as a
+			// successful TCP half-close to the backend.
+			_ = c.Close()
+		} else if tcp, ok := c.(*net.TCPConn); ok {
 			_ = tcp.CloseWrite()
 		}
+		done <- uploadErr
 	}()
 	var target io.Writer = flushWriter{w: w, rc: rc}
 	var encoder *framing.Encoder
