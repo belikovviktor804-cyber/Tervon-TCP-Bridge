@@ -5,11 +5,15 @@ on:
       - 'prototype/**'
       - 'tests/homeserver/verify-m1.sh'
       - 'tests/homeserver/deploy-m1-with-m0-backup.sh'
+      - 'tests/homeserver/activate-m1-framing.py'
+      - 'tests/homeserver/test_activate_m1_framing.py'
       - '.github/workflows/go-prototype.yml'
   pull_request:
     paths:
       - 'prototype/**'
       - 'tests/homeserver/verify-m1.sh'
+      - 'tests/homeserver/activate-m1-framing.py'
+      - 'tests/homeserver/test_activate_m1_framing.py'
       - '.github/workflows/go-prototype.yml'
 permissions:
   contents: read
@@ -32,6 +36,8 @@ jobs:
         run: bash -n ../tests/homeserver/verify-m1.sh
       - name: Check guarded deployment script syntax
         run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
+      - name: Test guarded v2 activation helper (no systemd)
+        run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
       - name: Build all packages including CLI
         run: go build ./...
       - name: Vet
