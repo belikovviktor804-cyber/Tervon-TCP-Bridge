@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"tervon-tcp-bridge/telemetry"
 )
 
 // Backend addresses come from trusted server configuration, never from clients.
@@ -18,15 +20,16 @@ type Backend struct{ Name, Address string }
 // Server serves authenticated HTTP/2 TCP byte streams.
 // Routes and AuthorizedServices are immutable while requests are being handled.
 type Server struct {
+	Metrics            *telemetry.Registry
 	Routes             map[string][]Backend
 	AuthorizedServices map[[32]byte]map[string]bool
 	DialTimeout        time.Duration
 	// MaxConcurrent caps admitted stream handlers; zero means no cap (experimental only).
-	MaxConcurrent      int
-	admissionOnce      sync.Once
-	admission          chan struct{}
-	mu                 sync.Mutex
-	next               map[string]int
+	MaxConcurrent int
+	admissionOnce sync.Once
+	admission     chan struct{}
+	mu            sync.Mutex
+	next          map[string]int
 }
 
 func (s *Server) pick(ctx context.Context, service string) (net.Conn, error) {
@@ -74,6 +77,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	service := r.Header.Get("Tervon-Service")
 	fingerprint := sha256.Sum256(r.TLS.PeerCertificates[0].Raw)
 	if !s.AuthorizedServices[fingerprint][service] {
+		if s.Metrics != nil {
+			s.Metrics.Error(telemetry.ReasonAuth)
+		}
 		http.Error(w, "service not authorized", http.StatusForbidden)
 		return
 	}
@@ -83,16 +89,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case s.admission <- struct{}{}:
 			defer func() { <-s.admission }()
 		default:
+			if s.Metrics != nil {
+				s.Metrics.Reject()
+			}
 			http.Error(w, "stream capacity reached", http.StatusServiceUnavailable)
 			return
 		}
 	}
+	dialStarted := time.Now()
 	c, err := s.pick(r.Context(), service)
+	if s.Metrics != nil {
+		s.Metrics.BackendDial(err == nil)
+		s.Metrics.ObserveConnectLatency(time.Since(dialStarted))
+	}
 	if err != nil {
+		if s.Metrics != nil {
+			s.Metrics.Error(telemetry.ReasonBackend)
+		}
 		http.Error(w, "backend unavailable", http.StatusBadGateway)
 		return
 	}
 	defer c.Close()
+	if s.Metrics != nil {
+		s.Metrics.ObserveTLS(r.TLS)
+		done := s.Metrics.Begin()
+		defer done()
+	}
 	// A canceled HTTP/2 stream must also interrupt a blocked backend read.
 	stopBackend := context.AfterFunc(r.Context(), func() {
 		_ = c.Close()
@@ -108,12 +130,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, _ = io.Copy(c, r.Body)
+		if s.Metrics != nil {
+			_, _ = io.Copy(telemetry.CountingWriter{Writer: c, Add: s.Metrics.AddUpload}, r.Body)
+		} else {
+			_, _ = io.Copy(c, r.Body)
+		}
 		if tcp, ok := c.(*net.TCPConn); ok {
 			_ = tcp.CloseWrite()
 		}
 	}()
-	_, _ = io.Copy(flushWriter{w: w, rc: rc}, c)
+	if s.Metrics != nil {
+		_, _ = io.Copy(telemetry.CountingWriter{Writer: flushWriter{w: w, rc: rc}, Add: s.Metrics.AddDownload}, c)
+	} else {
+		_, _ = io.Copy(flushWriter{w: w, rc: rc}, c)
+	}
 	_ = rc.Flush()
 	// Stop the upload after backend EOF, including when the client never
 	// sends its request EOF. This bounds handler wait, not goroutine lifetime.
@@ -128,6 +158,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Client forwards an accepted TCP stream to a remote HTTPS bridge.
 type Client struct {
+	Metrics      *telemetry.Registry
 	HTTP         *http.Client
 	URL, Service string
 	// ShutdownTimeout bounds listener shutdown when a handler fails to exit.
@@ -149,6 +180,10 @@ func (cl *Client) Handle(c net.Conn) error {
 
 // HandleContext cancels HTTP forwarding and unblocks local reads on shutdown.
 func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
+	if cl.Metrics != nil {
+		done := cl.Metrics.Begin()
+		defer done()
+	}
 	defer c.Close()
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
@@ -166,7 +201,12 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	req.ContentLength = -1
 	upload := make(chan error, 1)
 	go func() {
-		_, e := io.Copy(writer, c)
+		var e error
+		if cl.Metrics != nil {
+			_, e = io.Copy(telemetry.CountingWriter{Writer: writer, Add: cl.Metrics.AddUpload}, c)
+		} else {
+			_, e = io.Copy(writer, c)
+		}
 		_ = writer.CloseWithError(e)
 		upload <- e
 	}()
@@ -180,9 +220,16 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	if resp.StatusCode != http.StatusOK {
 		_ = reader.Close()
 		_ = writer.Close()
+		if cl.Metrics != nil {
+			cl.Metrics.Error(telemetry.ReasonHTTP)
+		}
 		return fmt.Errorf("remote status %d", resp.StatusCode)
 	}
-	_, err = io.Copy(c, resp.Body)
+	if cl.Metrics != nil {
+		_, err = io.Copy(telemetry.CountingWriter{Writer: c, Add: cl.Metrics.AddDownload}, resp.Body)
+	} else {
+		_, err = io.Copy(c, resp.Body)
+	}
 	if tcp, ok := c.(*net.TCPConn); ok {
 		_ = tcp.CloseWrite()
 	}
@@ -206,6 +253,10 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 		return err
 	}
 	defer ln.Close()
+	if cl.Metrics != nil {
+		cl.Metrics.SetReady(true)
+		defer cl.Metrics.SetReady(false)
+	}
 	sessionCtx, cancelSessions := context.WithCancel(ctx)
 	defer cancelSessions()
 	stop := context.AfterFunc(ctx, func() { _ = ln.Close() })
@@ -240,6 +291,9 @@ func (cl *Client) ListenAndServe(ctx context.Context, addr string) error {
 			case slots <- struct{}{}:
 			default:
 				// Reject excess sessions before starting an HTTP request.
+				if cl.Metrics != nil {
+					cl.Metrics.Reject()
+				}
 				_ = c.Close()
 				continue
 			}
