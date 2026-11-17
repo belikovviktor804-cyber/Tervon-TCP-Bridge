@@ -60,6 +60,8 @@ jobs:
         run: go test -race -count=1 -timeout=120s ./...
       - name: M1 repeated framing, cancellation and legacy regression
         run: go test -race -count=3 -timeout=180s -run 'TestFramed|TestLegacy|TestStream' ./...
+      - name: M2 bounded padding policy regression
+        run: go test -race -count=3 -timeout=60s ./padding
       - name: M1 fuzz frame parser (bounded)
         run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
       - name: M1 fuzz stream decoder (bounded)
