@@ -124,3 +124,12 @@
 - **`git status --short`:** чистое дерево.
 - **Ограничение:** один подтверждённый E2E half-close не заменяет тестирование ошибок передачи, leak/cancellation при отказах, fuzz-run и совместимости.
 - **Статус:** пакет PASS, **M1 IN_PROGRESS**, не выпуск.
+
+## 2026-11-17 — M1: truncated HTTP/2 download negative test (UNVERIFIED)
+
+- **Code commit:** `bc92c41406addfc42cf9ae356c9399c2be268bcd`.
+- **Добавлено:** `TestFramedRejectsTruncatedDownload` в `prototype/framed_integration_test.go`. Изолированный mTLS HTTP/2 test server объявляет v2 и корректные negotiation headers, но возвращает неполный TBF1 header без FIN. Клиент должен вернуть `framing.ErrMalformed`, не зависнув.
+- **Вопрос:** обнаруживается ли повреждённый download как ошибка, а не штатный EOF.
+- **Результат:** исходник записан в GitHub; запуск на данном commit не подтверждён.
+- **Следующий шаг:** проверить `go test -race -count=1 ./...`, `go vet ./...`, `go test -race -count=1 -run '^TestFramedRejectsTruncatedDownload$' -v .` на Homeserver, зафиксировать точный SHA; исправить FAIL до следующего пакета.
+- **Открыто:** malformed upload E2E, failure-path cleanup, fuzz-run, compatibility; **M1 IN_PROGRESS**, production NONE.
