@@ -266,3 +266,11 @@
 - **Новый тест:** `prototype/cmd/bridge/legacy_release_compat_test.go` commit `3f951e173051834786b37ff920081e2409747e16`. Opt-in `TERVON_V100_BIN`: проверяет официальный SHA-256 `5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2`, копирует бинарник в `t.TempDir()`, строит текущий CLI, создаёт тестовый CA и сертификаты, запускает обе версии только в дочерних процессах на loopback, тестирует old-client/new-server и new-client/old-server с байтовым echo. **Без указанного файла тест SKIP**, поэтому обычный CI не доказывает cross-version PASS.
 - **CI-скрипт:** `tests/homeserver/verify-m1.sh` дополнен необязательным gate `M1_REAL_V100=PASS/NOT_RUN`. Коммит `cd9c1632ede701b5485b42d39f532317944e0bc1` внёс синтаксическую ошибку shell; [GitHub Actions #44041214104](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44041214104) **FAIL** на шаге `bash -n`. Ошибка исправлена commit `797f2d93726ded3ef27632ee2e4d590a005ec4fa`; повторный CI ожидает подтверждения.
 - **Статус:** второй Homeserver CODE PASS доказан на `8aedaf9...`. Реальная бинарная совместимость v1.0.0 ещё **NOT_RUN**. M1 IN_PROGRESS, M2 не начинать, production не затрагивать.
+
+
+## 2026-11-17 — M1: CI recovery after opt-in release test harness
+
+- **Failure evidence:** [run #44041214104](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44041214104) FAIL, malformed shell introduced by commit `cd9c1632ede701b5485b42d39f532317944e0bc1`; stopped at `bash -n` before Go tests.
+- **Fix:** `797f2d93726ded3ef27632ee2e4d590a005ec4fa` restored complete conditional block and final result output in `verify-m1.sh`.
+- **Reverification:** [run #44041281072](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44041281072), SHA `797f2d93726ded3ef27632ee2e4d590a005ec4fa`, **SUCCESS/PASS**: bash syntax, build, vet, unit, race, 3x targeted regression, both 15s fuzz targets.
+- **Important:** opt-in real v1.0.0 compatibility test is compiled but skipped in default CI without `TERVON_V100_BIN`. It remains NOT_RUN with actual release binary. Latest user-confirmed Homeserver PASS remains `8aedaf9e518e9cfbb60529d4ff32c0acb90dabad`. **M1 IN_PROGRESS** until cross-version E2E evidence.
