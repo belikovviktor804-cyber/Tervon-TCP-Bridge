@@ -61,7 +61,10 @@ func (e *Encoder) Write(p []byte) (int,error) {
         }
         total+=n
         if e.pad!=nil{
-            count:=e.pad.Observe(e.now(),uint64(n))
+            var count uint64
+            if !e.pad.ObserveSmallFrame(uint64(n)) {
+                count = e.pad.Observe(e.now(),uint64(n))
+            }
             e.updateActive(e.pad.Active())
             if count>0{
                 // Only emit padding after DATA, never by delaying a DATA frame.
