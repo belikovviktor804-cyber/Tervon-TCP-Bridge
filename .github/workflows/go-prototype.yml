@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'prototype/**'
+      - 'integrations/stats/**'
       - 'tests/homeserver/verify-m1.sh'
       - 'tests/homeserver/deploy-m1-with-m0-backup.sh'
       - 'tests/homeserver/activate-m1-framing.py'
@@ -11,6 +12,7 @@ on:
   pull_request:
     paths:
       - 'prototype/**'
+      - 'integrations/stats/**'
       - 'tests/homeserver/verify-m1.sh'
       - 'tests/homeserver/activate-m1-framing.py'
       - 'tests/homeserver/test_activate_m1_framing.py'
@@ -38,6 +40,8 @@ jobs:
         run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
       - name: Test guarded v2 activation helper (no systemd)
         run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
+      - name: Test isolated stats collector (no production services)
+        run: python3 -m unittest discover -s ../integrations/stats -p 'test_*.py' -v
       - name: Build all packages including CLI
         run: go build ./...
       - name: Vet
