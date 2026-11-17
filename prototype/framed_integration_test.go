@@ -2,6 +2,7 @@ package bridge
 
 import (
  "bytes"
+ "context"
  "crypto/sha256"
  "crypto/tls"
  "io"
@@ -48,3 +49,26 @@ func TestFramedRejectVersionBeforeDial(t *testing.T) {
  defer resp.Body.Close()
  if resp.StatusCode!=http.StatusUpgradeRequired {t.Fatalf("status %d",resp.StatusCode)}
 }
+
+func TestFramedCancellationReleasesHandler(t *testing.T) {
+ addr,stop:=echo(t)
+ defer stop()
+ cl:=setup(t,[]Backend{{Name:"echo",Address:addr}})
+ cl.URL=strings.Replace(cl.URL,"/v1/stream","/v2/stream",1)
+ a,b:=net.Pipe()
+ defer b.Close()
+ ctx,cancel:=context.WithCancel(context.Background())
+ done:=make(chan error,1)
+ go func(){done<-cl.HandleContext(ctx,a)}()
+ _=b.SetDeadline(time.Now().Add(5*time.Second))
+ if _,err:=b.Write([]byte("hello"));err!=nil {cancel();t.Fatal(err)}
+ out:=make([]byte,5)
+ if _,err:=io.ReadFull(b,out);err!=nil {cancel();t.Fatal(err)}
+ if string(out)!="hello" {cancel();t.Fatalf("echo %q",out)}
+ cancel()
+ select {
+ case <-done:
+ case <-time.After(4*time.Second):t.Fatal("framed handler stuck after context cancellation")
+ }
+}
+
