@@ -112,3 +112,15 @@
 - **Результат:** тест написан и закоммичен; **не выполнялся на Homeserver**. Возможный FAIL означает ошибку жизненного цикла, которую необходимо исправить до закрытия M1.
 - **Проверить:** `go test -race -count=1 ./...`, `go vet ./...`, `go test -race -count=1 -run 'TestFramedHalfCloseResponseAfterUploadEOF' -v .`, точный SHA и чистое дерево.
 - **Открыто:** error paths, строгая отмена и завершение горутин при сбоях, fuzz-run, совместимость. **M1 IN_PROGRESS; production NONE**.
+
+## 2026-11-17 — M1: подтверждённый PASS TCP half-close E2E
+
+- **Проверенный commit:** `053d24ae17afe55225a5d22eac8a64e93c25d807` (`work/m1-framing`).
+- **Среда:** Homeserver, изолированная рабочая копия; действующие службы не затронуты.
+- **`go test -race -count=1 ./...`:** PASS для четырёх пакетов.
+- **`go vet ./...`:** PASS.
+- **`go test -race -count=1 -run '^TestFramedHalfCloseResponseAfterUploadEOF$' -v .`:** PASS, 0.16 s.
+- **Сценарий:** реальный локальный TCP peer вызывает `CloseWrite`; backend читает запрос до EOF, затем отправляет ответ; клиент получает весь ответ, handler и backend завершаются.
+- **`git status --short`:** чистое дерево.
+- **Ограничение:** один подтверждённый E2E half-close не заменяет тестирование ошибок передачи, leak/cancellation при отказах, fuzz-run и совместимости.
+- **Статус:** пакет PASS, **M1 IN_PROGRESS**, не выпуск.
