@@ -371,3 +371,93 @@ func TestFramedCancelRequestBodyReaderReleasesServerWorker(t *testing.T) {
 	case <-time.After(4*time.Second): t.Fatal("HTTP client request remained blocked after cancellation")
 	}
 }
+
+
+func TestFramedBackendEarlyEOFWithOpenUploadReleasesHandler(t *testing.T) {
+	backend, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil { t.Fatal(err) }
+	defer backend.Close()
+	backendAccepted := make(chan struct{})
+	backendDone := make(chan struct{})
+	go func() {
+		defer close(backendDone)
+		c, err := backend.Accept()
+		if err != nil { return }
+		close(backendAccepted)
+		_ = c.Close() // Deliberately finish before the request sends FIN.
+	}()
+
+	cert, pool := cert(t)
+	s := &Server{
+		Routes: map[string][]Backend{"vpn": {{Address: backend.Addr().String()}}},
+		AuthorizedServices: map[[32]byte]map[string]bool{
+			sha256.Sum256(cert.Certificate[0]): {"vpn": true},
+		},
+	}
+	handlerExited := make(chan struct{})
+	hs := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(handlerExited)
+		s.ServeHTTP(w, r)
+	}))
+	hs.EnableHTTP2 = true
+	hs.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs: pool,
+		NextProtos: []string{"h2"},
+	}
+	hs.StartTLS()
+	defer hs.Close()
+
+	cl := NewClient(&tls.Config{
+		RootCAs: pool, ServerName: "example.com",
+		Certificates: []tls.Certificate{cert},
+	}, hs.URL+"/v2/stream", "vpn")
+	defer cl.HTTP.CloseIdleConnections()
+
+	reader, writer := io.Pipe()
+	defer writer.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.URL, reader)
+	if err != nil { t.Fatal(err) }
+	req.Header.Set("Tervon-Service", "vpn")
+	req.Header.Set("Tervon-Wire-Version", "1")
+	req.Header.Set("Tervon-Wire-Capability", "tbf1-fin")
+	req.ContentLength = -1
+	result := make(chan error, 1)
+	go func() {
+		resp, err := cl.HTTP.Do(req)
+		if err != nil { result <- err; return }
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			result <- fmt.Errorf("status %d", resp.StatusCode)
+			return
+		}
+		_, err = io.ReadAll(framing.NewDecoder(resp.Body))
+		if !errors.Is(err, framing.ErrMalformed) {
+			result <- fmt.Errorf("early backend EOF without upload FIN: got %v, want ErrMalformed", err)
+			return
+		}
+		result <- nil
+	}()
+	select {
+	case <-backendAccepted:
+	case <-time.After(4*time.Second): t.Fatal("backend not dialed")
+	}
+	select {
+	case err := <-result:
+		if err != nil { t.Fatal(err) }
+	case <-time.After(4*time.Second):
+		t.Fatal("early backend EOF blocked framed response")
+	}
+	select {
+	case <-handlerExited:
+	case <-time.After(4*time.Second):
+		t.Fatal("server handler remained blocked on open HTTP/2 request body")
+	}
+	select {
+	case <-backendDone:
+	case <-time.After(4*time.Second): t.Fatal("backend did not close")
+	}
+}
