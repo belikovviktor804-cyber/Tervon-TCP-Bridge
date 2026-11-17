@@ -147,3 +147,67 @@ func TestFramedRejectsTruncatedDownload(t *testing.T) {
   t.Fatal("truncated framed response blocked handler")
  }
 }
+
+func TestFramedMalformedUploadClosesBackend(t *testing.T) {
+ backend,err:=net.Listen("tcp","127.0.0.1:0")
+ if err!=nil {t.Fatal(err)}
+ defer backend.Close()
+ observed:=make(chan error,1)
+ go func(){
+  conn,e:=backend.Accept()
+  if e!=nil {observed<-e;return}
+  defer conn.Close()
+  _=conn.SetReadDeadline(time.Now().Add(5*time.Second))
+  _,e=io.Copy(io.Discard,conn)
+  observed<-e
+ }()
+ cert,pool:=cert(t)
+ s:=&Server{
+  Routes:map[string][]Backend{"vpn":{{Address:backend.Addr().String()}}},
+  AuthorizedServices:map[[32]byte]map[string]bool{sha256.Sum256(cert.Certificate[0]):{"vpn":true}},
+ }
+ hs:=httptest.NewUnstartedServer(s)
+ hs.EnableHTTP2=true
+ hs.TLS=&tls.Config{Certificates:[]tls.Certificate{cert},ClientAuth:tls.RequireAndVerifyClientCert,ClientCAs:pool,NextProtos:[]string{"h2"}}
+ hs.StartTLS()
+ defer hs.Close()
+ cl:=NewClient(&tls.Config{RootCAs:pool,ServerName:"example.com",Certificates:[]tls.Certificate{cert}},hs.URL+"/v2/stream","vpn")
+ defer cl.HTTP.CloseIdleConnections()
+ req,e:=http.NewRequest(http.MethodPost,cl.URL,strings.NewReader("TBF1"))
+ if e!=nil {t.Fatal(e)}
+ req.Header.Set("Tervon-Service","vpn")
+ req.Header.Set("Tervon-Wire-Version","1")
+ req.Header.Set("Tervon-Wire-Capability","tbf1-fin")
+ resp,e:=cl.HTTP.Do(req)
+ if e!=nil {t.Fatal(e)}
+ _=resp.Body.Close()
+ select {
+ case e:=<-observed:
+  if e!=nil {t.Fatalf("backend not closed after malformed upload: %v",e)}
+ case <-time.After(6*time.Second):
+  t.Fatal("backend did not close after malformed upload")
+ }
+}
+
+func TestFramedRejectsMissingResponseNegotiation(t *testing.T) {
+ cert,pool:=cert(t)
+ handler:=http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
+  w.WriteHeader(http.StatusOK)
+ })
+ hs:=httptest.NewUnstartedServer(handler)
+ hs.EnableHTTP2=true
+ hs.TLS=&tls.Config{Certificates:[]tls.Certificate{cert},ClientAuth:tls.RequireAndVerifyClientCert,ClientCAs:pool,NextProtos:[]string{"h2"}}
+ hs.StartTLS()
+ defer hs.Close()
+ cl:=NewClient(&tls.Config{RootCAs:pool,ServerName:"example.com",Certificates:[]tls.Certificate{cert}},hs.URL+"/v2/stream","vpn")
+ defer cl.HTTP.CloseIdleConnections()
+ a,peer:=net.Pipe()
+ defer peer.Close()
+ result:=make(chan error,1)
+ go func(){result<-cl.Handle(a)}()
+ select {
+ case err:=<-result:
+  if err==nil || !strings.Contains(err.Error(),"framed protocol mismatch") {t.Fatalf("unexpected result: %v",err)}
+ case <-time.After(5*time.Second):t.Fatal("negotiation mismatch blocked handler")
+ }
+}
