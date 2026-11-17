@@ -171,9 +171,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A backend that finishes before request EOF fails closed after a bounded
 	// wait, rather than forging a successful response FIN.
 	var uploadErr error
+	uploadObserved := false
 	if framed && downloadErr == nil {
 		select {
 		case uploadErr = <-done:
+			uploadObserved = true
 		case <-time.After(500 * time.Millisecond):
 			uploadErr = fmt.Errorf("framed upload did not finish before backend EOF")
 		}
@@ -187,7 +189,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Close the body and backend to interrupt any outstanding upload read.
 	_ = r.Body.Close()
 	_ = c.Close()
-	if !framed || downloadErr != nil {
+	if !uploadObserved {
 		select {
 		case <-done:
 		case <-time.After(500 * time.Millisecond):
