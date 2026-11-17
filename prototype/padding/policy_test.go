@@ -75,3 +75,21 @@ func TestInvalidPolicyAndOverflow(t *testing.T){
     if s.PaddingBytes()>fractionOf(s.UsefulBytes(),5,100) {t.Fatal("overflow violated budget")}
     if saturatingAdd(math.MaxUint64,1)!=math.MaxUint64 {t.Fatal("saturating overflow")}
 }
+
+func TestNewShortBurstAfterLongFlowStaysOff(t *testing.T){
+    p:=testPolicy()
+    s,err:=New(p);if err!=nil{t.Fatal(err)}
+    now:=time.Unix(1234,0)
+    for i:=0;i<10;i++{
+        s.Observe(now.Add(time.Duration(i)*500*time.Millisecond),16*1024)
+    }
+    if !s.Active(){t.Fatal("initial sustained flow not active")}
+    // Pause resets the current sustained-flow classification, but never
+    // resets aggregate useful bytes or spent overhead budget.
+    after:=now.Add(20*time.Second)
+    if n:=s.Observe(after,100);n!=0 {t.Fatal("padding immediately after gap")}
+    for i:=1;i<20;i++{
+        n:=s.Observe(after.Add(time.Duration(i)*200*time.Millisecond),100)
+        if n!=0 || s.Active(){t.Fatalf("new short burst activated at sample %d",i)}
+    }
+}
