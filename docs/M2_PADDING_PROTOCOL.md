@@ -19,7 +19,7 @@ DefaultPolicy (provisional): at least 2 seconds, 5 observations, 64 KiB within o
 
 ## Metrics
 
-Existing application byte counters remain application bytes. New PAD counters measure **only PAD payload bytes emitted by the local encoder**, independently for upload and download; PAD frame headers, TLS and HTTP/2 are excluded. Export includes a percentage PAD-payload / useful bytes, directional ACTIVE/OFF and transition count. Encoder abort clears ACTIVE state without adding fake FIN or affecting backend bytes. All metrics remain aggregate, fixed-cardinality and loopback-only. No client identifiers or payloads.
+Existing application byte counters remain application bytes. PAD payload counters record only successfully emitted PAD payload bytes; separate PAD wire overhead counters include the 10-byte TBF1 header per PAD frame. TLS, HTTP/2 and DATA frame headers remain excluded. Export includes a percentage PAD-payload / useful bytes, directional ACTIVE/OFF and transition count. Encoder abort clears ACTIVE state without adding fake FIN or affecting backend bytes. All metrics remain aggregate, fixed-cardinality and loopback-only. No client identifiers or payloads.
 
 ## Required verification and release constraints
 
