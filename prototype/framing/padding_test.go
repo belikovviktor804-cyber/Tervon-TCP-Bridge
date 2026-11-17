@@ -47,7 +47,7 @@ func TestPaddingIsOptInAndPayloadIsByteExact(t *testing.T) {
 
 func TestPaddingFrameValidation(t *testing.T){
     if err:=WritePaddingFrame(io.Discard,nil);!errors.Is(err,ErrMalformed){t.Fatal(err)}
-    if err:=WritePaddingFrame(io.Discard,make([]byte,MaxPayload+1));!errors.Is(err,ErrSize){t.Fatal(err)}
+    if err:=WritePaddingFrame(io.Discard,make([]byte,4097));!errors.Is(err,ErrSize){t.Fatal(err)}
     var b bytes.Buffer
     if err:=WritePaddingFrame(&b,[]byte{1,2,3});err!=nil{t.Fatal(err)}
     if _,err:=ReadFrame(bytes.NewReader(b.Bytes()));!errors.Is(err,ErrType){t.Fatalf("legacy accepted pad %v",err)}
@@ -93,7 +93,7 @@ func TestPaddingDecoderRejectsExcessAndPlacement(t *testing.T){
         },
         "frame-cap":func(b *bytes.Buffer){
             _=WriteFrame(b,TypeData,bytes.Repeat([]byte{1},16384))
-            _=WritePaddingFrame(b,make([]byte,4097))
+            _=writeFrame(b,TypePadding,make([]byte,4097))
         },
         "ratio-cap":func(b *bytes.Buffer){
             _=WriteFrame(b,TypeData,bytes.Repeat([]byte{1},100))
