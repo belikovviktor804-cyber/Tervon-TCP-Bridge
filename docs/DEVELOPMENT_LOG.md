@@ -215,3 +215,14 @@
 - **Open risk:** `r.Body.Close()` is not proven to wake a blocked HTTP/2 body read on every failure path; unconditional join could hang if the reader cannot be interrupted. The new test checks one cancellation path, not all leak scenarios. If this test hangs, correct cancellation semantics within M1 before any module promotion.
 - **Required verification on isolated Homeserver checkout:** `go test -race -count=1 ./...`, `go vet ./...`, `go test -race -count=1 -run 'TestFramedCancelRequestBodyReaderReleasesServerWorker|TestFramed|TestLegacyV1StreamRemainsByteExact' -v .`, plus separate fuzz runs for `FuzzReadFrame` and `FuzzStreamDecoder`; record exact HEAD and clean working tree.
 - **Status:** M1 IN_PROGRESS / UNVERIFIED; release NONE; production services untouched. Do not proceed to M2 before integrated PASS.
+
+
+## 2026-11-17 — M1: проверенный GitHub Actions PASS полного CI-пакета
+
+- **Кодовый commit:** `b7e620646921503d728eb8a21e281ef31f0327f0` — `TestFramedBackendEarlyEOFWithOpenUploadReleasesHandler` проверяет ранний backend EOF при открытом HTTP/2 request body и отсутствие зависшего server handler.
+- **CI commit:** `6c9aef45f9700c629c779bdd300b65f0e53e8b7c` — добавлены повторный race-прогон framed/legacy тестов и два ограниченных fuzz-target.
+- **GitHub Actions:** [run #44036843167](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44036843167) — PASS на кодовом SHA; [run #44036862629](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44036862629) — PASS на workflow SHA. Ubuntu GitHub-hosted runner, production NONE.
+- **Команды и результаты на run #44036862629:** `go build ./...` PASS; `go vet ./...` PASS; `go test -count=1 -timeout=60s ./...` PASS (4 пакета); `go test -race -count=1 -timeout=120s ./...` PASS (4 пакета); `go test -race -count=3 -timeout=180s -run 'TestFramed|TestLegacyV1StreamRemainsByteExact|TestStream' ./...` PASS.
+- **Fuzz:** `go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing` — PASS, 722070 executions; `FuzzStreamDecoder` теми же параметрами — PASS, 718491 executions. Длительный fuzz-run не проводился.
+- **Границы доказательств:** standard HTTP/2 mTLS loopback integration, не произвольные кастомные блокирующие `io.ReadCloser`. На Homeserver новый SHA не проверялся; v1.0.0 production не переключался. `gofmt -l` остаётся non-blocking.
+- **Статус:** CI PASS / M1 IN_PROGRESS / release NONE. Следующий шаг — изолированный Homeserver итоговый прогон на точном HEAD, проверка fail-closed поведения и формальное решение о завершении M1 по критериям плана.
