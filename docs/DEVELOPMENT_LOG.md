@@ -235,3 +235,15 @@
 - **GitHub Actions:** [run #44037187498](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44037187498) — SUCCESS/PASS на `9ad9265b175f114178007321049811d5d595c11c`, включая `bash -n` скрипта и все ранее добавленные Go/CI тесты. Это **CI PASS**, а не Homeserver PASS.
 - **Следующий шаг:** на Homeserver в существующем изолированном checkout выполнить fast-forward ветки и `bash tests/homeserver/verify-m1.sh "$PWD"`; сохранить stdout/stderr, точный SHA, `M1_VERIFY_RESULT`. Если FAIL — исправить в M1 и повторить CI/проверку; не переходить к M2.
 - **Статус:** M1 IN_PROGRESS, production NONE, release NONE.
+
+
+## 2026-11-17 — M1: Homeserver изолированный полный кодовый PASS (пользовательский протокол)
+
+- **Проверенный SHA:** `e2313ab8375be3d9a7934e8b1c462a17e1fa3286`, ветка `work/m1-framing`. Пользователь выполнил `bash tests/homeserver/verify-m1.sh "$PWD"` из `/opt/tervon/bridge-m0-check/build/repo`; локальный HEAD после `git fetch origin work/m1-framing` и fast-forward совпал с remote HEAD. Вывод скрипта: `M1_VERIFY_BRANCH=work/m1-framing`, `M1_VERIFY_SHA=e2313ab8375be3d9a7934e8b1c462a17e1fa3286`, `M1_VERIFY_RESULT=PASS`.
+- **Среда:** Homeserver, Go `go1.25.5 linux/amd64`, isolated checkout. Скрипт зафиксировал `M1_VERIFY_ENV=isolated_checkout`, `M1_VERIFY_PRODUCTION_CHANGES=NONE`, `M1_VERIFY_NOTE=code_level_only_no_production_deployment`. Отсутствие изменения работающих служб следует из назначения скрипта; отдельный аудит состояния служб в этом прогоне не выполнялся.
+- **Build:** `go build ./...` — PASS. **Vet:** `go vet ./...` — PASS.
+- **Full race:** `go test -race -count=1 -timeout=120s ./...` — PASS для `tervon-tcp-bridge`, `cmd/bridge`, `framing`, `telemetry`.
+- **Targeted 3x race:** `go test -race -count=3 -timeout=180s -run 'TestFramed|TestLegacyV1StreamRemainsByteExact|TestStream' ./...` — PASS (включая framed cancellation, early EOF и legacy v1 regression).
+- **Fuzz:** `FuzzReadFrame` 30s — PASS, **1 347 631** executions, 11 interesting corpus total; `FuzzStreamDecoder` ~31s — PASS, **1 211 473** executions, 15 interesting corpus total. Не интерпретировать как доказательство отсутствия любых ошибок.
+- **Ограничения:** проверка кодовая/loopback; отдельного cross-version E2E с реальным бинарником v1.0.0 не было; 500ms early-backend-EOF fail-closed требует отдельной оценки; production deployment не выполнялся. `M1_VERIFY_RESULT=PASS` относится к командам скрипта, не ко всем критериям релиза.
+- **Решение:** M1 **CODE_VERIFIED_PASS**, но **IN_PROGRESS** до совместимости и подтверждения оставшихся критериев; M2 не начинать.
