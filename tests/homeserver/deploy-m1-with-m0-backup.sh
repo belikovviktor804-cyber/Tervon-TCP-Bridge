@@ -59,20 +59,30 @@ chmod 0700 "$backup_root"
 exec 9>"$backup_root/.deploy.lock"
 flock -n 9 || { echo "FAIL: deployment already in progress" >&2; exit 2; }
 
-verify_active() {
+# systemctl restart may report a nonzero status when the *old* Go server
+# exits with an incomplete graceful shutdown, even if the new server starts.
+# Verify the actual process instead of relying on restart's exit code alone.
+check_running_hash() {
   local wanted=$1 current_pid current_sha
   [[ "$(systemctl is-active "$unit")" == active ]] || return 1
   current_pid=$(systemctl show "$unit" -p MainPID --value)
-  [[ "$current_pid" =~ ^[0-9]+$ && "$current_pid" != 0 ]] || return 1
-  [[ -e "/proc/$current_pid/exe" ]] || return 1
+  [[ "$current_pid" =~ ^[1-9][0-9]*$ && -e "/proc/$current_pid/exe" ]] || return 1
   current_sha=$(sha256sum "/proc/$current_pid/exe" | awk '{print $1}')
   [[ "$current_sha" == "$wanted" ]] || return 1
-  sleep 2
-  [[ "$(systemctl is-active "$unit")" == active ]] || return 1
-  current_pid=$(systemctl show "$unit" -p MainPID --value)
-  [[ "$current_pid" =~ ^[0-9]+$ && "$current_pid" != 0 ]] || return 1
-  [[ -e "/proc/$current_pid/exe" ]] || return 1
-  [[ "$(sha256sum "/proc/$current_pid/exe" | awk '{print $1}')" == "$wanted" ]]
+}
+verify_active() {
+  local wanted=$1 i
+  # Give systemd a bounded time to publish MainPID and start the listener.
+  for ((i=0; i<15; i++)); do
+    if check_running_hash "$wanted"; then
+      sleep 2
+      if check_running_hash "$wanted"; then
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  return 1
 }
 replace_binary() {
   local src=$1 temp
@@ -86,10 +96,15 @@ rollback_needed=0
 rollback_on_exit() {
   if (( rollback_needed == 0 )); then return; fi
   echo "M1_INSTALL=FAIL; restoring backed-up M0" >&2
-  if replace_binary "$backup/bridge" && systemctl restart "$unit" && verify_active "$installed_sha"; then
-    echo "M0_AUTO_ROLLBACK=PASS" >&2
+  if replace_binary "$backup/bridge"; then
+    systemctl restart "$unit" || echo "M0_RESTART_NONZERO=YES (checking actual process)" >&2
+    if verify_active "$installed_sha"; then
+      echo "M0_AUTO_ROLLBACK=PASS" >&2
+    else
+      echo "M0_AUTO_ROLLBACK=FAIL; use rollback command and investigate" >&2
+    fi
   else
-    echo "M0_AUTO_ROLLBACK=FAIL; use rollback command and investigate" >&2
+    echo "M0_AUTO_ROLLBACK=FAIL; cannot restore executable" >&2
   fi
 }
 trap rollback_on_exit EXIT
@@ -121,13 +136,15 @@ if [[ "$mode" == install ]]; then
   echo "NEW_SHA256=$new_sha"
   rollback_needed=1
   replace_binary "$candidate"
-  if systemctl restart "$unit" && verify_active "$new_sha"; then
+  systemctl restart "$unit" || echo "M1_RESTART_NONZERO=YES (checking actual process)" >&2
+  if verify_active "$new_sha"; then
     rollback_needed=0
     echo "M1_INSTALL=PASS"
     echo "CONFIG_CHANGED=NO"
     exit 0
   fi
-  echo "FAIL: M1 restart/verification" >&2
+  echo "FAIL: M1 process not active with expected SHA after bounded wait" >&2
+  systemctl show "$unit" -p ActiveState -p SubState -p MainPID -p Result -p ExecMainStatus --no-pager >&2 || true
   exit 1
 fi
 if [[ "$mode" == rollback ]]; then
@@ -144,7 +161,7 @@ if [[ "$mode" == rollback ]]; then
   [[ "$saved_unit" == "$unit" && "$saved_binary" == "$binary" && "$old_sha" =~ ^[a-f0-9]{64}$ ]] || { echo "FAIL: backup manifest mismatch" >&2; exit 2; }
   [[ "$(sha256sum "$backup/bridge" | awk '{print $1}')" == "$old_sha" ]] || { echo "FAIL: backup checksum mismatch" >&2; exit 2; }
   replace_binary "$backup/bridge"
-  systemctl restart "$unit"
+  systemctl restart "$unit" || echo "M0_RESTART_NONZERO=YES (checking actual process)" >&2
   verify_active "$old_sha" || { echo "M0_ROLLBACK=FAIL" >&2; exit 1; }
   echo "M0_ROLLBACK=PASS"
 fi
