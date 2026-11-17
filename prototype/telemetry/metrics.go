@@ -53,6 +53,14 @@ type Snapshot struct {
 	Errors                map[Reason]uint64 `json:"errors"`
 	Goroutines            int               `json:"goroutines"`
 	PaddingState          string            `json:"padding_state"`
+    PaddingUploadState string `json:"padding_upload_state"`
+    PaddingDownloadState string `json:"padding_download_state"`
+    PaddingUploadBytes uint64 `json:"padding_upload_bytes"`
+    PaddingDownloadBytes uint64 `json:"padding_download_bytes"`
+    PaddingUploadOverheadPercent float64 `json:"padding_upload_overhead_percent"`
+    PaddingDownloadOverheadPercent float64 `json:"padding_download_overhead_percent"`
+    PaddingUploadTransitions uint64 `json:"padding_upload_transitions"`
+    PaddingDownloadTransitions uint64 `json:"padding_download_transitions"`
 	JitterState           string            `json:"jitter_state"`
 }
 
@@ -74,6 +82,13 @@ type Registry struct {
 	rejected       atomic.Uint64
 	up             atomic.Uint64
 	down           atomic.Uint64
+    padConfigured atomic.Bool
+    padUp atomic.Uint64
+    padDown atomic.Uint64
+    padActiveUp atomic.Int64
+    padActiveDown atomic.Int64
+    padTransitionsUp atomic.Uint64
+    padTransitionsDown atomic.Uint64
 	errors         [7]atomic.Uint64
 	mu             sync.Mutex
 	lastAt         time.Time
@@ -162,6 +177,29 @@ func (r *Registry) AddDownload(n int64) {
 		r.down.Add(uint64(n))
 	}
 }
+// SetPaddingConfigured reports whether the local bridge accepts pad1.
+// It does not assert that a remote peer negotiated padding.
+func (r *Registry) SetPaddingConfigured(enabled bool) {r.padConfigured.Store(enabled)}
+func (r *Registry) AddPaddingUpload(n uint64) {if n>0{r.padUp.Add(n)}}
+func (r *Registry) AddPaddingDownload(n uint64) {if n>0{r.padDown.Add(n)}}
+func (r *Registry) PaddingUploadActive(active bool) {
+    if active {r.padActiveUp.Add(1)} else {r.padActiveUp.Add(-1)}
+    r.padTransitionsUp.Add(1)
+}
+func (r *Registry) PaddingDownloadActive(active bool) {
+    if active {r.padActiveDown.Add(1)} else {r.padActiveDown.Add(-1)}
+    r.padTransitionsDown.Add(1)
+}
+func padStatus(enabled bool, active int64) string {
+    if !enabled {return "OFF"}
+    if active>0 {return "ACTIVE"}
+    return "OFF"
+}
+func paddingRatio(n, useful uint64) float64 {
+    if useful==0 {return 0}
+    return 100*float64(n)/float64(useful)
+}
+
 func (r *Registry) Error(reason Reason) {
 	switch reason {
 	case ReasonBackend:
@@ -181,7 +219,7 @@ func (r *Registry) Error(reason Reason) {
 	}
 }
 func (r *Registry) Snapshot() Snapshot {
-	s := Snapshot{Schema: "tervon.bridge.telemetry.v1", At: time.Time{}, UptimeSeconds: 0, SessionsStarted: r.startedCount.Load(), SessionsCompleted: r.completed.Load(), SessionsRejected: r.rejected.Load(), SessionsActive: r.active.Load(), UploadBytes: 0, DownloadBytes: 0, Goroutines: runtime.NumGoroutine(), PaddingState: "NOT_IMPLEMENTED", JitterState: "NOT_IMPLEMENTED", Errors: map[Reason]uint64{}}
+	s := Snapshot{Schema: "tervon.bridge.telemetry.v1", At: time.Time{}, UptimeSeconds: 0, SessionsStarted: r.startedCount.Load(), SessionsCompleted: r.completed.Load(), SessionsRejected: r.rejected.Load(), SessionsActive: r.active.Load(), UploadBytes: 0, DownloadBytes: 0, Goroutines: runtime.NumGoroutine(), PaddingState: "OFF", JitterState: "NOT_IMPLEMENTED", Errors: map[Reason]uint64{}}
 	for i, k := range []Reason{ReasonBackend, ReasonHTTP, ReasonTimeout, ReasonCanceled, ReasonShutdown, ReasonAuth, ReasonTLS} {
 		s.Errors[k] = r.errors[i].Load()
 	}
@@ -213,6 +251,17 @@ func (r *Registry) Snapshot() Snapshot {
 	down := r.down.Load()
 	s.UploadBytes = up
 	s.DownloadBytes = down
+    s.PaddingUploadBytes=r.padUp.Load()
+    s.PaddingDownloadBytes=r.padDown.Load()
+    s.PaddingUploadOverheadPercent=paddingRatio(s.PaddingUploadBytes,up)
+    s.PaddingDownloadOverheadPercent=paddingRatio(s.PaddingDownloadBytes,down)
+    s.PaddingUploadTransitions=r.padTransitionsUp.Load()
+    s.PaddingDownloadTransitions=r.padTransitionsDown.Load()
+    enabled:=r.padConfigured.Load()
+    s.PaddingUploadState=padStatus(enabled,r.padActiveUp.Load())
+    s.PaddingDownloadState=padStatus(enabled,r.padActiveDown.Load())
+    if s.PaddingUploadState=="ACTIVE" || s.PaddingDownloadState=="ACTIVE" {s.PaddingState="ACTIVE"}
+
 	if !r.lastAt.IsZero() {
 		elapsed := now.Sub(r.lastAt).Seconds()
 		if elapsed > 0 {
