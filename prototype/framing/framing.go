@@ -69,7 +69,7 @@ func writeAll(w io.Writer, b []byte) error {
 // that the peer negotiated pad1. Padding is never included in useful payload.
 func WritePaddingFrame(w io.Writer, payload []byte) error {
     if len(payload) == 0 { return ErrMalformed }
-    if len(payload) > MaxPayload { return ErrSize }
+    if len(payload) > 4096 { return ErrSize }
     return writeFrame(w, TypePadding, payload)
 }
 
