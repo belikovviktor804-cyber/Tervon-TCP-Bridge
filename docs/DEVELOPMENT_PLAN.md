@@ -172,6 +172,18 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — short-flow fast path and comparative benchmarks (2026-11-18, CI PASS)
+
+- **Baseline PASS:** [GitHub Actions run #44200769174](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200769174), SHA `318ad9bfb3d1fcbb0b198dfa717b4a30860ec723`, SUCCESS (build/vet/unit/race/repeated M1+M2/fuzz + comparative benchmarks). Go 1.23.0 linux/amd64 Ubuntu hosted runner.
+- **Baseline codec-only benchmarks (not network):** short 128B M1 51.72 ns/op, 32 B/op, 2 allocs/op; M2-enabled short 166.2 ns/op, 256 B/op, 4 allocs/op. Sustained 16KiB M1 26.73 ns/op; M2 PAD 2096 ns/op, 543 B/op, 3 allocs/op. Not representative of VPN throughput; writes used `io.Discard`.
+- **Optimization:** `padding.State.ObserveSmallFrame` fast-path keeps short/interactivity below `MinFrameBytes` OFF, counts useful bytes and resets sustained burst classifier without `time.Now`. Encoder checks it before full sampling. Tests verify 1000 small frames cannot activate, followed by fresh eligible burst and OFF transition.
+- **Optimized CI PASS:** [GitHub Actions run #44201265799](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44201265799), exact source SHA `f2c6e4cad6b1189001510cbbd0d935faf978b131`, SUCCESS: build/vet/unit/race, repeated M1 and M2 tests, three bounded fuzz cases. Go 1.23.0 linux/amd64 hosted runner.
+- **Optimized benchmark:** M1 short 50.53 ns/op / 32 B/op / 2 allocs; M2-enabled short **122.3 ns/op / 256 B/op / 4 allocs**. M2 short CPU benchmark improved relative to 166.2 ns/op initial observation, but remains ~2.4x baseline M1 CPU in this microbenchmark. Sustained M2 PAD 2100 ns/op / 543 B/op / 3 allocs (similar to baseline). Variations across runs not statistically controlled.
+- **Optimized detector microbenchmark:** 21.71 ns/op, 0 B/op, 0 allocs/op (single runner result).
+- **Remaining:** measured live latency, CPU/load under real traffic and RTT/loss, short/pulsed streams E2E and full HTTP2/TLS overhead; agreed acceptance thresholds, rollback, controlled Homeserver/Finserver test. **CODE PASS does not mean M2 PASS. Production changes NONE, M3 not started, v1.0.1 NOT_RELEASED.**
+
+
+
 #### M2 — verified integrated code gate (2026-11-18)
 
 - **CI failure:** GitHub Actions [run #44200049897](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200049897) at `85c10507c7b2f0c49e930091c914ae507ff80c05` — FAIL in unit tests, because two legacy telemetry endpoint tests still required `padding_state=NOT_IMPLEMENTED` after the M2 local contract changed to `OFF`. Build and vet were already PASS. Earlier malformed workflow was repaired in commit `85c10507c7b2f0c49e930091c914ae507ff80c05`.
