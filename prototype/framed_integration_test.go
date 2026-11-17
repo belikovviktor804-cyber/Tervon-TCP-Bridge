@@ -183,7 +183,14 @@ func TestFramedMalformedUploadClosesBackend(t *testing.T) {
  _=resp.Body.Close()
  select {
  case e:=<-observed:
-  if e!=nil {t.Fatalf("backend not closed after malformed upload: %v",e)}
+  // Closing a TCP connection with unread data can surface ECONNRESET
+  // instead of EOF on Linux. Either outcome proves the peer terminated.
+  if e!=nil {
+   var op *net.OpError
+   if !errors.As(e,&op) || !strings.Contains(strings.ToLower(e.Error()),"reset") {
+    t.Fatalf("unexpected backend read error: %v",e)
+   }
+  }
  case <-time.After(6*time.Second):
   t.Fatal("backend did not close after malformed upload")
  }
@@ -249,5 +256,28 @@ func TestFramedBackendEarlyEOFDoesNotForgeFIN(t *testing.T) {
  select {
  case <-backendDone:
  case <-time.After(5*time.Second):t.Fatal("backend did not terminate")
+ }
+}
+
+func TestLegacyV1StreamRemainsByteExact(t *testing.T) {
+ addr,stop:=echo(t)
+ defer stop()
+ cl:=setup(t,[]Backend{{Name:"legacy-echo",Address:addr}})
+ if !strings.HasSuffix(cl.URL,"/v1/stream") {t.Fatalf("expected legacy endpoint: %s",cl.URL)}
+ a,b:=net.Pipe()
+ done:=make(chan error,1)
+ go func(){done<-cl.Handle(a)}()
+ defer b.Close()
+ _=b.SetDeadline(time.Now().Add(8*time.Second))
+ payload:=bytes.Repeat([]byte{0,255,10,13,0,1,2,3},8192)
+ if _,err:=b.Write(payload);err!=nil {t.Fatal(err)}
+ got:=make([]byte,len(payload))
+ if _,err:=io.ReadFull(b,got);err!=nil {t.Fatal(err)}
+ if !bytes.Equal(got,payload) {t.Fatal("legacy v1 bytes changed")}
+ _=b.Close()
+ select {
+ case err:=<-done:
+  if err!=nil {t.Fatalf("legacy v1 handler: %v",err)}
+ case <-time.After(4*time.Second):t.Fatal("legacy v1 handler stuck")
  }
 }
