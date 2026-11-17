@@ -231,13 +231,17 @@ func (r *Registry) Snapshot() Snapshot {
 // not itself provide authentication or enforce the listener's bind address.
 func (r *Registry) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/metrics/v1" {
+		if req.URL.Path != "/metrics/v1" && req.URL.Path != "/metrics" {
 			http.NotFound(w, req)
 			return
 		}
 		if req.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if req.URL.Path == "/metrics" {
+			r.writePrometheus(w)
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
