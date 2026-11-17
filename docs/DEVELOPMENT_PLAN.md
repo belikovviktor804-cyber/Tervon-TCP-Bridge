@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
 
+#### M2 — telemetry extension and follow-up tests (2026-11-18, awaiting CI)
+
+- Added aggregate PAD metrics in `prototype/telemetry/metrics.go` and `prototype/telemetry/prometheus.go`: upload/download PAD bytes, overhead% relative to application bytes, ACTIVE/OFF per direction and transition counts. The metric intentionally counts **PAD payload only**, not TBF1 frame headers, HTTP/2 or TLS overhead. No IDs, IPs, payload content or dynamic labels.
+- `prototype/framing/stream.go` now emits single-writer synchronous callbacks when PAD frames are successfully written and when a stream changes ACTIVE/OFF; `prototype/bridge.go` attaches them independently for client upload and server download.
+- `prototype/cmd/bridge/main.go` sets local `padding_enabled` configuration status for metrics; defaults still OFF.
+- `prototype/telemetry/metrics_test.go` checks OFF/ACTIVE, overhead ratios, transitions and Prometheus newline output; `prototype/framing/padding_test.go` checks callback accounting/final OFF.
+- **Status:** CODE_COMMITTED; latest post-telemetry source SHA `d75088f55f8faa16b2804c06d3951508d4410ee0` (before this docs commit); new CI/race/fuzz/benchmark results **NOT YET VERIFIED**. Earlier PASS #44195491683 covers **only** snapshot `fe4bc73...`, and does not extend to these changes. Production NONE; release NONE.
+- Pending: final CI gate on latest source; review of correctness and cancellation, resource/latency measurement, controlled live deployment with backup/rollback, explicit acceptance thresholds. No M3 before M2 PASS.
+
 #### M2 — GitHub CI verification checkpoint (2026-11-18)
 
 - **Подтверждённый CI кодового snapshot:** `fe4bc73f492845007c67ecc5d24c890e1b3f3f60`, [GitHub Actions run #44195491683](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44195491683), job test conclusion **SUCCESS**.
