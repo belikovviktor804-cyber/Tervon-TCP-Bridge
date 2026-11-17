@@ -9,6 +9,9 @@ from pathlib import Path
 SCRIPT = (Path(__file__).resolve().parent / "install-site-service.sh").read_text(
     encoding="utf-8"
 )
+READINESS = (Path(__file__).resolve().parent / "wait_for_site.py").read_text(
+    encoding="utf-8"
+)
 
 
 class IsolatedInstallerTests(unittest.TestCase):
@@ -19,8 +22,8 @@ class IsolatedInstallerTests(unittest.TestCase):
             'trap rollback ERR INT TERM',
             'systemd-analyze verify "$UNIT_FILE"',
             'systemctl is-active --quiet tervon-bridge-stats.service',
-            'LOOPBACK_STATUS=PASS',
-            'METRICS_STATUS=UNAVAILABLE_EXPECTED',
+            'wait_for_site.py',
+            'LOOPBACK_STATUS',
         ):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, SCRIPT)
@@ -47,8 +50,10 @@ class IsolatedInstallerTests(unittest.TestCase):
         self.assertNotRegex(SCRIPT, r"(?m)^\s*(?:rm|mv|cp|install)\s+[^\n]*(?:/etc/nginx|/opt/tervon-tcp-bridge|/opt/xray-blocker)")
 
     def test_no_remote_metrics(self):
-        self.assertIn('set(nodes) == {"homeserver"}', SCRIPT)
-        self.assertIn('status") == "unavailable"', SCRIPT)
+        self.assertIn('set(nodes) != {"homeserver"}', READINESS)
+        self.assertIn('node.get("status") != "unavailable"', READINESS)
+        self.assertIn('127.0.0.1:8894', READINESS)
+        self.assertIn('DEADLINE_SECONDS = 12.0', READINESS)
         self.assertNotIn("finserver", SCRIPT.lower())
 
 
