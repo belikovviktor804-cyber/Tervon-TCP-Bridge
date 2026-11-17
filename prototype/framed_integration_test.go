@@ -5,6 +5,7 @@ import (
  "context"
  "crypto/sha256"
  "crypto/tls"
+ "fmt"
  "io"
  "net"
  "net/http"
@@ -72,3 +73,47 @@ func TestFramedCancellationReleasesHandler(t *testing.T) {
  }
 }
 
+
+func TestFramedHalfCloseResponseAfterUploadEOF(t *testing.T) {
+ backend,err:=net.Listen("tcp","127.0.0.1:0")
+ if err!=nil {t.Fatal(err)}
+ defer backend.Close()
+ backendDone:=make(chan error,1)
+ go func(){
+  conn,e:=backend.Accept()
+  if e!=nil {backendDone<-e;return}
+  defer conn.Close()
+  _=conn.SetDeadline(time.Now().Add(6*time.Second))
+  body,e:=io.ReadAll(conn)
+  if e!=nil {backendDone<-e;return}
+  if !bytes.Equal(body,[]byte("request-after-half-close")) {
+   backendDone<-fmt.Errorf("backend received %q",body);return
+  }
+  _,e=conn.Write([]byte("response-after-half-close"))
+  backendDone<-e
+ }()
+ cl:=setup(t,[]Backend{{Name:"eof-response",Address:backend.Addr().String()}})
+ cl.URL=strings.Replace(cl.URL,"/v1/stream","/v2/stream",1)
+ local,err:=net.Listen("tcp","127.0.0.1:0")
+ if err!=nil {t.Fatal(err)}
+ defer local.Close()
+ accepted:=make(chan error,1)
+ go func(){
+  conn,e:=local.Accept()
+  if e!=nil {accepted<-e;return}
+  accepted<-cl.Handle(conn)
+ }()
+ peer,err:=net.Dial("tcp",local.Addr().String())
+ if err!=nil {t.Fatal(err)}
+ defer peer.Close()
+ _=peer.SetDeadline(time.Now().Add(8*time.Second))
+ if _,err=peer.Write([]byte("request-after-half-close"));err!=nil {t.Fatal(err)}
+ if err=peer.(*net.TCPConn).CloseWrite();err!=nil {t.Fatal(err)}
+ response,err:=io.ReadAll(peer)
+ if err!=nil {t.Fatal(err)}
+ if string(response)!="response-after-half-close" {t.Fatalf("response %q",response)}
+ select {case err:=<-accepted:if err!=nil {t.Fatal(err)}
+ case <-time.After(4*time.Second):t.Fatal("handler did not terminate")}
+ select {case err:=<-backendDone:if err!=nil {t.Fatal(err)}
+ case <-time.After(4*time.Second):t.Fatal("backend did not terminate")}
+}
