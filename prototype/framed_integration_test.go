@@ -281,3 +281,93 @@ func TestLegacyV1StreamRemainsByteExact(t *testing.T) {
  case <-time.After(4*time.Second):t.Fatal("legacy v1 handler stuck")
  }
 }
+
+
+func TestFramedCancelRequestBodyReaderReleasesServerWorker(t *testing.T) {
+	backend, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil { t.Fatal(err) }
+	defer backend.Close()
+	backendAccepted := make(chan struct{})
+	backendDone := make(chan struct{})
+	go func() {
+		defer close(backendDone)
+		c, err := backend.Accept()
+		if err != nil { return }
+		close(backendAccepted)
+		defer c.Close()
+		_, _ = io.Copy(io.Discard, c)
+	}()
+
+	cert, pool := cert(t)
+	server := &Server{
+		Routes: map[string][]Backend{"vpn": {{Address: backend.Addr().String()}}},
+		AuthorizedServices: map[[32]byte]map[string]bool{
+			sha256.Sum256(cert.Certificate[0]): {"vpn": true},
+		},
+	}
+	handlerExited := make(chan struct{})
+	hs := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(handlerExited)
+		server.ServeHTTP(w, r)
+	}))
+	hs.EnableHTTP2 = true
+	hs.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs: pool,
+		NextProtos: []string{"h2"},
+	}
+	hs.StartTLS()
+	defer hs.Close()
+
+	cl := NewClient(&tls.Config{
+		RootCAs: pool, ServerName: "example.com",
+		Certificates: []tls.Certificate{cert},
+	}, hs.URL+"/v2/stream", "vpn")
+	defer cl.HTTP.CloseIdleConnections()
+
+	// Keep the upload open after a valid DATA frame, emulating a peer that
+	// aborts its HTTP/2 stream before sending FIN.
+	reader, writer := io.Pipe()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.URL, reader)
+	if err != nil { t.Fatal(err) }
+	req.Header.Set("Tervon-Service", "vpn")
+	req.Header.Set("Tervon-Wire-Version", "1")
+	req.Header.Set("Tervon-Wire-Capability", "tbf1-fin")
+	req.ContentLength = -1
+
+	requestDone := make(chan error, 1)
+	go func() {
+		resp, err := cl.HTTP.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		requestDone <- err
+	}()
+	select {
+	case <-backendAccepted:
+	case <-time.After(4*time.Second): t.Fatal("backend was not dialed")
+	}
+	var frame bytes.Buffer
+	if err := framing.WriteFrame(&frame, framing.TypeData, []byte("partial")); err != nil { t.Fatal(err) }
+	if _, err := writer.Write(frame.Bytes()); err != nil {
+		cancel()
+		t.Fatalf("failed to upload DATA before cancellation: %v", err)
+	}
+	cancel()
+	_ = writer.Close()
+	select {
+	case <-handlerExited:
+	case <-time.After(4*time.Second): t.Fatal("server handler did not join upload worker on cancellation")
+	}
+	select {
+	case <-backendDone:
+	case <-time.After(4*time.Second): t.Fatal("backend socket remained open after cancellation")
+	}
+	select {
+	case <-requestDone:
+	case <-time.After(4*time.Second): t.Fatal("HTTP client request remained blocked after cancellation")
+	}
+}
