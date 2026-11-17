@@ -4,6 +4,7 @@ import (
     "crypto/rand"
     "errors"
     "io"
+    "math"
     "time"
 
     "tervon-tcp-bridge/padding"
@@ -69,6 +70,9 @@ type Decoder struct {
     pending []byte
     finished bool
     allowPadding bool
+    useful uint64
+    padded uint64
+    lastWasData bool
 }
 func NewDecoder(r io.Reader)*Decoder{return &Decoder{r:r}}
 func NewPaddingDecoder(r io.Reader)*Decoder{return &Decoder{r:r,allowPadding:true}}
@@ -90,7 +94,15 @@ func (d *Decoder) Read(p []byte)(int,error){
         }
         switch f.Type {
         case TypePadding:
-            // A PAD is valid only on a negotiated stream. Never forward it.
+            // Permit at most one PAD after DATA and a bounded cumulative
+            // budget, even for a buggy or malicious authenticated peer.
+            if !d.lastWasData || len(f.Payload)>4096 {return 0,ErrMalformed}
+            if d.padded>math.MaxUint64-uint64(len(f.Payload)){return 0,ErrMalformed}
+            d.padded+=uint64(len(f.Payload))
+            // The receiver allows at most 25% overhead; the configured
+            // encoder targets a stricter 5% by default.
+            if d.padded>d.useful/4 {return 0,ErrMalformed}
+            d.lastWasData=false
             continue
         case TypeFIN:
             var extra [1]byte
@@ -100,6 +112,12 @@ func (d *Decoder) Read(p []byte)(int,error){
             d.finished=true
             return 0,io.EOF
         default:
+            if d.useful>math.MaxUint64-uint64(len(f.Payload)) {
+                d.useful=math.MaxUint64
+            }else{
+                d.useful+=uint64(len(f.Payload))
+            }
+            d.lastWasData=true
             d.pending=f.Payload
             n:=copy(p,d.pending)
             d.pending=d.pending[n:]
