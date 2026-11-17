@@ -65,14 +65,7 @@ run go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=30s -parallel=2 -tim
 
 if [[ -n "${TERVON_V100_BIN:-}" ]]; then
   echo "M1_REAL_V100=REQUESTED (local binary SHA256 is verified by the test)"
-  run go test -count=1 -timeout=90s -run '^TestReleaseV100BidirectionalCompatibility; then
-  echo "FAIL: checkout changed during verification" >&2
-  exit 1
-fi
-echo "M1_VERIFY_RESULT=PASS"
-echo "M1_VERIFY_SHA=$sha"
-echo "M1_VERIFY_NOTE=code_level_only_no_production_deployment"
- -v ./cmd/bridge
+  run go test -count=1 -timeout=90s -run '^TestReleaseV100BidirectionalCompatibility$' -v ./cmd/bridge
   echo "M1_REAL_V100=PASS"
 else
   echo "M1_REAL_V100=NOT_RUN (set TERVON_V100_BIN to a local copy of the official v1.0.0 binary)"
