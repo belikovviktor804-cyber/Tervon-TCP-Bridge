@@ -42,6 +42,10 @@ jobs:
         run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
       - name: Test isolated stats collector (no production services)
         run: python3 -m unittest discover -s ../integrations/stats -p 'test_*.py' -v
+      - name: Test stats panel JavaScript (Node built-ins only)
+        run: |
+          node --check ../integrations/stats/bridge_panel.js
+          node --test ../integrations/stats/test_bridge_panel.cjs
       - name: Build all packages including CLI
         run: go build ./...
       - name: Vet
