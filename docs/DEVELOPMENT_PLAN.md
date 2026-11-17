@@ -51,6 +51,12 @@
 
 #### M1 — контрольная точка 2026-11-17 (GitHub source of truth)
 
+- **Дополнение после HEAD `af966bc77c719bd39b11508c9576c4239c0f60a8`:** кодовые commits `e3c365daea873bfad2331a84b5271392a3f9fd3d` и `ddd72e2faa61d1732321c18d76089222af22e377`. Добавлены обязательное ожидание завершения server upload goroutine и регрессия cancellation с незавершённым TBF1 upload.
+- **Статус изменений:** UNVERIFIED. Не доказано, что закрытие `r.Body` будит всякое заблокированное чтение HTTP/2; новый join способен зависнуть на нестандартном/непрерываемом body reader. Проверка и исправления обязательны внутри M1.
+- **Для подтверждения:** изолированный Homeserver checkout актуального HEAD, `go test -race -count=1 ./...`, `go vet ./...`, повтор targeted framed/legacy tests, два независимых fuzz run; зафиксировать SHA, PASS/FAIL и отсутствие оставшихся блокировок. Production не изменять.
+
+
+
 - **Branch:** `work/m1-framing`; **последний кодовый commit:** `74f4abb22a2cc1fb37609a3568800ae7f1cc6caa` (новый legacy v1 regression test и исправление трактовки TCP RST).
 - **Реализовано в коде, но НЕ подтверждено тестами на актуальном SHA:** TBF1 DATA/FIN, bounded parser, negotiation, клиентский cleanup, серверная проверка FIN, E2E early backend EOF, malformed upload, legacy v1 byte-exact regression.
 - **Последний подтверждённый Homeserver PASS:** `385b869ec22be9be40f5a5ad77cb79f9e597d651` — не распространяется на последующие изменения.
