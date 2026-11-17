@@ -179,6 +179,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var encoder *framing.Encoder
 	if padded {
         encoder, _ = framing.NewPaddingEncoder(target, *s.PaddingPolicy)
+        if s.Metrics!=nil{
+            encoder.SetObservers(s.Metrics.AddPaddingDownload,s.Metrics.PaddingDownloadActive)
+        }
         target = encoder
     } else if framed {
         encoder = framing.NewEncoder(target)
@@ -301,6 +304,9 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		var encoder *framing.Encoder
 		if padded {
             encoder, _ = framing.NewPaddingEncoder(writer, *cl.PaddingPolicy)
+            if cl.Metrics!=nil{
+                encoder.SetObservers(cl.Metrics.AddPaddingUpload,cl.Metrics.PaddingUploadActive)
+            }
             target = encoder
         } else if framed {
             encoder = framing.NewEncoder(writer)
