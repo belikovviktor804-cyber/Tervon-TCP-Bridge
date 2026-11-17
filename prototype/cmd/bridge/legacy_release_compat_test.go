@@ -22,22 +22,29 @@ import (
 	"time"
 )
 
-// This opt-in test runs the actual published v1.0.0 executable in isolated
-// child processes. It never connects to or modifies production services.
-// Run with TERVON_V100_BIN=/path/to/local/release-binary go test -run
-// '^TestReleaseV100BidirectionalCompatibility$' -v ./cmd/bridge.
+// These opt-in tests run a separately copied, checksum-pinned historical
+// executable on loopback. The installed M0 and published v1.0.0 are distinct
+// artifacts; neither test touches the live systemd process or configuration.
+func TestInstalledM0BidirectionalCompatibility(t *testing.T) {
+	legacyBinaryCompatibility(t, "TERVON_M0_BIN", "fbc927f33cd0198329bb21ff0b40a5d4e8240bc9a92d3d62c1d9c4e4ec30fc0c", "installed M0")
+}
+
 func TestReleaseV100BidirectionalCompatibility(t *testing.T) {
-	source := os.Getenv("TERVON_V100_BIN")
+	legacyBinaryCompatibility(t, "TERVON_V100_BIN", "5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2", "published v1.0.0")
+}
+
+func legacyBinaryCompatibility(t *testing.T, envName, expectedSHA256, label string) {
+	t.Helper()
+	source := os.Getenv(envName)
 	if source == "" {
-		t.Skip("set TERVON_V100_BIN to a local copy of the published v1.0.0 Linux amd64 binary")
+		t.Skipf("set %s to a local copy of the %s binary", envName, label)
 	}
-	const releaseSHA256 = "5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2"
 	binary, err := os.ReadFile(source)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fmt.Sprintf("%x", sha256.Sum256(binary)) != releaseSHA256 {
-		t.Fatal("v1.0.0 binary checksum mismatch; refusing to execute")
+	if fmt.Sprintf("%x", sha256.Sum256(binary)) != expectedSHA256 {
+		t.Fatalf("%s checksum mismatch; refusing to execute", label)
 	}
 	dir := t.TempDir()
 	old := filepath.Join(dir, "bridge-v1.0.0")
@@ -67,8 +74,8 @@ func TestReleaseV100BidirectionalCompatibility(t *testing.T) {
 	for _, tc := range []struct {
 		name, server, client string
 	}{
-		{"v1.0.0_client_to_current_server", current, old},
-		{"current_client_to_v1.0.0_server", old, current},
+		{"legacy_client_to_current_server", current, old},
+		{"current_client_to_legacy_server", old, current},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			serverAddr := legacyFreeLoopbackAddr(t)
@@ -113,7 +120,7 @@ func TestReleaseV100BidirectionalCompatibility(t *testing.T) {
 			if !bytes.Equal(payload, got) {
 				t.Fatal("legacy release binary changed TCP payload")
 			}
-			t.Logf("PASS: %s: %d byte-exact bytes over TLS1.3/mTLS/HTTP2 /v1/stream", tc.name, len(payload))
+			t.Logf("PASS: %s: %s: %d byte-exact bytes over TLS1.3/mTLS/HTTP2 /v1/stream", label, tc.name, len(payload))
 		})
 	}
 }
