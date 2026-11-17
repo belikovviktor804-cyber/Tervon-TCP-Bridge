@@ -23,7 +23,7 @@ class IsolatedInstallerTests(unittest.TestCase):
             'systemd-analyze verify "$UNIT_FILE"',
             'systemctl is-active --quiet tervon-bridge-stats.service',
             'wait_for_site.py',
-            'LOOPBACK_STATUS',
+            'BOUNDED STARTUP WAIT',
         ):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, SCRIPT)
