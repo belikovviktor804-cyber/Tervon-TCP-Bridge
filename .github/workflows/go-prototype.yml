@@ -22,7 +22,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: prototype
@@ -65,45 +65,9 @@ jobs:
       - name: M2 repeated HTTP2 negotiation and byte-exact regression
         run: go test -race -count=3 -timeout=180s -run '^TestM2' .
       - name: M2 policy CPU/alloc benchmark (diagnostic, no pass threshold yet)
-        run: go test -run '^
-        run: go test -run '^
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -fuzz '^FuzzPaddingDecoder
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz frame parser (bounded)
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -bench '^BenchmarkPaddingObserve
-        run: go test -run '^
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -fuzz '^FuzzPaddingDecoder
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz frame parser (bounded)
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -benchmem -benchtime=200ms ./padding
+        run: go test -run '^$' -bench '^BenchmarkPaddingObserve$' -benchmem -benchtime=200ms ./padding
       - name: M2 fuzz padding decoder (bounded)
-        run: go test -run '^
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -fuzz '^FuzzPaddingDecoder
-        run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
-      - name: M1 fuzz stream decoder (bounded)
-        run: go test -run '^$' -fuzz '^FuzzStreamDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
- -fuzztime=15s -parallel=2 -timeout=90s ./framing
+        run: go test -run '^$' -fuzz '^FuzzPaddingDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
       - name: M1 fuzz frame parser (bounded)
         run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
       - name: M1 fuzz stream decoder (bounded)
