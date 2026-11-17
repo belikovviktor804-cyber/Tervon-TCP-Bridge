@@ -92,6 +92,31 @@ sudo bash tests/homeserver/deploy-m1-with-m0-backup.sh \
 
 Только после подтверждённого PASS на обоих узлах и отдельного E2E через действующий маршрут: резервировать `client.json`, атомарно заменить **только** `remote_url` с `/v1/stream` на `/v2/stream`, перезапустить **только** client unit, проверить трафик. При неуспехе вернуть сохранённый `client.json` и перезапустить client. Не менять серверные маршруты, сертификаты, firewall или другие службы. Пока этот шаг не выполнен, **M1 binary deployed, TBF1 inactive**.
 
+### Готовая операция переключения M1 /v1 → TBF1 /v2 (2026-11-17)
+
+Фактически подтверждённый клиентский конфиг на Homeserver: /etc/tervon-tcp-bridge/client.json, mode=client, путь remote_url=/v1/stream. После двухстороннего M1→M1 /v1 PASS выполнить **только на Homeserver**:
+
+~~~bash
+cd /opt/tervon/bridge-m0-check/build/repo || exit 1
+git fetch origin work/m1-framing
+git merge --ff-only FETCH_HEAD
+test -z "$(git status --porcelain)" || exit 1
+python3 -m unittest discover -s tests/homeserver -p 'test_activate_m1_framing.py' -v || exit 1
+python3 tests/homeserver/activate-m1-framing.py enable
+~~~
+
+Скрипт проверяет установленный и работающий M1 SHA, режим и путь /v1/stream, создаёт backup /opt/tervon-tcp-bridge/backups/m1-framing-XXXXXXXX/client.json в закрытом каталоге, атомарно меняет **только JSON-значение** remote_url, перезапускает только tervon-bridge-client.service, проверяет стабильный PID+SHA; при ошибке запуска автоматически возвращает старую конфигурацию и перезапускает клиент. Прежние подключения могут оборваться.
+
+V2_ACTIVATION=PASS_PROCESS_ONLY означает **только успешный старт процесса**, не подтверждение сетевого трафика. Оператор обязан проверить интернет через существующий VPN, реальный TCP в обе стороны, отсутствие ошибок и затем записать E2E PASS в GitHub.
+
+При отсутствии интернета использовать выведенный CONFIG_BACKUP_DIRECTORY:
+
+~~~bash
+python3 tests/homeserver/activate-m1-framing.py rollback /opt/tervon-tcp-bridge/backups/m1-framing-XXXXXXXX
+~~~
+
+После отката проверить интернет снова. **Не откатывать серверный бинарник M1**, если проблема только в новом клиентском remote_url. Не публиковать содержимое JSON или секреты. Если GitHub Actions для нового скрипта не прошёл, **не выполнять активацию**.
+
 ## 6. Ручной откат
 
 Сначала Homeserver, затем Finserver; использовать конкретные пути `BACKUP_DIRECTORY=` из выводов установки:
