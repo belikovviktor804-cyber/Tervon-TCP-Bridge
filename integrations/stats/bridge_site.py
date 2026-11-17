@@ -1,8 +1,9 @@
 """Isolated read-only Homeserver Bridge dashboard ASGI app.
 
-Run on a *separate* loopback listener; nginx MUST authenticate every
-/bridge/ path before proxying. This app is not an auth boundary.
-Do not mount it in the existing infrastructure monitor.
+Run on a *separate* loopback listener. The operator explicitly chose
+public read-only /bridge/ dashboard access (no Basic Auth). Only bounded,
+non-sensitive Homeserver aggregates may be returned; never expose the
+private /metrics/v1 endpoint. Do not mount in infrastructure monitor.
 """
 
 from __future__ import annotations
