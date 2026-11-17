@@ -51,19 +51,14 @@
 
 #### M1 — контрольная точка 2026-11-17 (GitHub source of truth)
 
-- **Дополнение после HEAD `af966bc77c719bd39b11508c9576c4239c0f60a8`:** кодовые commits `e3c365daea873bfad2331a84b5271392a3f9fd3d` и `ddd72e2faa61d1732321c18d76089222af22e377`. Добавлены обязательное ожидание завершения server upload goroutine и регрессия cancellation с незавершённым TBF1 upload.
-- **Статус изменений:** UNVERIFIED. Не доказано, что закрытие `r.Body` будит всякое заблокированное чтение HTTP/2; новый join способен зависнуть на нестандартном/непрерываемом body reader. Проверка и исправления обязательны внутри M1.
-- **Для подтверждения:** изолированный Homeserver checkout актуального HEAD, `go test -race -count=1 ./...`, `go vet ./...`, повтор targeted framed/legacy tests, два независимых fuzz run; зафиксировать SHA, PASS/FAIL и отсутствие оставшихся блокировок. Production не изменять.
-
-
-
-- **Branch:** `work/m1-framing`; **последний кодовый commit:** `74f4abb22a2cc1fb37609a3568800ae7f1cc6caa` (новый legacy v1 regression test и исправление трактовки TCP RST).
-- **Реализовано в коде, но НЕ подтверждено тестами на актуальном SHA:** TBF1 DATA/FIN, bounded parser, negotiation, клиентский cleanup, серверная проверка FIN, E2E early backend EOF, malformed upload, legacy v1 byte-exact regression.
-- **Последний подтверждённый Homeserver PASS:** `385b869ec22be9be40f5a5ad77cb79f9e597d651` — не распространяется на последующие изменения.
-- **Открытые риски:** серверная upload goroutine может пережить ограниченное ожидание при непрерываемом HTTP body read; early backend EOF до request FIN завершается fail-closed; полный E2E и fuzz ещё не выполнены.
-- **Следующий шаг в M1:** тесты lifecycle/cancellation, аудит блокировок, исправление FAIL; затем один итоговый Homeserver `go test -race -count=1 ./...`, `go vet ./...`, targeted E2E и fuzz. Только после доказанного PASS фиксировать завершение M1. M2 не начинать.
-- **Production:** NONE; действующие службы не затрагивались.
-
+- **Ветка:** `work/m1-framing`. **Текущий кодовый commit:** `b7e620646921503d728eb8a21e281ef31f0327f0` (добавлен E2E early backend EOF с открытым HTTP/2 upload). **CI workflow commit:** `6c9aef45f9700c629c779bdd300b65f0e53e8b7c`.
+- **Подтверждённый GitHub Actions PASS:** [run #44036862629](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44036862629), HEAD `6c9aef45f9700c629c779bdd300b65f0e53e8b7c`, Ubuntu runner: `go build ./...`, `go vet ./...`, `go test -count=1 -timeout=60s ./...`, `go test -race -count=1 -timeout=120s ./...`, `go test -race -count=3 -timeout=180s -run 'TestFramed|TestLegacyV1StreamRemainsByteExact|TestStream' ./...` — PASS.
+- **Fuzz:** на том же CI run `FuzzReadFrame` 15s / 722070 executions — PASS; `FuzzStreamDecoder` 15s / 718491 executions — PASS. Это ограниченный CI fuzz, не длительная нагрузочная проверка.
+- **Проверенные сценарии:** TBF1 framing/FIN, negative parser tests, version/capability negotiation, binary byte-exact framed/legacy v1, TCP half-close, truncated download, malformed upload, cancellation, early backend EOF до request FIN, завершение server handler при открытом HTTP/2 request body. Проверки выполнялись в CI на тестовых loopback backend и HTTP/2 mTLS.
+- **Изменение lifecycle:** `prototype/bridge.go` теперь ожидает server upload worker после закрытия `r.Body` и backend. Проверенный тестами стандартный HTTP/2 путь завершился. Произвольный кастомный `io.ReadCloser`, который игнорирует `Close` и блокирует `Read`, по-прежнему может зависнуть; универсальная гарантия для таких источников не заявляется.
+- **Последний подтверждённый Homeserver PASS:** `385b869ec22be9be40f5a5ad77cb79f9e597d651` — более поздний код ещё не проверен на Homeserver. **M1: IN_PROGRESS**, несмотря на GitHub CI PASS.
+- **До закрытия M1:** изолированный Homeserver checkout точного HEAD, `go test -race -count=1 ./...`, `go vet ./...`, targeted framed/legacy E2E и fuzz; записать SHA, результат и чистоту дерева. Отдельно оценить 500ms fail-closed ожидание и совместимость v1.0.0 на реальном стенде. Действующие службы не трогать; M2 не начинать.
+- **Production:** NONE; `gofmt -l` в CI пока non-blocking, исторический долг форматирования не считать PASS по стилю.
 
 **Пакет:** формат кадров и парсер с ограничениями длины/памяти; negotiation; совместимость OFF с v1.0.0 либо явный безопасный отказ; fuzz/negative tests; байтовая идентичность full duplex, half-close, EOF, cancellation.
 **Готово, когда:** все тесты и совместимость подтверждены на конкретном commit.
