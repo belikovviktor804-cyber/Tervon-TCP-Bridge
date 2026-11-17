@@ -65,6 +65,25 @@ class SiteTests(unittest.TestCase):
         self.assertIn(b"/bridge/bridge_panel.css", body)
         self.assertNotIn(b"finserver", body.lower())
 
+    def test_reuses_existing_monitoring_site_theme_and_navigation(self):
+        app = module.create_app("")
+        status, headers, body = asyncio.run(request(app, "/bridge/"))
+        self.assertEqual(status, 200)
+        for required in (
+            b'/static/style.css',
+            b'/static/monitor-theme.css?v=20261020-1',
+            b'class="site-nav"',
+            b'href="/ai-prosecutor"',
+            b'href="/infrastructure/"',
+            b'href="/bridge/" class="active"',
+            b'class="stats-grid"',
+            b'class="stat-card"',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, body)
+        self.assertNotIn(b'<style>', body)
+        self.assertNotIn(b'https://fonts.googleapis.com', body)
+
     def test_static_assets_are_only_local(self):
         app = module.create_app("")
         for path, content_type in (
