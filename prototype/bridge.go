@@ -300,7 +300,14 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		_, err = io.Copy(c, source)
 	}
 	if tcp, ok := c.(*net.TCPConn); ok {
-		_ = tcp.CloseWrite()
+		if framed && err != nil {
+			// A truncated or malformed framed response is not a successful
+			// TCP half-close. Abort the local socket so its peer sees a
+			// transport failure rather than a clean EOF.
+			_ = tcp.SetLinger(0)
+		} else {
+			_ = tcp.CloseWrite()
+		}
 	}
 	// A remote EOF can arrive while the local peer is still uploading.
 	// Interrupt that read rather than leaving a session goroutine behind.
