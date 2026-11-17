@@ -407,3 +407,10 @@
 - **Статус:** CODE PREPARED, **НЕ УСТАНОВЛЕНО** на Homeserver, нет вывода `NEW_SERVICE=PASS`, nginx не менялся, реальные метрики ещё не включены. Следующий шаг — дождаться CI PASS, оператор запускает из чистого SSH checkout отдельный скрипт; при FAIL — блокер и диагностика, не переходить к nginx.
 
 - **Installer CI PASS (2026-11-17):** [GitHub Actions #44080564990](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44080564990), source SHA `faf382c080afb52e8b567cec21c5fd0b95d2248b`, completed **SUCCESS**. `bash -n` installer, Python tests including static install safety, JS panel, Go build/vet/unit/race/regression/fuzz all PASS. Later changes `448b217e`, `88dbb194`, `85888372` documentation only. **Installer is verified in CI, but NOT EXECUTED on Homeserver.** The new service, nginx routing and local metrics remain uninstalled/unconfigured until actual operator command and verified outputs.
+
+## 2026-11-17 — первый запуск Homeserver stats installer: BLOCKED на read-only preflight
+
+- **Оператор выполнил** SSH `git fetch` + `merge --ff-only` ветки `work/m1-framing`: локальный HEAD `67b01d81ea47e3a465a77160f19b2aed536e040c`, checkout чистый, SSH origin подтверждён.
+- **Preflight:** `GIT_SSH_REMOTE=PASS`, `GIT_BRANCH=PASS`, `GIT_HEAD=PASS`, `GIT_CLEAN=PASS`, `PORT_8894=PASS`, `NEW_UNIT=PASS`, `APP_DIRECTORY=PASS`, `PYTHON_DEPS=PASS`, `SYSTEMD_VERSION=PASS`; **`ADMIN_HTPASSWD=BLOCKED`** («literal admin auth file not verified»); `DYNAMIC_USER_ACCESS=CHECK`.
+- **Installer:** `INSTALL_STATUS=ROLLBACK (exit=2)`. Блокировка произошла **до** создания каталога/unit и запуска нового процесса. Действующие nginx, M1 Bridge и dashboard не изменялись. Причина может быть связана с чрезмерно узким распознаванием `location /admin/` в preflight; отсутствие auth не доказано.
+- **Следующий шаг:** только read-only локальная диагностика фактического nginx `location`, `auth_basic`, `auth_basic_user_file` без раскрытия паролей и пути к htpasswd; затем исправление preflight по доказанному формату и тесты. Не обходить auth gate, не устанавливать сервис и не переходить к nginx до PASS.
