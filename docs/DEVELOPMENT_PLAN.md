@@ -85,6 +85,8 @@
 
 - **Первая реальная установка Finserver 2026-11-17:** `M1_INSTALL=FAIL`, автоматический `M0_AUTO_ROLLBACK=PASS`, backup `/opt/tervon-tcp-bridge/backups/m0-qVNyeBJK`. M0 повторно подтверждён на диске и в процессе PID 37153. В журнале старый M0 завершился с `graceful shutdown incomplete` и exit 1; новый процесс был отмечен systemd как Started, но установщик немедленно откатил. Причина не доказана окончательно; вероятен ложный FAIL установщика. Исправление `f97ecd8086fe561072cd9def85a2691a7d527db8` — bounded PID+SHA verification независимо от exit code restart; ждём CI и повторного контролируемого развёртывания. **Статус M1: NOT_DEPLOYED; Homeserver M0 не изменён.**
 
+- **Повторная установка Finserver 2026-11-17:** пользователь подтвердил `M1_INSTALL=PASS`, `CONFIG_CHANGED=NO`, новый бинарник SHA `e42545d56ad05e94280466ddf92dfbcaa4955d716511f839de2eec0ae21675e5`, резервная копия M0 `/opt/tervon-tcp-bridge/backups/m0-mDC0QnYM`. **Только установка серверного бинарника PASS**; проверка реального `/v1/stream` и TCP-трафика ещё требуется. Homeserver по-прежнему M0, `/v2/stream` не активирован. Исторические записи о предыдущем FAIL сохраняются.
+
 **Пакет:** формат кадров и парсер с ограничениями длины/памяти; negotiation; совместимость OFF с v1.0.0 либо явный безопасный отказ; fuzz/negative tests; байтовая идентичность full duplex, half-close, EOF, cancellation.
 **Готово, когда:** все тесты и совместимость подтверждены на конкретном commit.
 
