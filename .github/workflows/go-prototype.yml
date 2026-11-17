@@ -40,6 +40,8 @@ jobs:
         run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
       - name: Test guarded v2 activation helper (no systemd)
         run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
+      - name: Install FastAPI for isolated dashboard route tests
+        run: python3 -m pip install 'fastapi>=0.115,<1'
       - name: Test isolated stats collector (no production services)
         run: python3 -m unittest discover -s ../integrations/stats -p 'test_*.py' -v
       - name: Test stats panel JavaScript (Node built-ins only)
