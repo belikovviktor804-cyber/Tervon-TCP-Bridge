@@ -115,3 +115,31 @@ func TestBudgetIncludesPaddingFrameHeader(t *testing.T){
     if totalPayload==0{t.Fatal("no PAD emitted")}
     if s.PaddingWireBytes()<=s.PaddingBytes(){t.Fatal("PAD header omitted from budget")}
 }
+
+func TestSmallFramesCannotActivateOrRetainPadding(t *testing.T) {
+    p:=testPolicy()
+    p.MinDuration=time.Nanosecond
+    p.MinUsefulBytes=1024
+    p.MinSamples=2
+    state,err:=New(p);if err!=nil{t.Fatal(err)}
+    start:=time.Unix(1000,0)
+    for i:=0;i<1000;i++ {
+        if !state.ObserveSmallFrame(128) {t.Fatal("small frame not recognized")}
+        if state.Active() || state.PaddingBytes()!=0 {t.Fatal("small traffic activated PAD")}
+    }
+    if state.UsefulBytes()!=128000 {t.Fatal("small traffic not accounted")}
+    // An eligible frame must start a fresh burst, not inherit small traffic.
+    if state.ObserveSmallFrame(512) {t.Fatal("eligible frame dropped")}
+    if got:=state.Observe(start,512);got!=0 || state.Active() {
+        t.Fatal("eligible frame inherited small-frame activity")
+    }
+    if got:=state.Observe(start.Add(time.Millisecond),1024);got==0 || !state.Active(){
+        t.Fatal("stable eligible flow failed to activate")
+    }
+    if !state.ObserveSmallFrame(64) || state.Active() {
+        t.Fatal("interactive frame failed to disable active padding")
+    }
+    if state.PaddingWireBytes()>fractionOf(state.UsefulBytes(),p.RatioPercent,100) {
+        t.Fatal("budget exceeded")
+    }
+}
