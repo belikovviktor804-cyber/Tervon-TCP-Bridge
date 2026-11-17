@@ -111,6 +111,46 @@ class PreflightTests(unittest.TestCase):
                     for k, status, _ in rows
                 ))
 
+    def test_nested_nginx_block_with_direct_auth_passes(self):
+        # Real Homeserver nginx /admin/ contains nested blocks. A direct
+        # auth_basic and htpasswd must still be recognized safely.
+        self.nginx.write_text(
+            'location /admin/ {\n'
+            '  if ($request_method = POST) { return 405; }\n'
+            '  add_header X-Diagnostic "{inside-string}";\n'
+            '  auth_basic "Admin";\n'
+            f'  auth_basic_user_file "{self.auth}";\n'
+            '}\n'
+            'location /admin/api/ {\n'
+            '  auth_basic "Admin";\n'
+            f'  auth_basic_user_file {self.auth};\n'
+            '}\n', encoding="utf-8"
+        )
+        with patch.object(module, "command", side_effect=self.command):
+            rows = module.checks()
+        self.assertTrue(any(
+            k == "ADMIN_HTPASSWD" and status == "PASS"
+            for k, status, _ in rows
+        ))
+
+    def test_multiple_explicit_admin_locations_all_must_be_protected(self):
+        self.nginx.write_text(
+            'location /admin/ {\n'
+            '  auth_basic "Admin";\n'
+            f'  auth_basic_user_file {self.auth};\n'
+            '}\n'
+            'location = /admin/ {\n'
+            '  auth_basic off;\n'
+            f'  auth_basic_user_file {self.auth};\n'
+            '}\n', encoding="utf-8"
+        )
+        with patch.object(module, "command", side_effect=self.command):
+            rows = module.checks()
+        self.assertTrue(any(
+            k == "ADMIN_HTPASSWD" and status == "BLOCKED"
+            for k, status, _ in rows
+        ))
+
     def test_nginx_admin_auth_fail_closed(self):
         cases = {
             "auth_off":
@@ -137,12 +177,40 @@ class PreflightTests(unittest.TestCase):
                 '  auth_basic "Admin";\n'
                 f'  auth_basic_user_file {self.auth};\n'
                 '}\n',
-            "nested_block":
+            "nested_only_auth":
                 'location ^~ /admin/ {\n'
-                '  if ($request_method = POST) { return 405; }\n'
+                '  if ($request_method = POST) {\n'
+                '    auth_basic "Admin";\n'
+                f'    auth_basic_user_file {self.auth};\n'
+                '  }\n'
+                '}\n',
+            "nested_auth_override":
+                'location ^~ /admin/ {\n'
                 '  auth_basic "Admin";\n'
                 f'  auth_basic_user_file {self.auth};\n'
+                '  if ($request_method = POST) { auth_basic off; }\n'
                 '}\n',
+            "nested_include":
+                'location ^~ /admin/ {\n'
+                '  auth_basic "Admin";\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '  if ($request_method = POST) { include other.conf; }\n'
+                '}\n',
+            "direct_include":
+                'location ^~ /admin/ {\n'
+                '  auth_basic "Admin";\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '  include other.conf;\n'
+                '}\n',
+            "unterminated_quote":
+                'location /admin/ {\n'
+                '  auth_basic "Admin;\n'
+                f'  auth_basic_user_file {self.auth};\n'
+                '}\n',
+            "unclosed_block":
+                'location /admin/ {\n'
+                '  auth_basic "Admin";\n'
+                f'  auth_basic_user_file {self.auth};\n',
         }
         for label, source in cases.items():
             with self.subTest(label=label):
