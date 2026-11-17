@@ -63,6 +63,10 @@ for file in "${APP_FILES[@]}"; do
     exit 2
   fi
 done
+if [[ ! -f "$SCRIPT_DIR/wait_for_site.py" || -L "$SCRIPT_DIR/wait_for_site.py" ]]; then
+  echo "BLOCKED: readiness checker missing or symlink"
+  exit 2
+fi
 if [[ ! -f "$UNIT_TEMPLATE" || -L "$UNIT_TEMPLATE" ]]; then
   echo "BLOCKED: unit template missing or symlink"
   exit 2
@@ -83,23 +87,14 @@ systemctl daemon-reload
 systemctl start tervon-bridge-stats.service
 systemctl is-active --quiet tervon-bridge-stats.service
 
-echo "===== VERIFY LOOPBACK STATUS (METRICS DISABLED) ====="
-"$VENV_PYTHON" - <<'PY'
-import json
-import urllib.request
-
-url = "http://127.0.0.1:8894/bridge/api/status"
-opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-with opener.open(url, timeout=4) as response:
-    assert response.status == 200, response.status
-    payload = json.load(response)
-assert payload.get("schema") == "tervon.bridge.dashboard.v1", payload
-nodes = payload.get("nodes", {})
-assert set(nodes) == {"homeserver"}, nodes
-assert nodes["homeserver"].get("status") == "unavailable", nodes
-print("LOOPBACK_STATUS=PASS")
-print("METRICS_STATUS=UNAVAILABLE_EXPECTED")
-PY
+echo "===== VERIFY LOOPBACK STATUS (BOUNDED STARTUP WAIT; METRICS DISABLED) ====="
+if ! "$VENV_PYTHON" "$SCRIPT_DIR/wait_for_site.py"; then
+  echo "===== NEW SERVICE STARTUP DIAGNOSTICS (NO OTHER SERVICES) ====="
+  systemctl show tervon-bridge-stats.service --no-pager \
+    -p ActiveState -p SubState -p Result -p ExecMainStatus || true
+  echo "BLOCKED: new dashboard not ready; rolling back"
+  false
+fi
 
 echo "===== VERIFY LISTENER IS LOCAL ONLY ====="
 listener="$(ss -H -ltn '( sport = :8894 )')"
