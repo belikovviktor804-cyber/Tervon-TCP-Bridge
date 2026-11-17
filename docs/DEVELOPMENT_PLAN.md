@@ -76,6 +76,13 @@
 - **Homeserver PASS подтверждён пользователем на точном SHA `5ae795f0a6f342724f6dc894f0e82b7f4402f867`:** `go build ./...`, `go vet ./...`, `go test -race -count=1`, повторные race-регрессии (3 прогона), `FuzzReadFrame` 30s / 1 336 459 executions, `FuzzStreamDecoder` 30s / 1 258 600 executions, `M1_REAL_M0=PASS` (65536 байт byte-exact в обоих направлениях TLS1.3/mTLS/HTTP2 `/v1/stream`), `M1_VERIFY_RESULT=PASS`, `M1_VERIFY_PRODUCTION_CHANGES=NONE`. Это **изолированная кодовая проверка**, не развёртывание M1. `M1_REAL_V100=NOT_RUN`.
 - **Открыто:** отдельная проверка с опубликованным v1.0.0 либо документальное доказательство его эквивалентности для `/v1/stream`; завершить оценку 500ms/непрерываемого `io.ReadCloser`. **M1 IN_PROGRESS**, M2 не начинать, production не изменять.
 
+#### M1 — подготовка развёртывания с backup M0 (2026-11-17)
+
+- **Решение пользователя:** установить M1 на рабочие узлы, сохранив возможность отката к M0.
+- **Реализована только подготовка:** `tests/homeserver/deploy-m1-with-m0-backup.sh` (preflight/inspect, checksum-pinned install, root-only backup бинарника/unit/конфигурации, atomic replace, restart только выбранного bridge unit, проверка SHA запущенного процесса, автоматический и ручной rollback). Инструкция `docs/DEPLOY-M1-WITH-M0-BACKUP.ru.md`.
+- **Порядок:** Finserver Decapsulator → подтверждение работы /v1/stream → Homeserver Encapsulator → подтверждение реального TCP. TBF1 /v2/stream включать только отдельной контролируемой сменой `remote_url` после PASS обоих узлов.
+- **Фактическое состояние:** `PREPARED_NOT_DEPLOYED`. Скрипт пока проверяется CI и **не исполнялся на реальных узлах**. Рестарт bridge unit прервёт активные соединения; никаких иных служб не трогать. Не путать подготовленный сценарий и эксплуатационный PASS.
+
 **Пакет:** формат кадров и парсер с ограничениями длины/памяти; negotiation; совместимость OFF с v1.0.0 либо явный безопасный отказ; fuzz/negative tests; байтовая идентичность full duplex, half-close, EOF, cancellation.
 **Готово, когда:** все тесты и совместимость подтверждены на конкретном commit.
 
