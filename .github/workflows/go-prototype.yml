@@ -38,6 +38,8 @@ jobs:
         run: bash -n ../tests/homeserver/verify-m1.sh
       - name: Check guarded deployment script syntax
         run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
+      - name: Check isolated Bridge stats installer syntax (no deployment)
+        run: bash -n ../integrations/stats/install-site-service.sh
       - name: Test guarded v2 activation helper (no systemd)
         run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
       - name: Install FastAPI for isolated dashboard route tests
