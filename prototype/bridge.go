@@ -159,13 +159,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var target io.Writer = flushWriter{w: w, rc: rc}
 	var encoder *framing.Encoder
 	if framed { encoder = framing.NewEncoder(target); target = encoder }
+	var downloadErr error
 	if s.Metrics != nil {
-		_, _ = io.Copy(telemetry.CountingWriter{Writer: target, Add: s.Metrics.AddDownload}, c)
+		_, downloadErr = io.Copy(telemetry.CountingWriter{Writer: target, Add: s.Metrics.AddDownload}, c)
 	} else {
-		_, _ = io.Copy(target, c)
+		_, downloadErr = io.Copy(target, c)
 	}
-	if encoder != nil { _ = encoder.CloseWrite() }
-	_ = rc.Flush()
+	// A failed backend read or HTTP write must never be represented as a
+	// clean framed FIN. The receiver must see a truncated stream instead.
+	if downloadErr == nil && encoder != nil {
+		downloadErr = encoder.CloseWrite()
+	}
+	if downloadErr == nil {
+		_ = rc.Flush()
+	} else {
+		_ = c.Close()
+	}
 	// Stop the upload after backend EOF, including when the client never
 	// sends its request EOF. This bounds handler wait, not goroutine lifetime.
 	_ = r.Body.Close()
