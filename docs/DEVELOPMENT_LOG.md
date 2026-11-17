@@ -314,3 +314,5 @@
 - Separate Finserver services: echo-test and SOCKS5 production active, SOCKS5 lab failed. None are to be changed during M1.
 - **Deployment safety correction** `e1e1975cbec0070e761ce4718dd1cf783b070045`, `bd062278e78a502208927f011a0f5760472521f2`: deployment script resolves live binary from selected systemd ExecStart, restricts allowed paths, checks running/on-disk hashes, backs up and restores the actual binary path. This prevents overwriting inactive v1.0.0 on Finserver.
 - User directive: no new test environments or unnecessary test files on hosts; deploy directly to live servers with M0 backup and rollback, verifying real traffic. **Not yet deployed**.
+
+- **Corrected live-path installer CI PASS:** [GitHub Actions #44046731395](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44046731395), tested script/code commit `bd062278e78a502208927f011a0f5760472521f2`, completed SUCCESS (Bash syntax, Go build/vet/unit/race, repeated M1 regression, bounded fuzz). This is **not** a live deployment/rollback test. Next: install on Finserver first, then Homeserver, verify real traffic and keep M0 backups.
