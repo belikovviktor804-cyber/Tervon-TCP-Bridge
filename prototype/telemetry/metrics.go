@@ -62,6 +62,8 @@ type Snapshot struct {
     PaddingDownloadWireOverheadBytes uint64 `json:"padding_download_wire_overhead_bytes"`
     PaddingDownloadBytes uint64 `json:"padding_download_bytes"`
     PaddingUploadOverheadPercent float64 `json:"padding_upload_overhead_percent"`
+    PaddingUploadWireOverheadPercent float64 `json:"padding_upload_wire_overhead_percent"`
+    PaddingDownloadWireOverheadPercent float64 `json:"padding_download_wire_overhead_percent"`
     PaddingDownloadOverheadPercent float64 `json:"padding_download_overhead_percent"`
     PaddingUploadTransitions uint64 `json:"padding_upload_transitions"`
     PaddingDownloadTransitions uint64 `json:"padding_download_transitions"`
@@ -271,6 +273,8 @@ func (r *Registry) Snapshot() Snapshot {
     s.PaddingUploadWireOverheadBytes=padWireBytes(s.PaddingUploadBytes,s.PaddingUploadFrames)
     s.PaddingDownloadWireOverheadBytes=padWireBytes(s.PaddingDownloadBytes,s.PaddingDownloadFrames)
     s.PaddingUploadOverheadPercent=paddingRatio(s.PaddingUploadBytes,up)
+    s.PaddingUploadWireOverheadPercent=paddingRatio(s.PaddingUploadWireOverheadBytes,up)
+    s.PaddingDownloadWireOverheadPercent=paddingRatio(s.PaddingDownloadWireOverheadBytes,down)
     s.PaddingDownloadOverheadPercent=paddingRatio(s.PaddingDownloadBytes,down)
     s.PaddingUploadTransitions=r.padTransitionsUp.Load()
     s.PaddingDownloadTransitions=r.padTransitionsDown.Load()
