@@ -3,10 +3,12 @@ on:
   push:
     paths:
       - 'prototype/**'
+      - 'tests/homeserver/verify-m1.sh'
       - '.github/workflows/go-prototype.yml'
   pull_request:
     paths:
       - 'prototype/**'
+      - 'tests/homeserver/verify-m1.sh'
       - '.github/workflows/go-prototype.yml'
 permissions:
   contents: read
@@ -25,6 +27,8 @@ jobs:
           cache-dependency-path: prototype/go.mod
       - name: Report Go source formatting (non-blocking until cleanup)
         run: gofmt -l .
+      - name: Check isolated M1 verification script syntax
+        run: bash -n ../tests/homeserver/verify-m1.sh
       - name: Build all packages including CLI
         run: go build ./...
       - name: Vet
