@@ -13,6 +13,7 @@ import (
 
 	"tervon-tcp-bridge/telemetry"
 	"tervon-tcp-bridge/framing"
+	"tervon-tcp-bridge/padding"
 )
 
 // Backend addresses come from trusted server configuration, never from clients.
@@ -22,6 +23,9 @@ type Backend struct{ Name, Address string }
 // Routes and AuthorizedServices are immutable while requests are being handled.
 type Server struct {
 	Metrics            *telemetry.Registry
+	// PaddingPolicy is nil for the existing M1 wire format. Never enable
+	// without a matching explicit client-side pad1 capability.
+	PaddingPolicy *padding.Policy
 	Routes             map[string][]Backend
 	AuthorizedServices map[[32]byte]map[string]bool
 	DialTimeout        time.Duration
@@ -72,10 +76,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	framed := r.URL.Path == "/v2/stream"
-	if framed && (r.Header.Get("Tervon-Wire-Version") != "1" || r.Header.Get("Tervon-Wire-Capability") != "tbf1-fin") {
+    capability := r.Header.Get("Tervon-Wire-Capability")
+    padded := framed && capability == "tbf1-fin,pad1"
+    if framed && (r.Header.Get("Tervon-Wire-Version") != "1" ||
+        (capability != "tbf1-fin" && !padded)) {
 		http.Error(w, "unsupported framed protocol", http.StatusUpgradeRequired)
 		return
 	}
+    if padded && (s.PaddingPolicy == nil || s.PaddingPolicy.Validate() != nil) {
+        http.Error(w, "padding capability unavailable", http.StatusUpgradeRequired)
+        return
+    }
 	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
 		http.Error(w, "authenticated HTTP/2 required", http.StatusUnauthorized)
 		return
@@ -130,7 +141,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	if framed {
 		w.Header().Set("Tervon-Wire-Version", "1")
-		w.Header().Set("Tervon-Wire-Capability", "tbf1-fin")
+		if padded {
+            w.Header().Set("Tervon-Wire-Capability", "tbf1-fin,pad1")
+        } else {
+            w.Header().Set("Tervon-Wire-Capability", "tbf1-fin")
+        }
 	}
 	w.WriteHeader(http.StatusOK)
 	rc := http.NewResponseController(w)
@@ -140,7 +155,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	done := make(chan error, 1)
 	go func() {
 		var source io.Reader = r.Body
-		if framed { source = framing.NewDecoder(source) }
+		if padded {
+            source = framing.NewPaddingDecoder(source)
+        } else if framed {
+            source = framing.NewDecoder(source)
+        }
 		var uploadErr error
 		if s.Metrics != nil {
 			_, uploadErr = io.Copy(telemetry.CountingWriter{Writer: c, Add: s.Metrics.AddUpload}, source)
@@ -158,7 +177,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	var target io.Writer = flushWriter{w: w, rc: rc}
 	var encoder *framing.Encoder
-	if framed { encoder = framing.NewEncoder(target); target = encoder }
+	if padded {
+        encoder, _ = framing.NewPaddingEncoder(target, *s.PaddingPolicy)
+        target = encoder
+    } else if framed {
+        encoder = framing.NewEncoder(target)
+        target = encoder
+    }
 	var downloadErr error
 	if s.Metrics != nil {
 		_, downloadErr = io.Copy(telemetry.CountingWriter{Writer: target, Add: s.Metrics.AddDownload}, c)
@@ -199,6 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Client forwards an accepted TCP stream to a remote HTTPS bridge.
 type Client struct {
 	Metrics      *telemetry.Registry
+	PaddingPolicy *padding.Policy
 	HTTP         *http.Client
 	URL, Service string
 	// ShutdownTimeout bounds listener shutdown when a handler fails to exit.
@@ -237,10 +263,21 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		return err
 	}
 	framed := req.URL.Path == "/v2/stream"
-	if framed {
-		req.Header.Set("Tervon-Wire-Version", "1")
-		req.Header.Set("Tervon-Wire-Capability", "tbf1-fin")
-	}
+    if cl.PaddingPolicy != nil && !framed {
+        return fmt.Errorf("padding requires /v2/stream")
+    }
+    padded := framed && cl.PaddingPolicy != nil
+    if padded {
+        if err:=cl.PaddingPolicy.Validate();err!=nil{return err}
+    }
+    if framed {
+        req.Header.Set("Tervon-Wire-Version", "1")
+        if padded {
+            req.Header.Set("Tervon-Wire-Capability", "tbf1-fin,pad1")
+        } else {
+            req.Header.Set("Tervon-Wire-Capability", "tbf1-fin")
+        }
+    }
 	req.Header.Set("Tervon-Service", cl.Service)
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.ContentLength = -1
@@ -262,7 +299,13 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		var e error
 		var target io.Writer = writer
 		var encoder *framing.Encoder
-		if framed { encoder = framing.NewEncoder(writer); target = encoder }
+		if padded {
+            encoder, _ = framing.NewPaddingEncoder(writer, *cl.PaddingPolicy)
+            target = encoder
+        } else if framed {
+            encoder = framing.NewEncoder(writer)
+            target = encoder
+        }
 		if cl.Metrics != nil {
 			_, e = io.Copy(telemetry.CountingWriter{Writer: target, Add: cl.Metrics.AddUpload}, c)
 		} else {
@@ -287,13 +330,19 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		}
 		return fmt.Errorf("remote status %d", resp.StatusCode)
 	}
-	if framed && (resp.Header.Get("Tervon-Wire-Version") != "1" || resp.Header.Get("Tervon-Wire-Capability") != "tbf1-fin") {
+	expectedCapability := "tbf1-fin"
+    if padded { expectedCapability = "tbf1-fin,pad1" }
+    if framed && (resp.Header.Get("Tervon-Wire-Version") != "1" || resp.Header.Get("Tervon-Wire-Capability") != expectedCapability) {
 		_ = reader.Close()
 		_ = writer.Close()
 		return fmt.Errorf("remote framed protocol mismatch")
 	}
 	var source io.Reader = resp.Body
-	if framed { source = framing.NewDecoder(source) }
+	if padded {
+        source = framing.NewPaddingDecoder(source)
+    } else if framed {
+        source = framing.NewDecoder(source)
+    }
 	if cl.Metrics != nil {
 		_, err = io.Copy(telemetry.CountingWriter{Writer: c, Add: cl.Metrics.AddDownload}, source)
 	} else {
