@@ -56,6 +56,10 @@ type Snapshot struct {
     PaddingUploadState string `json:"padding_upload_state"`
     PaddingDownloadState string `json:"padding_download_state"`
     PaddingUploadBytes uint64 `json:"padding_upload_bytes"`
+    PaddingUploadFrames uint64 `json:"padding_upload_frames"`
+    PaddingDownloadFrames uint64 `json:"padding_download_frames"`
+    PaddingUploadWireOverheadBytes uint64 `json:"padding_upload_wire_overhead_bytes"`
+    PaddingDownloadWireOverheadBytes uint64 `json:"padding_download_wire_overhead_bytes"`
     PaddingDownloadBytes uint64 `json:"padding_download_bytes"`
     PaddingUploadOverheadPercent float64 `json:"padding_upload_overhead_percent"`
     PaddingDownloadOverheadPercent float64 `json:"padding_download_overhead_percent"`
@@ -85,6 +89,8 @@ type Registry struct {
     padConfigured atomic.Bool
     padUp atomic.Uint64
     padDown atomic.Uint64
+    padFramesUp atomic.Uint64
+    padFramesDown atomic.Uint64
     padActiveUp atomic.Int64
     padActiveDown atomic.Int64
     padTransitionsUp atomic.Uint64
@@ -180,8 +186,8 @@ func (r *Registry) AddDownload(n int64) {
 // SetPaddingConfigured reports whether the local bridge accepts pad1.
 // It does not assert that a remote peer negotiated padding.
 func (r *Registry) SetPaddingConfigured(enabled bool) {r.padConfigured.Store(enabled)}
-func (r *Registry) AddPaddingUpload(n uint64) {if n>0{r.padUp.Add(n)}}
-func (r *Registry) AddPaddingDownload(n uint64) {if n>0{r.padDown.Add(n)}}
+func (r *Registry) AddPaddingUpload(n uint64) {if n>0{r.padUp.Add(n);r.padFramesUp.Add(1)}}
+func (r *Registry) AddPaddingDownload(n uint64) {if n>0{r.padDown.Add(n);r.padFramesDown.Add(1)}}
 func (r *Registry) PaddingUploadActive(active bool) {
     if active {r.padActiveUp.Add(1)} else {r.padActiveUp.Add(-1)}
     r.padTransitionsUp.Add(1)
@@ -189,6 +195,13 @@ func (r *Registry) PaddingUploadActive(active bool) {
 func (r *Registry) PaddingDownloadActive(active bool) {
     if active {r.padActiveDown.Add(1)} else {r.padActiveDown.Add(-1)}
     r.padTransitionsDown.Add(1)
+}
+// padWireBytes includes the 10-byte TBF1 header per emitted PAD frame.
+// If counters wrap after pathological runtimes, saturate the snapshot value.
+func padWireBytes(payload, frames uint64) uint64 {
+    const overheadPerFrame uint64 = 10
+    if frames>(math.MaxUint64-payload)/overheadPerFrame {return math.MaxUint64}
+    return payload+frames*overheadPerFrame
 }
 func padStatus(enabled bool, active int64) string {
     if !enabled {return "OFF"}
@@ -253,6 +266,10 @@ func (r *Registry) Snapshot() Snapshot {
 	s.DownloadBytes = down
     s.PaddingUploadBytes=r.padUp.Load()
     s.PaddingDownloadBytes=r.padDown.Load()
+    s.PaddingUploadFrames=r.padFramesUp.Load()
+    s.PaddingDownloadFrames=r.padFramesDown.Load()
+    s.PaddingUploadWireOverheadBytes=padWireBytes(s.PaddingUploadBytes,s.PaddingUploadFrames)
+    s.PaddingDownloadWireOverheadBytes=padWireBytes(s.PaddingDownloadBytes,s.PaddingDownloadFrames)
     s.PaddingUploadOverheadPercent=paddingRatio(s.PaddingUploadBytes,up)
     s.PaddingDownloadOverheadPercent=paddingRatio(s.PaddingDownloadBytes,down)
     s.PaddingUploadTransitions=r.padTransitionsUp.Load()
