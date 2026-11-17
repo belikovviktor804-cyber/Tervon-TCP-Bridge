@@ -107,10 +107,13 @@ if [[ -z "$listener" ]]; then
   echo "BLOCKED: no listener on 8894"
   false
 fi
-if [[ "$listener" == *"0.0.0.0:8894"* || "$listener" == *"[::]:8894"* ]]; then
-  echo "BLOCKED: public listener detected"
-  false
-fi
+while IFS= read -r line; do
+  read -r -a fields <<< "$line"
+  if [[ "${fields[3]:-}" != "127.0.0.1:8894" ]]; then
+    echo "BLOCKED: non-loopback listener detected"
+    false
+  fi
+done <<< "$listener"
 echo "LOOPBACK_LISTENER=PASS"
 systemctl enable tervon-bridge-stats.service >/dev/null
 complete=1
