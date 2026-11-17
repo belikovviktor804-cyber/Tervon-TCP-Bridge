@@ -25,17 +25,18 @@ exec_line=$(systemctl show "$unit" -p ExecStart --value)
 if [[ ! -f "$fragment" || "$exec_line" != *"path=$binary "* ]]; then
   echo "FAIL: unit does not execute the expected binary" >&2; exit 2
 fi
-if [[ "$(systemctl is-active "$unit")" != active ]]; then
-  echo "FAIL: service must be active before operation" >&2; exit 2
-fi
 installed_sha=$(sha256sum "$binary" | awk '{print $1}')
 pid=$(systemctl show "$unit" -p MainPID --value)
-if [[ ! "$pid" =~ ^[0-9]+$ || "$pid" == 0 || ! -e "/proc/$pid/exe" ]]; then
-  echo "FAIL: service PID unavailable" >&2; exit 2
+running_sha=UNAVAILABLE
+if [[ "$pid" =~ ^[0-9]+$ && "$pid" != 0 && -e "/proc/$pid/exe" ]]; then
+  running_sha=$(sha256sum "/proc/$pid/exe" | awk '{print $1}')
 fi
-running_sha=$(sha256sum "/proc/$pid/exe" | awk '{print $1}')
-if [[ "$installed_sha" != "$running_sha" ]]; then
-  echo "FAIL: on-disk binary differs from running process; refusing deployment" >&2; exit 2
+# Recovery must remain available even after a failed restart or an interrupted
+# deployment, when the on-disk executable may differ from the running one.
+if [[ "$mode" != rollback ]]; then
+  if [[ "$(systemctl is-active "$unit")" != active || "$installed_sha" != "$running_sha" ]]; then
+    echo "FAIL: service inactive or on-disk/running binary mismatch; inspect before install" >&2; exit 2
+  fi
 fi
 if [[ "$mode" == inspect ]]; then
   printf 'SERVICE=%s\nUNIT=%s\nRUNNING_PID=%s\nACTIVE_SHA256=%s\nRUNNING_SHA256=%s\n' "$unit" "$fragment" "$pid" "$installed_sha" "$running_sha"
