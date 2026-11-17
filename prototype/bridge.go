@@ -209,7 +209,7 @@ func (cl *Client) Handle(c net.Conn) error {
 }
 
 // HandleContext cancels HTTP forwarding and unblocks local reads on shutdown.
-func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
+func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result error) {
 	if cl.Metrics != nil {
 		done := cl.Metrics.Begin()
 		defer done()
@@ -235,6 +235,19 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.ContentLength = -1
 	upload := make(chan error, 1)
+	// Every return path, including HTTP rejection and negotiation failure,
+	// must unblock the upload goroutine and observe its termination.
+	defer func() {
+		cancel()
+		_ = c.Close()
+		_ = reader.Close()
+		_ = writer.Close()
+		select {
+		case <-upload:
+		case <-time.After(2 * time.Second):
+			result = fmt.Errorf("upload goroutine did not terminate after cancellation: %w", result)
+		}
+	}()
 	go func() {
 		var e error
 		var target io.Writer = writer
@@ -281,15 +294,6 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) error {
 	}
 	// A remote EOF can arrive while the local peer is still uploading.
 	// Interrupt that read rather than leaving a session goroutine behind.
-	_ = c.Close()
-	_ = reader.Close()
-	_ = writer.Close()
-	cancel()
-	select {
-	case <-upload:
-	case <-time.After(2 * time.Second):
-		return fmt.Errorf("upload goroutine did not terminate after cancellation")
-	}
 	return err
 }
 
