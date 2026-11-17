@@ -16,7 +16,7 @@ case "$unit" in
 esac
 case "$mode" in inspect|install|rollback) ;; *) echo "FAIL: expected inspect/install/rollback" >&2; exit 2 ;; esac
 if (( EUID != 0 )); then echo "FAIL: run as root" >&2; exit 2; fi
-for cmd in systemctl sha256sum stat readlink flock install cp mv mktemp awk; do
+for cmd in systemctl sha256sum flock cp mv mktemp awk mkdir chmod; do
   command -v "$cmd" >/dev/null || { echo "FAIL: missing $cmd" >&2; exit 2; }
 done
 if [[ ! -f "$binary" || -L "$binary" ]]; then echo "FAIL: unexpected active binary" >&2; exit 2; fi
@@ -64,6 +64,18 @@ replace_binary() {
   chmod 0755 "$temp"
   mv -f "$temp" "$binary"
 }
+rollback_needed=0
+rollback_on_exit() {
+  if (( rollback_needed == 0 )); then return; fi
+  echo "M1_INSTALL=FAIL; restoring backed-up M0" >&2
+  if replace_binary "$backup/bridge" && systemctl restart "$unit" && verify_active "$installed_sha"; then
+    echo "M0_AUTO_ROLLBACK=PASS" >&2
+  else
+    echo "M0_AUTO_ROLLBACK=FAIL; use rollback command and investigate" >&2
+  fi
+}
+trap rollback_on_exit EXIT
+trap 'exit 130' HUP INT TERM
 if [[ "$mode" == install ]]; then
   candidate=${3:-}
   expected=${4:-}
@@ -89,19 +101,15 @@ if [[ "$mode" == install ]]; then
   echo "BACKUP_DIRECTORY=$backup"
   echo "OLD_SHA256=$installed_sha"
   echo "NEW_SHA256=$new_sha"
+  rollback_needed=1
   replace_binary "$candidate"
   if systemctl restart "$unit" && verify_active "$new_sha"; then
+    rollback_needed=0
     echo "M1_INSTALL=PASS"
     echo "CONFIG_CHANGED=NO"
     exit 0
   fi
-  echo "FAIL: M1 restart/verification; restoring M0" >&2
-  replace_binary "$backup/bridge"
-  if systemctl restart "$unit" && verify_active "$installed_sha"; then
-    echo "M0_AUTO_ROLLBACK=PASS"
-  else
-    echo "M0_AUTO_ROLLBACK=FAIL; manual intervention required" >&2
-  fi
+  echo "FAIL: M1 restart/verification" >&2
   exit 1
 fi
 if [[ "$mode" == rollback ]]; then
