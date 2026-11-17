@@ -226,3 +226,12 @@
 - **Fuzz:** `go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing` — PASS, 722070 executions; `FuzzStreamDecoder` теми же параметрами — PASS, 718491 executions. Длительный fuzz-run не проводился.
 - **Границы доказательств:** standard HTTP/2 mTLS loopback integration, не произвольные кастомные блокирующие `io.ReadCloser`. На Homeserver новый SHA не проверялся; v1.0.0 production не переключался. `gofmt -l` остаётся non-blocking.
 - **Статус:** CI PASS / M1 IN_PROGRESS / release NONE. Следующий шаг — изолированный Homeserver итоговый прогон на точном HEAD, проверка fail-closed поведения и формальное решение о завершении M1 по критериям плана.
+
+
+## 2026-11-17 — M1: изолированный Homeserver verification runner и повторный CI PASS
+
+- **Commits:** `4cc39b7d0dd2c3f461b41bc960bb13f3505faffd` (script), `da40bb9da134631551581015bfeb2bfbb56a8d34` (remote SHA guard), `9ad9265b175f114178007321049811d5d595c11c` (CI syntax check).
+- **Файл:** `tests/homeserver/verify-m1.sh`. Проверяет чистоту изолированного checkout, SSH remote, активную ветку, совпадение локального HEAD с `FETCH_HEAD` после SSH fetch; запрещает известные release/production каталоги. Запускает build, vet, full race, 3x targeted race, два fuzz-target по 30s и повторную проверку чистоты дерева. Только кодовые проверки, без systemctl, deploy, сетевых production endpoint.
+- **GitHub Actions:** [run #44037187498](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44037187498) — SUCCESS/PASS на `9ad9265b175f114178007321049811d5d595c11c`, включая `bash -n` скрипта и все ранее добавленные Go/CI тесты. Это **CI PASS**, а не Homeserver PASS.
+- **Следующий шаг:** на Homeserver в существующем изолированном checkout выполнить fast-forward ветки и `bash tests/homeserver/verify-m1.sh "$PWD"`; сохранить stdout/stderr, точный SHA, `M1_VERIFY_RESULT`. Если FAIL — исправить в M1 и повторить CI/проверку; не переходить к M2.
+- **Статус:** M1 IN_PROGRESS, production NONE, release NONE.
