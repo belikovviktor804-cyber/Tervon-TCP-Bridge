@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"tervon-tcp-bridge/telemetry"
@@ -138,6 +139,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = rc.Flush()
 
 	done := make(chan error, 1)
+	var uploadFailed atomic.Bool
 	go func() {
 		var source io.Reader = r.Body
 		if framed { source = framing.NewDecoder(source) }
@@ -148,6 +150,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_, uploadErr = io.Copy(c, source)
 		}
 		if uploadErr != nil {
+			uploadFailed.Store(true)
 			// Never forward a truncated or malformed framed upload as a
 			// successful TCP half-close to the backend.
 			_ = c.Close()
@@ -167,7 +170,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// A failed backend read or HTTP write must never be represented as a
 	// clean framed FIN. The receiver must see a truncated stream instead.
-	if downloadErr == nil && encoder != nil {
+	if downloadErr == nil && encoder != nil && !uploadFailed.Load() {
 		downloadErr = encoder.CloseWrite()
 	}
 	if downloadErr == nil {
