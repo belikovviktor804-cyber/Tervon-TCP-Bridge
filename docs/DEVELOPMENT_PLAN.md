@@ -172,6 +172,13 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: IN_PROGRESS, CODE NOT YET VERIFIED]
 
+#### M2 — GitHub CI verification checkpoint (2026-11-18)
+
+- **Подтверждённый CI кодового snapshot:** `fe4bc73f492845007c67ecc5d24c890e1b3f3f60`, [GitHub Actions run #44195491683](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44195491683), job test conclusion **SUCCESS**.
+- **Фактически прошли:** Go build ./..., go vet ./..., unit ./..., race ./..., повторный M1 race, повторный M2 padding policy race, два 15s старых M1 fuzz targets, syntax checks и интеграционные тесты `TestM2*` внутри общего unit/race. Ограничение: отдельных повторных M2 E2E и M2 fuzz в этом snapshot ещё нет.
+- **После PASS добавлено CI усиление** `cb21a654a62f59a56aa5068554b4025c9d07769d`: 3x M2 HTTP2 race regression и 15s `FuzzPaddingDecoder`; и `8487aaf679fbe4a61bb275498783752ead827a54`: padding detector benchmark. **Результат на этом новом HEAD ещё не подтверждён.**
+- **Production:** M1 без изменений, M2 не установлен; ещё нет измеренной live overhead/latency/CPU и отдельной оценки compliance/performance. **M2 IN_PROGRESS, не PASS.**
+
 #### M2 — TBF1 PAD negotiation и decoder, кодовый пакет (2026-11-18, UNVERIFIED)
 
 - **Ветка:** `work/m2-adaptive-padding`. Draft PR: https://github.com/tervon-software/Tervon-TCP-Bridge/pull/1 (base `work/m1-framing`, **не сливать без PASS**).
