@@ -83,20 +83,37 @@ def checks() -> list[tuple[str, str, str]]:
            if not version or int(version.group(1)) < 235
            else "systemd version supports directive; runtime sandbox unverified")
 
-    # Check only for a configured, regular htpasswd file. Never print its path.
+    # Inspect the explicit /admin/ auth boundary. nginx permits optional
+    # location modifiers ("^~" and "="); the old regex rejected both.
+    # Fail closed on unknown location shapes, nested blocks, missing auth,
+    # variables or a non-regular htpasswd. Never print the secret path.
     try:
         source = NGINX_CONFIG.read_text(encoding="utf-8")
-        block = re.search(r"location\s+/admin/\s*\{([^{}]*)\}", source)
-        match = (re.search(r"(?m)^\s*auth_basic_user_file\s+([^;]+);",
-                           block.group(1)) if block else None)
-        path = match.group(1).strip().strip('"\'') if match else ""
-        if not path or "$" in path:
-            record("ADMIN_HTPASSWD", False, "literal admin auth file not verified")
-        else:
-            mode = Path(path).stat().st_mode
-            record("ADMIN_HTPASSWD", stat.S_ISREG(mode),
-                   "configured auth file exists" if stat.S_ISREG(mode)
-                   else "auth file is not a regular file")
+        locations = re.findall(
+            r"(?m)^[ \t]*location[ \t]+(?:(?:=|\^~)[ \t]+)?"
+            r"/admin/[ \t]*\{([^{}]*)\}", source,
+        )
+        verified = False
+        for body in locations:
+            auth = re.search(
+                r"(?m)^[ \t]*auth_basic[ \t]+([^;]+);", body,
+            )
+            auth_file = re.search(
+                r"(?m)^[ \t]*auth_basic_user_file[ \t]+([^;]+);", body,
+            )
+            if not auth or auth.group(1).strip().strip('"\'').lower() == "off":
+                continue
+            if not auth_file:
+                continue
+            path = auth_file.group(1).strip().strip('"\'')
+            if not path or "$" in path or not Path(path).is_absolute():
+                continue
+            if stat.S_ISREG(Path(path).stat().st_mode):
+                verified = True
+                break
+        record("ADMIN_HTPASSWD", verified,
+               "configured admin auth file exists" if verified
+               else "explicit /admin/ auth and regular literal file not verified")
     except (OSError, UnicodeError):
         record("ADMIN_HTPASSWD", False, "cannot inspect admin auth file")
 
