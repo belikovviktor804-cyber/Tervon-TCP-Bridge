@@ -1,40 +1,35 @@
-# PROPOSED ONLY — do not apply to running nginx without operator approval.
+# PROPOSED ONLY — do not apply before isolated stats service NEW_SERVICE=PASS.
+# Operator decision (2026-11-17): public read-only Bridge dashboard,
+# no HTTP Basic Auth for /bridge or /bridge/.
+# Keep existing /admin/ authentication and /infrastructure/ unchanged.
 # Insert both locations inside the EXISTING stats.xrayvless.online HTTPS
-# server {}. Do not replace any existing /admin or /infrastructure location.
-# Replace the placeholder with the EXACT auth_basic_user_file value already
-# used by /admin/ on the host. Do not publish that path or file contents.
-# No new authentication database or credentials are needed.
+# server {} after an nginx config audit and with backup + rollback.
 
-# An nginx "return" executes in rewrite phase before auth_basic.
-# Proxy the exact path instead, so Basic Auth runs before serving content.
 location = /bridge {
-    auth_basic "Tervon Bridge monitoring";
-    auth_basic_user_file __EXISTING_ADMIN_HTPASSWD_FILE__;
+    auth_basic off;
+    limit_except GET { deny all; }
     proxy_pass http://127.0.0.1:8894/bridge/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto https;
     proxy_connect_timeout 2s;
     proxy_read_timeout 5s;
+    proxy_send_timeout 5s;
     add_header Cache-Control "no-store" always;
     add_header X-Content-Type-Options "nosniff" always;
 }
 
 location ^~ /bridge/ {
-    auth_basic "Tervon Bridge monitoring";
-    auth_basic_user_file __EXISTING_ADMIN_HTPASSWD_FILE__;
-
-    # Upstream must be a separately started, loopback-only Bridge dashboard
-    # service, NOT the existing infrastructure app on port 8893.
+    auth_basic off;
+    limit_except GET { deny all; }
+    # Local, sandboxed, separate service; never proxy raw /metrics/v1.
     proxy_pass http://127.0.0.1:8894;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Forwarded-For $remote_addr;
     proxy_connect_timeout 2s;
     proxy_read_timeout 5s;
     proxy_send_timeout 5s;
-
     add_header Cache-Control "no-store" always;
     add_header X-Content-Type-Options "nosniff" always;
 }
