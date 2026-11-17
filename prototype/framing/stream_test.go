@@ -50,3 +50,20 @@ func TestStreamSmallReads(t *testing.T) {
  }
  if _,err:=d.Read(p);err!=io.EOF {t.Fatalf("want EOF: %v",err)}
 }
+
+func TestStreamRejectTrailingAfterFIN(t *testing.T) {
+ for _,tail:=range [][]byte{[]byte("garbage"),{0}} {
+  var b bytes.Buffer
+  if err:=WriteFrame(&b,TypeFIN,nil);err!=nil {t.Fatal(err)}
+  b.Write(tail)
+  _,err:=io.ReadAll(NewDecoder(&b))
+  if !errors.Is(err,ErrMalformed) {t.Fatalf("tail %x accepted: %v",tail,err)}
+ }
+}
+func TestStreamRejectSecondFIN(t *testing.T) {
+ var b bytes.Buffer
+ if err:=WriteFrame(&b,TypeFIN,nil);err!=nil {t.Fatal(err)}
+ if err:=WriteFrame(&b,TypeFIN,nil);err!=nil {t.Fatal(err)}
+ _,err:=io.ReadAll(NewDecoder(&b))
+ if !errors.Is(err,ErrMalformed) {t.Fatalf("second FIN accepted: %v",err)}
+}
