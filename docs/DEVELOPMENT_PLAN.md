@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — operator confirms connectivity PASS; monitoring regression reported (2026-11-18)
+
+- After both existing Homeserver and Finserver M2 binaries were installed and `padding_enabled=true` activated, operator explicitly confirmed **`Всё работает`** (normal existing service connectivity). Record **M2 live connectivity PASS (operator qualitative report)**, NOT a quantified throughput/latency/jitter/long-running acceptance PASS. Do not conflate process health and actual PAD frame counter activity; the latter has not been observed yet.
+- Operator simultaneously reported **`Мониторинг только не работает`**. Exact failing monitoring surface, telemetry chain and error details have not been supplied; register **MONITORING=REPORTED_BROKEN / ROOT_CAUSE_UNKNOWN**, not fixed and not validated. Relevant existing Bridge Stats and service instrumentation must be inspected read-only before proposing changes. Preserve production Bridge, nginx and other services; do not change unrelated monitoring components without the user's approval.
+- Deployment/activation private backups: Homeserver binary `/opt/tervon-tcp-bridge/backups/m0-aV1CqZ3C`, client JSON `/opt/tervon-tcp-bridge/backups/m2pad-client-XpjLETZN`; Finserver binary `/opt/tervon-tcp-bridge/backups/m0-cSx4CMGr`, server JSON `/opt/tervon-tcp-bridge/backups/m2pad-server-bHxygPhh`.
+- **Current status:** `M2 DEPLOYED / PAD ENABLED / NORMAL CONNECTIVITY PASS (operator) / MONITORING BROKEN (operator) / M2 OPEN / NOT RELEASED`. Continue resolving the monitoring issue within M2; M3 remains blocked.
+
+
+
 #### M2 — both production endpoints PAD configuration enabled (2026-11-18; connectivity unverified)
 
 - **Homeserver:** operator reports direct `tervon-bridge-client.service` activation `M2_PADDING=ENABLED`, `ACTIVATION_COMMAND_EXIT_CODE=0`, `mode=client`, existing TBF1 HTTPS `/v2/stream`, `padding_enabled` previously false, restarted PID `2276833`, running SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`, configuration backup `/opt/tervon-tcp-bridge/backups/m2pad-client-XpjLETZN`. Prior binary M1 backup `/opt/tervon-tcp-bridge/backups/m0-aV1CqZ3C` retained.
