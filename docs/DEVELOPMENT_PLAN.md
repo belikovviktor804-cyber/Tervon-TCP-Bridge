@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — serialized TBF1 overhead verification (2026-11-18, CI PASS)
+
+- New `prototype/framing/padding_wire_test.go` commit `0dfcad1ca9417602c9f5ba7654c404d03c904c41`: independently parses complete TBF1 frames to compute useful DATA bytes, DATA/PAD/FIN frame counts, total PAD payload and 10-byte headers. Cases: short interactive, sustained, sustained-to-short pulse with idle gap.
+- **Confirmed CI:** [run #44211511127](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44211511127), code SHA `0dfcad1ca9417602c9f5ba7654c404d03c904c41`, job SUCCESS; build/vet/unit/race, M1/M2 repeat regressions, bounded fuzz all PASS. Test verifies PAD TBF1 wire overhead <= configured percentage; short-flow wire exactly equals M1 format; full byte-exact decode and one FIN.
+- **Diagnostic benchmark at this run:** detector 28.69 ns/op, 0 B/op, 0 allocs; short M1 67.98 ns/op / 32 B/op / 2 allocs, short M2 164.3 ns/op / 256 B/op / 4 allocs; sustained M1 35.76 ns/op / 16 B/op / 1 alloc, M2 PAD 2443 ns/op / 543 B/op / 3 allocs. Values from one hosted runner run are noisy; do not claim regression or improvement across hosts/runs as definitive. Codec benchmarks use `io.Discard` and deliberately exclude HTTP/2/TLS/network.
+- **Remaining M2 acceptance:** an agreed controlled measurement of short/intermittent latency, actual HTTP/2/TLS overhead and process CPU/memory/RTT/loss under supported live service conditions, with backup, rollback and evidence. **No deployment, no M3, v1.0.1 NOT_RELEASED.**
+
+
+
 #### M2 — short-flow fast path and comparative benchmarks (2026-11-18, CI PASS)
 
 - **Baseline PASS:** [GitHub Actions run #44200769174](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200769174), SHA `318ad9bfb3d1fcbb0b198dfa717b4a30860ec723`, SUCCESS (build/vet/unit/race/repeated M1+M2/fuzz + comparative benchmarks). Go 1.23.0 linux/amd64 Ubuntu hosted runner.
