@@ -428,6 +428,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — Homeserver telemetry link restored, operator LOCAL PASS (2026-11-18)
+
+- Operator executed the agreed narrow monitoring recovery on active Homeserver M2, **not an M3/Jitter deployment**. Preflight and config edit: `CONFIG_PREFLIGHT=PASS`, `CONFIG_UPDATED=PASS`. Restarted only `tervon-bridge-client.service` and `tervon-bridge-stats.service`. `/etc/tervon-tcp-bridge/client.json` now uses loopback-only `metrics_listen=127.0.0.1:8895`; Stats environment `/etc/tervon/bridge-stats.env` points to `http://127.0.0.1:8895/metrics/v1`.
+- **Observed local checks:** `BRIDGE_METRICS=PASS`, `STATS_API=PASS`, `MONITORING_LOCAL=PASS`, `PADDING_CONFIG=ENABLED`, `INSTALL_EXIT_CODE=0`. Operator states: `Метрики работают.` These checks validate source JSON schema/ready and local Stats dashboard API reporting `homeserver.status=ok`. They do **not** alone establish a successful external HTTPS page test or measured active PAD counters.
+- **Rollback artifacts:** `/opt/tervon-tcp-bridge/backups/m3-metrics-jta0z8Y3` on Homeserver; do not delete before full acceptance. Earlier verified active M2 executable SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`; no replacement binary in the recovery script.
+- **Remaining M3-monitoring gate:** verify actual public `https://stats.xrayvless.online/bridge/` and `/bridge/api/status` **from a separate external network** against true public DNS/SNI with TLS validation, plus actual PAD display/counter activity and no subscription/Bridge regressions. Public monitoring `EXTERNAL_NOT_VERIFIED`; full M3 including Jitter `IN_PROGRESS`.
+
+
+
 #### M3 — framing scheduler and monitoring adapter batch (2026-11-18)
 
 - Implemented opt-in `Encoder.EnableJitter` with cancellation-aware delay bounded by per-direction Jitter policy. No `jitter_enabled` JSON setting and **no bilateral `jit1` negotiation or active data-plane integration yet**: the existing M2 production executable is unchanged, jitter OFF in production. Existing M1/M2 encoder path avoids extra timing calls when jitter is disabled.
