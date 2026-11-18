@@ -172,6 +172,16 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — read-only M1 host baseline collector prepared (2026-11-18, CI PASS; NOT RUN ON HOSTS)
+
+- **Tool:** `tests/homeserver/collect_m2_baseline.py` (source SHA introduced at `5f87b507cbffc738332490cbb06f2a510da3f722`) — Python standard library only; takes explicitly chosen `--role` (`homeserver` or `finserver`) and existing systemd service unit name. Executes only `systemctl show` with allowlisted status properties, reads current `/proc/<PID>/exe` for SHA-256 and `/proc/<PID>/status` for RSS. Does NOT read Bridge configuration, TLS private keys, connection payloads, command lines, process environment or IP addresses; no shell, no service mutations, no files written by collector.
+- **Safety and boundaries:** refuses inactive or malformed PIDs and invalid unit names; if running executable SHA differs from the last confirmed M1 SHA (`e42545d56ad05e94280466ddf92dfbcaa4955d716511f839de2eec0ae21675e5`), reports mismatch **without overwriting anything**. CPU %, RTT, loss/retransmits, Padding live state and all metrics not actually collected remain explicitly `NOT_MEASURED`. JSON output is for private operator review; do not upload identifiable operational snapshots to public GitHub.
+- **Tests:** `tests/homeserver/test_collect_m2_baseline.py` (commit `2ade03ebc057844a8f8c3d70a0abdc0c9e1ab770`) mocks systemctl and uses fake procfs fixtures; validates output whitelist, SHA/RSS, command safety, rejection of invalid units, stopped services and absent metrics. CI workflow changes at `a24db02237ecbfd7692386cd1e204f78c4fee4e3`.
+- **Verified CI:** [GitHub Actions #44240086746](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44240086746), source SHA `a24db02237ecbfd7692386cd1e204f78c4fee4e3`, job **SUCCESS**. Dedicated mocked collector test **PASS**, plus Go build/vet/unit/race, 3x unmodified policy, M1/M2 regression, bounded fuzz.
+- **Operation:** `docs/M2_LIVE_ACCEPTANCE.md` explains optional operator-only collection. **Script NOT EXECUTED on Homeserver or Finserver**; no live M1 baseline gathered and no live M2 upgrade authorized. M2 **CODE PASS / LIVE PENDING**. No service touched, no M3, no v1.0.1 release.
+
+
+
 #### M2 — repair intermittent default-policy test telemetry snapshot (2026-11-18; CI PASS)
 
 - **Failure evidence:** GitHub Actions [#44233867705](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44233867705) on docs-only HEAD `89bef654d07532e46026bc003a01679684c633c0`: **FAIL** at `TestM2DefaultPolicyIdleResume`, message `PAD emitted after idle gap on an interactive frame`. Build/vet passed. This superseded the earlier single-run success as reliability evidence and was treated as a test-gate blocker.
