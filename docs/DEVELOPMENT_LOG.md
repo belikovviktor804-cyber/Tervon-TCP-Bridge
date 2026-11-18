@@ -1,5 +1,15 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3 bridge metrics UI + collector installed on Homeserver: LOCAL PASS (operator evidence)
+
+- Оператор выполнил `git fetch origin work/m3-adaptive-jitter`, fast-forward **`a315139..5015a3b`** и последовательно `python3 integrations/stats/update-m3-ui.py`, `python3 integrations/stats/update-m3-collector.py`. Текущая среда — действующий Homeserver, **не** CI.
+- **UI:** `UI_BACKUP=/opt/tervon/bridge-stats/.ui-backups/m3-ui-6th3s12p`, `M3_STATS_UI_LOCAL=PASS`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`, `EXTERNAL_HTTPS=NOT_VERIFIED`.
+- **Collector:** `COLLECTOR_BACKUP=/opt/tervon/bridge-stats/.collector-backups/m3-00et2d9c`, `M3_COLLECTOR_LOCAL=PASS`, `STATS_RESTART=YES`, `BRIDGE_RESTART=NONE`, `NGINX_RELOAD=NONE`, `EXTERNAL_HTTPS=NOT_VERIFIED`.
+- Исходный код обновлён в GitHub ранее; новая установка **не меняла бинарник Encapsulator M2, конфигурацию Bridge, nginx или Finserver**. Оба сценария прошли встроенные локальные проверки; откат не потребовался. Сохранить обе резервные копии, не запускать повторно `activate-m2-metrics.py`.
+- **Ограничения проверки:** локальные PASS означают подтверждение скриптов на Homeserver и передачи доступных исходному M2 PAD-полей, но **не** дают доказательства активности rate1/jit1 в production и **не** проверяют внешний публичный DNS/TLS. Попытка прочитать сайт через внешний retrieval недоступна; статус `MONITORING_EXTERNAL=NOT_VERIFIED`, не FAIL.
+- **Следующие gates M3:** проверка внешнего `https://stats.xrayvless.online/bridge/` с независимой сети; отдельно безопасная, checksum-pinned live установка согласованного M3 кандидата на оба узла с rollback, подтверждение ≥1 Мбит/с в 2 последовательных 1-секундных окнах, <=5% PAD wire overhead, Jitter delay/fairness, обычная связь, RTT/retransmissions/CPU и отсутствие деградации. M3 `IN_PROGRESS`, v1.0.1 `NOT_RELEASED`.
+
+
 ## 2026-11-18 — M3 collector-only package CODE/CI PASS, deployment still open
 
 - **Full CI:** [Go prototype checks #44308674234](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308674234) completed **SUCCESS / 36 of 36 steps**, exact implementation SHA `1661d93000f11dfe74a12543efffd23df04084e1`. Includes Python stats/collector installer and mocked rollback, Node UI, Go build/vet/unit/race, M1/M2/M3 and bounded fuzz. Prior `681117e9` full CI [#44308302585](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308302585) also SUCCESS. Last code delta disallows redirects when verifying local stats endpoint.
