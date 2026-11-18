@@ -2,6 +2,9 @@
 
 **Статус:** утверждённый порядок работы, актуализировано 2026-11-18. **Единственный рабочий план для следующих изменений.**
 
+> **M3 UI corrected CI gate PASS (2026-11-18):** [Go prototype checks #44306965079](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306965079) completed **SUCCESS** at exact implementation SHA `ee68d50f2910d3125ce39e091d0ab3d0d3099db4`: all 36 steps succeeded, including stats Python, Node panel cases (configured/unknown OFF), rollback tests, Go build/vet/unit/race and M1/M2/M3 regressions/fuzz. Previous FAIL on `0038e082` was an outdated JS fixture expectation (`Активно / Выкл.` instead of `Активно / Нет активности`), corrected by `ee68d50f`. **CODE CI PASS only; UI/adapter M3 not installed**, working M2 and stats unchanged. The confirmed M3 UI hot-update changes only HTML/JS; existing Python collector remains a separate deployment gate. 
+
+
 > **M3 мониторинг — текущий подтверждённый этап (2026-11-18):** [Go prototype checks #44306152672](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306152672) завершился **SUCCESS** на коммите `669fa32e`, в том числе Python-тесты stats, Node.js-тесты панели, тесты UI-only установки/rollback, Go build/vet/unit/race и транспортные регрессии; отдельный M3 Linux candidate [#44306153058](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306153058) также SUCCESS. **Это CI PASS кода, не live deployment.** Дополнительный пакет `34bb3e2` / `0038e08` исправляет неопределённый признак `padding_configured` в старом бинарнике и тестирует отличие «Нет активности» от «Выключено»; его **полный CI ещё не подтверждён**. В production по-прежнему M2, метрики подключены, работающие службы не менялись. Далее после CI: UI-only update с backup/rollback, локальная и независимая внешняя проверка, отдельно live испытания M3 rate1/jit1.
 
 
