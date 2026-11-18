@@ -7,7 +7,8 @@
   const ids = [
     "tb-sessions-active", "tb-sessions-counts", "tb-bytes", "tb-backend",
     "tb-latency", "tb-tls", "tb-runtime", "tb-adaptation",
-    "tb-padding-bytes", "tb-padding-overhead", "tb-jitter-delays", "tb-errors",
+    "tb-padding-bytes", "tb-padding-overhead", "tb-padding-direction",
+    "tb-padding-activity", "tb-jitter-delays", "tb-errors",
   ];
   const byId = (id) => document.getElementById(id);
   const setText = (id, value) => {
@@ -56,10 +57,15 @@
     setText("tb-sessions-counts",
       [m.sessions_started, m.sessions_completed, m.sessions_rejected].map(fmt).join(" / "));
     setText("tb-bytes", bytes(m.upload_bytes) + " / " + bytes(m.download_bytes));
-    setText("tb-backend", fmt(m.backend_dial_success) + " / " + fmt(m.backend_dial_failure));
-    setText("tb-latency", [m.connect_latency_p50_ms,
-      m.connect_latency_p95_ms, m.connect_latency_p99_ms].map(decimal).join(" / ") + " мс");
-    setText("tb-tls", fmt(m.tls13_h2_mtls_requests));
+    // These are Decapsulator-side observations. On the Homeserver client,
+    // zero does not mean that TLS or backend connectivity is absent.
+    setText("tb-backend", "На стороне Decapsulator");
+    setText("tb-latency", integer(m.connect_latency_samples) &&
+      m.connect_latency_samples > 0 ?
+      [m.connect_latency_p50_ms, m.connect_latency_p95_ms,
+        m.connect_latency_p99_ms].map(decimal).join(" / ") + " мс" :
+      "Нет измерений");
+    setText("tb-tls", "На стороне Decapsulator");
     setText("tb-runtime", decimal(m.uptime_seconds) + " с / " +
       fmt(m.goroutines) + " / " + bytes(m.memory_alloc_bytes));
     const paddingStatus = m.padding_configured === true &&
@@ -70,6 +76,14 @@
     setText("tb-adaptation", paddingStatus + " / " + jitterStatus);
     setText("tb-padding-bytes", bytes(m.padding_upload_bytes) + " / " +
       bytes(m.padding_download_bytes));
+    const sideState = (v) => m.padding_configured === true && v === "OFF" ?
+      "Ожидание" : state(v);
+    setText("tb-padding-direction", sideState(m.padding_upload_state) +
+      " / " + sideState(m.padding_download_state));
+    setText("tb-padding-activity",
+      fmt(m.padding_upload_frames) + " / " + fmt(m.padding_download_frames) +
+      " кадров; " + fmt(m.padding_upload_transitions) + " / " +
+      fmt(m.padding_download_transitions) + " переходов");
     setText("tb-padding-overhead",
       [m.padding_upload_wire_overhead_percent,
         m.padding_download_wire_overhead_percent].map(
