@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3 collector-only package CODE/CI PASS, deployment still open
+
+- **Full CI:** [Go prototype checks #44308674234](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308674234) completed **SUCCESS / 36 of 36 steps**, exact implementation SHA `1661d93000f11dfe74a12543efffd23df04084e1`. Includes Python stats/collector installer and mocked rollback, Node UI, Go build/vet/unit/race, M1/M2/M3 and bounded fuzz. Prior `681117e9` full CI [#44308302585](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308302585) also SUCCESS. Last code delta disallows redirects when verifying local stats endpoint.
+- **Status:** CODE PASS, HOMESERVER COLLECTOR DEPLOYMENT NOT RUN, EXTERNAL NEW UI VERIFICATION NOT RUN; active M2 and existing local Stats remain unchanged. Test does not prove M3 Jitter latency/fairness/1Mbps behavior on real Homeserver/Finserver. No M4 or v1.0.1 release.
+
+
 ## 2026-11-18 — M3 Stats collector update and rollback code (awaiting full CI)
 
 - Прочитан реальный `bridge_site.py`: импортирует `BridgeMetricsCollector` один раз на старте процесса, поэтому копирование нового Python-адаптера без рестарта Stats не сделает новые PAD-поля видимыми. Существующие метрики M2 уже доступны; нельзя повторно выполнять `activate-m2-metrics.py`.
