@@ -14,7 +14,7 @@ import stat
 import subprocess
 import tempfile
 import time
-from urllib.request import ProxyHandler, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, build_opener
 
 APP = Path("/opt/tervon/bridge-stats")
 TARGET = APP / "bridge_metrics.py"
@@ -43,8 +43,13 @@ def regular(path: Path) -> bool:
     return path.is_file() and not path.is_symlink()
 
 
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
 def json_get(url: str) -> dict:
-    opener = build_opener(ProxyHandler({}))
+    opener = build_opener(ProxyHandler({}), _NoRedirect())
     with opener.open(url, timeout=2) as response:
         payload = response.read(65537)
         if response.status != 200 or len(payload) > 65536:
