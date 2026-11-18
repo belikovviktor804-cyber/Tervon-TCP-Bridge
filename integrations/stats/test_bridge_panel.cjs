@@ -93,6 +93,23 @@ test("renders local Homeserver metrics with fixed, same-origin API", async () =>
   assert.equal(elements.get("tb-errors").textContent, "3");
 });
 
+test("configured but inactive padding is shown as waiting, not disabled", async () => {
+  const previous = response();
+  const original = await previous.json();
+  original.nodes.homeserver.metrics.padding_configured = true;
+  original.nodes.homeserver.metrics.padding_rate_configured = true;
+  original.nodes.homeserver.metrics.padding_state = "OFF";
+  original.nodes.homeserver.metrics.jitter_configured = true;
+  original.nodes.homeserver.metrics.jitter_state = "ENABLED";
+  const { elements } = mount(async () => ({
+    ok: true, json: async () => original,
+  }));
+  await tick();
+  await tick();
+  assert.equal(elements.get("tb-adaptation").textContent,
+    "Ожидает подходящий поток / Включено");
+});
+
 test("does not render remote node data or stale values when source is unavailable", async () => {
   const { elements } = mount(async () => ({
     ok: true, json: async () => ({
