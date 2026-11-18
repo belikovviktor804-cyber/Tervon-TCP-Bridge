@@ -172,6 +172,272 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — repeated HTTP/2 session-wave lifecycle and accounting (2026-11-18, CI PASS)
+
+- **Code:** `prototype/padding_session_churn_test.go` committed at `4395dc8cac020601edd7723d541f8b09649df7fa`. Ten sequential waves of six simultaneous connections; six bidirectional 8192-byte echo exchanges per connection, all through one reusable authenticated HTTP/2 client. After **each wave**, verify Started=Completed, SessionsActive=0 and PAD states OFF on client/server, exact application byte counters, cumulative PAD wire overhead <= configured 5%. Test uses only GitHub CI in-process fixtures, never production nodes.
+- **Dedicated CI step:** `go test -race -count=3 -v -timeout=150s -run '^TestM2RepeatedSessionWaves
+
+#### M2 — cancellation isolation under shared mTLS HTTP/2 (2026-11-18, CI PASS)
+
+- **New regression:** `prototype/padding_cancel_isolation_test.go` at `6804bc4624b4d915e2a81bebbd2296d08f0e7d73`. A PAD-enabled stream exchanges valid bytes, then is canceled via `HandleContext` while a second stream uses the same HTTP/2 client. The canceled handler must return an error rather than successful FIN; the second completes byte-exact echo and normal close, both sides eventually report `SessionsActive=0` and PAD ACTIVE/OFF states OFF.
+- **Repeat CI:** `.github/workflows/go-prototype.yml` at `cc1459995541e79acdfe6a31b83ae80df3a865fc` includes 3 repetitions of the cancellation isolation regression under Go race detector (in addition to full build/vet/unit/race, existing M1/M2 regressions, bounded fuzz).
+- **Verified code SHA:** `cc1459995541e79acdfe6a31b83ae80df3a865fc`. [GitHub Actions #44223298969](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44223298969): full job **SUCCESS**. Named cancellation regression PASS on all three invocations; each logged 4505 PAD wire bytes emitted on upload and download across these sessions, zero remaining active client/server sessions and both PAD states OFF. No race report observed.
+- **Evidence limits:** test uses in-process authenticated localhost HTTP/2 fixtures only; a 3x cancellation regression cannot establish lifetime/no-leak behavior under long-lived public network loss. Real Homeserver/Finserver RTT, loss/retransmissions, resource trends and approved rollback still unverified. Neither production node was touched; no new laboratory units started.
+- **Status:** CODE CI PASS / LIVE PENDING / RELEASE NONE. Current module remains M2, M3 blocked.
+
+
+
+#### M2 — concurrent multiplexed PAD stream regression (2026-11-18, CI PASS)
+
+- **Implementation:** `prototype/padding_concurrency_test.go` at commit `ddbd28549be52a93457f2b0028175eff9a4f1d48`. Uses the existing in-process authenticated HTTP/2 test helper with 12 concurrently active independent TCP sessions, 12 bidirectional 8192-byte echo exchanges per session, independent data patterns, aggregate telemetry and explicit session end. No Homeserver/Finserver service or lab unit used.
+- **CI reinforcement:** `.github/workflows/go-prototype.yml` at `a22f3a71a1c0af8739b3ae09333e0d021c7a0734` runs 3x race-instrumented verbose concurrency regression in addition to full build/vet/unit/race, repeated M1+M2, bounded fuzz, latency and encrypted-byte diagnostics.
+- **Verified CI:** [GitHub Actions run #44221520831](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44221520831), **SUCCESS** on code SHA `a22f3a71a1c0af8739b3ae09333e0d021c7a0734`. Repeated 3x concurrency results: useful bytes each direction **1,179,648**; actual PAD wire overhead each direction **58,980 bytes** (just under 5%), byte-exact echo, all client/server sessions active=0 and Padding ACTIVE states cleared. No data corruption or race failure observed.
+- **Diagnostic memory logs (three samples):** process-wide TotalAlloc deltas **10,099,504 / 9,761,000 / 10,282,048 bytes** and ending HeapAlloc **3,798,592 / 3,461,424 / 4,553,360 bytes**. Goroutine snapshot before=4 and after=7 (includes HTTP/2 transports/test process): **NOT** evidence of a goroutine leak or of no leak, because it is not a post-idle stabilized count. Not a per-session memory figure.
+- **Scope:** CI localhost mTLS HTTP/2 multiplexing only. No proof of real route RTT/loss/retransmissions or sustained 24/7 behavior. No production service modified. M2 remains **CODE_PASS / LIVE_PENDING**. Do not transition to M3 or release v1.0.1 until controlled live gate and rollback PASS.
+
+
+
+#### M2 — controlled live acceptance preparation (2026-11-18, PREPARED ONLY)
+
+- **Documentation:** `docs/M2_LIVE_ACCEPTANCE.md` added at `986bff28de1ad7a5999ad8f9fe157444e68612ae`. It specifies a **read-only** per-node baseline (running PID/executable SHA, service health, nonsecret settings, production traffic/CPU/RSS/error/RTT sources), explicit operator authorization before production changes, agreed acceptance thresholds and checksum-pinned M1 rollback requirements.
+- **Current state:** checklist created; **no host data collected**, no synthetic/laboratory services run, no production binary/config changed. The current source evidence remains CI PASS #44218917305 at `025e8c71f6f7500ce96b08305015faa3a7a3be6e`, plus docs-only commits.
+- **User constraints honored:** live production services remain untouched. A normal `continue` request is not authorization to replace a running service or to run new test units. Live confirmation remains a distinct gate from CI. M2 IN_PROGRESS / LIVE_PENDING / v1.0.1 NOT_RELEASED; M3 BLOCKED.
+
+
+
+#### M2 — in-process latency / allocation diagnostics (2026-11-18, CI PASS)
+
+- **New code/test:** `prototype/padding_latency_diagnostic_test.go`, commit `879de1bae1aead55235e95b89d78dbf091882608`. Four 48-exchange workloads (M1/M2 × 128 B/16 KiB) run through authenticated loopback HTTP/2 over TLS with an echo backend; exact payload equality and PAD behavior are asserted. Report nearest-rank p50/p95/p99, process-wide `TotalAlloc` delta and ending `HeapAlloc` as diagnostics, not service-level resource guarantees.
+- **CI:** `.github/workflows/go-prototype.yml` adds a verbose named diagnostics step at commit `025e8c71f6f7500ce96b08305015faa3a7a3be6e`. [GitHub Actions run #44218917305](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218917305), job conclusion **SUCCESS**: full build, vet, unit, race, repeated M1/M2, three bounded fuzz targets and existing codec benchmarks. Verified source SHA `025e8c71f6f7500ce96b08305015faa3a7a3be6e`.
+- **One CI sample (48 echo exchanges each):** M1 128 B p50=114.112 µs, p95=148.224 µs, p99=4.035413 ms, total allocated delta=480824 B, heap end=1972232 B; M2 128 B p50=100.471 µs, p95=132.249 µs, p99=3.46089 ms, total delta=376232 B, heap end=3037192 B. **No PAD generated in the short case.**
+- **One CI sample sustained 16 KiB:** M1 p50=158.288 µs, p95=225.108 µs, p99=3.585938 ms, total allocated delta=2363256 B, heap end=2465400 B; M2 p50=192.51 µs, p95=366.3 µs, p99=3.48132 ms, total delta=2439968 B, heap end=2579880 B. **PAD wire bytes upload/download=24534/24534 B** on M2; M1=0.
+- **Limitations:** four serial, order-dependent tests on one shared CI process, tiny sample and loopback network, no induced RTT/loss, unsynchronized GC and no CPU isolation. Values cannot establish production p95/p99, statistical regression, absolute heap consumption, or live-route SLO. `TotalAlloc` counts the whole process including testing and TLS, not a per-connection allocation. No thresholds derived from these data alone.
+- **Open gates:** real Homeserver ↔ Finserver route evidence, accepted latency/CPU/memory/loss limits, signed off restore/rollback plan and controlled production verification; **no existing units touched, no M3, no v1.0.1 release**.
+
+
+
+#### M2 — decoder receiving-side wire cap and PAD write failure (2026-11-18, CI PASS)
+
+- **Fix:** `prototype/framing/stream.go` commit `3e24ad53f17fd1f91ebfb6cf4a210237b56d7294` now includes the ten-byte TBF1 PAD header in the cumulative receiving-side **25%** protective budget. Previously the receiving-side limit counted PAD payload only, allowing overhead greater than 25% when PAD frames are small. Sender's stricter default 5% wire budget remains unchanged.
+- **Tests:** `prototype/framing/padding_test.go` commit `45e108ad0a621df92064004769d91c73921533d8` validates rejection of 25-byte PAD payload + 10-byte header with 100 useful bytes (35% wire overhead), accepts 15-byte payload + 10-byte header (exactly 25%), and injects PAD header write failure. Failed PAD write must surface an error, close encoder, never forge FIN and never increment the emitted-PAD telemetry callback.
+- **Verified code SHA:** `45e108ad0a621df92064004769d91c73921533d8`. [GitHub Actions #44218024674](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218024674), job **SUCCESS**. Includes build/vet/unit/race, repeated M1+M2 tests, encrypted HTTP2 diagnostics, codec benchmarks and bounded fuzz. No production services changed.
+- **Remaining:** release gate still **NOT MET**. Need per-route CPU/heap, latency p95/p99, short-flow behavior, loss/retransmission evidence, approved rollback and production verification. No M3, no v1.0.1 release.
+
+
+
+#### M2 — encrypted HTTP/2 + mTLS wire accounting (2026-11-18, CI PASS)
+
+- `prototype/padding_encrypted_wire_test.go` at `c3467cc139e69a63c00271df256031d3776632f0` measures actual TCP byte counts at the listener **below TLS**, using independent M1/M2 mTLS HTTP/2 sessions and identical echo payload in both directions. The test confirms exact useful bytes and that M2 emits PAD both ways, but purposely does not assert a fixed ratio on total TLS bytes (scheduler/record segmentation vary).
+- Initial integration test CI [#44216532330](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44216532330) succeeded. Separate verbose diagnostics added by `59484421f1a682daf0bc596c200dd9edeaf0064b`; latest full CI [#44216825423](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44216825423) job **SUCCESS** (build/vet/unit/race, repeated M1/M2, bounded PAD/M1 fuzz, benchmark).
+- **Measured on GitHub Actions Go 1.23.0 runner, one sample:** useful TCP bytes per direction **196608**. M1 encrypted network bytes: client→server **201365**, server→client **201345**. M2: client→server **207793**, server→client **207841**. Difference **6428 bytes (3.27% useful)** and **6496 bytes (3.30% useful)** respectively. M2 emitted PAD wire overhead **5742 bytes in each direction**, including PAD frame headers. Differences beyond PAD wire overhead include altered TLS/HTTP2 framing and timing, not an isolated constant overhead attribution.
+- These are measurements of **local encrypted TCP bytestream only** (TLS records + HTTP/2 + TBF1). They exclude IP/TCP headers, retransmissions/packet loss, genuine cross-site RTT, congestion, real server resource contention and long-term statistics. Do NOT generalize to actual VPN network latency or throughput. No representative repeated distribution or bounds available yet.
+- **Diagnostic CPU:** detector 18.04 ns/op, 0 B/op, 0 allocs; short M1 45.40 ns/op, 32 B/op, 2 allocs; short M2 120.5 ns/op, 256 B/op, 4 allocs; sustained M2 PAD 1553 ns/16KiB, 543 B/op, 3 allocs (single hosted runner, io.Discard codec-only).
+- **Gates still OPEN:** real RTT/p95/p99 latency, CPU/heap under traffic, packet loss/retransmissions, short/interactive behavior on supported live Homeserver/Finserver, accepted thresholds, checksum-pinned backup/rollback. **No production changes or M3; v1.0.1 NOT_RELEASED.**
+
+
+
+#### M2 — serialized TBF1 overhead verification (2026-11-18, CI PASS)
+
+- New `prototype/framing/padding_wire_test.go` commit `0dfcad1ca9417602c9f5ba7654c404d03c904c41`: independently parses complete TBF1 frames to compute useful DATA bytes, DATA/PAD/FIN frame counts, total PAD payload and 10-byte headers. Cases: short interactive, sustained, sustained-to-short pulse with idle gap.
+- **Confirmed CI:** [run #44211511127](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44211511127), code SHA `0dfcad1ca9417602c9f5ba7654c404d03c904c41`, job SUCCESS; build/vet/unit/race, M1/M2 repeat regressions, bounded fuzz all PASS. Test verifies PAD TBF1 wire overhead <= configured percentage; short-flow wire exactly equals M1 format; full byte-exact decode and one FIN.
+- **Diagnostic benchmark at this run:** detector 28.69 ns/op, 0 B/op, 0 allocs; short M1 67.98 ns/op / 32 B/op / 2 allocs, short M2 164.3 ns/op / 256 B/op / 4 allocs; sustained M1 35.76 ns/op / 16 B/op / 1 alloc, M2 PAD 2443 ns/op / 543 B/op / 3 allocs. Values from one hosted runner run are noisy; do not claim regression or improvement across hosts/runs as definitive. Codec benchmarks use `io.Discard` and deliberately exclude HTTP/2/TLS/network.
+- **Remaining M2 acceptance:** an agreed controlled measurement of short/intermittent latency, actual HTTP/2/TLS overhead and process CPU/memory/RTT/loss under supported live service conditions, with backup, rollback and evidence. **No deployment, no M3, v1.0.1 NOT_RELEASED.**
+
+
+
+#### M2 — short-flow fast path and comparative benchmarks (2026-11-18, CI PASS)
+
+- **Baseline PASS:** [GitHub Actions run #44200769174](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200769174), SHA `318ad9bfb3d1fcbb0b198dfa717b4a30860ec723`, SUCCESS (build/vet/unit/race/repeated M1+M2/fuzz + comparative benchmarks). Go 1.23.0 linux/amd64 Ubuntu hosted runner.
+- **Baseline codec-only benchmarks (not network):** short 128B M1 51.72 ns/op, 32 B/op, 2 allocs/op; M2-enabled short 166.2 ns/op, 256 B/op, 4 allocs/op. Sustained 16KiB M1 26.73 ns/op; M2 PAD 2096 ns/op, 543 B/op, 3 allocs/op. Not representative of VPN throughput; writes used `io.Discard`.
+- **Optimization:** `padding.State.ObserveSmallFrame` fast-path keeps short/interactivity below `MinFrameBytes` OFF, counts useful bytes and resets sustained burst classifier without `time.Now`. Encoder checks it before full sampling. Tests verify 1000 small frames cannot activate, followed by fresh eligible burst and OFF transition.
+- **Optimized CI PASS:** [GitHub Actions run #44201265799](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44201265799), exact source SHA `f2c6e4cad6b1189001510cbbd0d935faf978b131`, SUCCESS: build/vet/unit/race, repeated M1 and M2 tests, three bounded fuzz cases. Go 1.23.0 linux/amd64 hosted runner.
+- **Optimized benchmark:** M1 short 50.53 ns/op / 32 B/op / 2 allocs; M2-enabled short **122.3 ns/op / 256 B/op / 4 allocs**. M2 short CPU benchmark improved relative to 166.2 ns/op initial observation, but remains ~2.4x baseline M1 CPU in this microbenchmark. Sustained M2 PAD 2100 ns/op / 543 B/op / 3 allocs (similar to baseline). Variations across runs not statistically controlled.
+- **Optimized detector microbenchmark:** 21.71 ns/op, 0 B/op, 0 allocs/op (single runner result).
+- **Remaining:** measured live latency, CPU/load under real traffic and RTT/loss, short/pulsed streams E2E and full HTTP2/TLS overhead; agreed acceptance thresholds, rollback, controlled Homeserver/Finserver test. **CODE PASS does not mean M2 PASS. Production changes NONE, M3 not started, v1.0.1 NOT_RELEASED.**
+
+
+
+#### M2 — verified integrated code gate (2026-11-18)
+
+- **CI failure:** GitHub Actions [run #44200049897](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200049897) at `85c10507c7b2f0c49e930091c914ae507ff80c05` — FAIL in unit tests, because two legacy telemetry endpoint tests still required `padding_state=NOT_IMPLEMENTED` after the M2 local contract changed to `OFF`. Build and vet were already PASS. Earlier malformed workflow was repaired in commit `85c10507c7b2f0c49e930091c914ae507ff80c05`.
+- **Corrections:** `prototype/telemetry/http_integration_test.go` commit `604652273b432b290f279921362d4d8e894ff854`; `prototype/telemetry/listener_test.go` commit `820e705e8f5f8a2a7e8246c7a0413483c053594f`. Tests now require Padding OFF by default and Jitter NOT_IMPLEMENTED.
+- **Fully verified source SHA:** `820e705e8f5f8a2a7e8246c7a0413483c053594f`, [GitHub Actions run #44200189036](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44200189036), Ubuntu runner Go **1.23.0 linux/amd64**, job `test` **SUCCESS/PASS**. Build/vet/unit/race, repeated M1 regression, repeated M2 padding policy race, repeated M2 HTTP/2 E2E race, bounded M2 PAD fuzz and both M1 fuzz targets passed.
+- **Fuzz counts:** `FuzzPaddingDecoder` **1,189,092** executions / 20 corpus total; `FuzzReadFrame` **1,280,882** executions / 11 total; `FuzzStreamDecoder` **1,218,455** executions / 14 total. Bounded 15s runs, not exhaustive.
+- **CPU/alloc diagnostic:** `BenchmarkPaddingObserve-4` **18.10 ns/op, 0 B/op, 0 allocs/op** on hosted runner; only detector hot path, not TLS/HTTP2/network or end-to-end overhead.
+- **Remaining before M2 PASS:** quantify performance on short/intermittent/sustained traffic and full frame+TLS/HTTP2 overhead, verify actual Homeserver/Finserver controlled live route with backup and rollback, and record per-node evidence. `gofmt -l` is a **non-blocking** CI step, not a formatting PASS. **No production changes, no release, no M3.**
+
+
+
+#### M2 — strict wire budget correction (2026-11-18, awaiting current-SHA CI)
+
+- **Source checkpoint before this docs commit:** `d786966f96df12bcc236dc555fe5ff43ba58bdf4`; feature branch `work/m2-adaptive-padding`, draft PR #1.
+- **Code:** `padding.State` now tracks PAD payload and PAD wire overhead separately. `Observe` refuses PAD unless the remaining cumulative `RatioPercent` budget covers **both** the 10-byte TBF1 PAD header and all planned PAD payload bytes. This replaces the earlier payload-only enforcement and keeps the real wire overhead within the configured ratio.
+- **Tests:** `TestBudgetIncludesPaddingFrameHeader`, updated cumulative-budget and overflow tests, and `TestM2PaddingHeaderConstantMatchesFraming` to catch mismatch between frame codec and policy accounting.
+- **Status:** IMPLEMENTED / TESTS WRITTEN, latest CI **NOT VERIFIED**; don't extrapolate PASS #44195491683 to post-telemetry and strict-budget changes. Not deployed; no working service changed; no release.
+- **Next gate:** full latest-SHA GitHub CI and evidence, then measure performance/allocations and controlled live verification with rollback. M2 remains IN_PROGRESS.
+
+#### M2 — correction batch: accurate wire overhead and early PAD rejection (2026-11-18)
+
+- **Source checkpoint before documentation:** `4c86d7417c2bf4db65c29f900ead0e02f494dfb7` on `work/m2-adaptive-padding`. Draft PR #1 still open and not merged.
+- **Metrics:** separate PAD payload and total PAD wire overhead (PAD payload + 10-byte TBF1 header per PAD frame); per-direction frame counts and wire overhead percentages in JSON and Prometheus; saturation-safe snapshot arithmetic. Actual TCP payload metrics remain unchanged.
+- **Parser hardening:** writer rejects PAD payload >4096 bytes; receiver detects overlarge PAD directly from TBF1 header *before allocation*. Test simulates forged oversized wire header, not a permitted writer frame.
+- **Tests:** updated telemetry tests for PAD frame/header accounting and uint64 saturation; adjusted frame rejection tests.
+- **Latest full CI:** **NOT VERIFIED on these commits**. Last independently checked successful CI remains run #44195491683 for earlier SHA `fe4bc73f492845007c67ecc5d24c890e1b3f3f60`. GitHub workflow-run lookup currently has no newer confirmed result; do not claim latest SHA PASS.
+- **Pending inside M2:** full current-SHA build/vet/unit/race/fuzz, benchmark CPU and allocations, end-to-end traffic overhead and short-flow performance, controlled live verification/rollback. **No M3 and no deployment until gates PASS.** Working M1 services unchanged.
+
+#### M2 — next code checkpoint (2026-11-18, NOT VERIFIED on latest SHA)
+
+- Source branch `work/m2-adaptive-padding` is still a **draft PR #1** against `work/m1-framing`.
+- Fixed active-state cleanup on failed streams: `Encoder.Abort()` clears state without sending FIN; both client/server defer it for failed/incomplete sessions. Regression test checks no false FIN.
+- Extended HTTP/2 mTLS integration with test-only rapid detector thresholds to require **actual PAD emission in upload and download**, verify byte-exact echo and no leaked ACTIVE after stream close. This is new code/test, **not a verified PASS**.
+- Corrected classifier to reset **current-burst useful bytes** after long idle gaps, preserving cumulative byte/overhead accounting. Regression test blocks short post-idle burst from reactivating using historic bytes.
+- CI now additionally runs 3x M2 race E2E, 15s M2 decoder fuzz and detector CPU/allocation benchmark (`f12a657798f840e804ee56fc579f8376123f0ad0`).
+- Contract and controlled verification requirements: `docs/M2_PADDING_PROTOCOL.md`.
+- **Last confirmed PASS remains** initial GitHub Actions #44195491683 at `fe4bc73...`. Latest implementation includes subsequent code/telemetry/test changes; **latest CI PASS not yet confirmed**. Homeserver and Finserver production stay on M1; no modifications performed. M2 IN_PROGRESS, v1.0.1 NOT_RELEASED.
+
+#### M2 — telemetry extension and follow-up tests (2026-11-18, awaiting CI)
+
+- Added aggregate PAD metrics in `prototype/telemetry/metrics.go` and `prototype/telemetry/prometheus.go`: upload/download PAD bytes, overhead% relative to application bytes, ACTIVE/OFF per direction and transition counts. The metric intentionally counts **PAD payload only**, not TBF1 frame headers, HTTP/2 or TLS overhead. No IDs, IPs, payload content or dynamic labels.
+- `prototype/framing/stream.go` now emits single-writer synchronous callbacks when PAD frames are successfully written and when a stream changes ACTIVE/OFF; `prototype/bridge.go` attaches them independently for client upload and server download.
+- `prototype/cmd/bridge/main.go` sets local `padding_enabled` configuration status for metrics; defaults still OFF.
+- `prototype/telemetry/metrics_test.go` checks OFF/ACTIVE, overhead ratios, transitions and Prometheus newline output; `prototype/framing/padding_test.go` checks callback accounting/final OFF.
+- **Status:** CODE_COMMITTED; latest post-telemetry source SHA `d75088f55f8faa16b2804c06d3951508d4410ee0` (before this docs commit); new CI/race/fuzz/benchmark results **NOT YET VERIFIED**. Earlier PASS #44195491683 covers **only** snapshot `fe4bc73...`, and does not extend to these changes. Production NONE; release NONE.
+- Pending: final CI gate on latest source; review of correctness and cancellation, resource/latency measurement, controlled live deployment with backup/rollback, explicit acceptance thresholds. No M3 before M2 PASS.
+
+#### M2 — GitHub CI verification checkpoint (2026-11-18)
+
+- **Подтверждённый CI кодового snapshot:** `fe4bc73f492845007c67ecc5d24c890e1b3f3f60`, [GitHub Actions run #44195491683](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44195491683), job test conclusion **SUCCESS**.
+- **Фактически прошли:** Go build ./..., go vet ./..., unit ./..., race ./..., повторный M1 race, повторный M2 padding policy race, два 15s старых M1 fuzz targets, syntax checks и интеграционные тесты `TestM2*` внутри общего unit/race. Ограничение: отдельных повторных M2 E2E и M2 fuzz в этом snapshot ещё нет.
+- **После PASS добавлено CI усиление** `cb21a654a62f59a56aa5068554b4025c9d07769d`: 3x M2 HTTP2 race regression и 15s `FuzzPaddingDecoder`; и `8487aaf679fbe4a61bb275498783752ead827a54`: padding detector benchmark. **Результат на этом новом HEAD ещё не подтверждён.**
+- **Production:** M1 без изменений, M2 не установлен; ещё нет измеренной live overhead/latency/CPU и отдельной оценки compliance/performance. **M2 IN_PROGRESS, не PASS.**
+
+#### M2 — TBF1 PAD negotiation и decoder, кодовый пакет (2026-11-18, UNVERIFIED)
+
+- **Ветка:** `work/m2-adaptive-padding`. Draft PR: https://github.com/tervon-software/Tervon-TCP-Bridge/pull/1 (base `work/m1-framing`, **не сливать без PASS**).
+- **Реализован код (но ещё не подтверждён тестами):** `prototype/framing/framing.go` — новый TypePadding=3 только через WritePaddingFrame/ReadFrameWithPadding, legacy ReadFrame и WriteFrame сохраняют жёсткий отказ. `prototype/framing/stream.go` — NewPaddingEncoder/Decoder; PAD после DATA и перед FIN, PAD удаляется до TCP backend; crypto/rand; decoder запрещает PAD до DATA, повторный PAD, >4096 байт на PAD и >25% накопленного полезного объёма.
+- **Согласование:** в `prototype/bridge.go` строгий capability `tbf1-fin,pad1` на /v2/stream, симметричные request/response заголовки, отказ 426 при неподдерживаемом PAD. Старый `tbf1-fin` остаётся default. **Никакого автоматического silent fallback**, потенциально скрывающего ошибку.
+- **Конфигурация:** `prototype/cmd/bridge/main.go` принимает `padding_enabled` (по умолчанию false), только с /v2/stream на клиенте; `padding.DefaultPolicy()` — предварительные консервативные лимиты, НЕ оптимизированные экспериментально.
+- **Тесты записаны:** `prototype/framing/padding_test.go`, `prototype/padding_integration_test.go`, `prototype/padding/policy_test.go`. Проверяют byte-exact, legacy rejection, повреждение/излишки PAD, CAP mismatch, полномочный HTTP/2 mTLS, короткие потоки, OFF, лимиты, изоляцию направлений.
+- **Результат:** CODE_COMMITTED, **CI PASS NOT VERIFIED**, Homeserver/live NOT_RUN, production changes NONE, release NONE. Ожидаются лог GitHub CI, gofmt/vet/race/fuzz и оценка накладных затрат.
+- **Незакрытые части М2:** telemetry PAD по направлениям, config policy bounds/hysteresis, проверка качества адаптации на устойчивых/порционных потоках и измерение CPU/heap/latency, контролируемая live проверка с backup/rollback.
+- **Правило безопасности:** не устанавливать M2 на Homeserver/Finserver и не менять действующий TBF1 до подтверждённой проверки кода и отдельного контролируемого решения.
+
+#### M2 — первый пакет (2026-11-18, UNVERIFIED)
+
+- **Ветка:** `work/m2-adaptive-padding`, основана на M1 docs closure `58a9b61542749f27bef2586d9eb0db1dbaacee05`.
+- **Код:** `prototype/padding/policy.go` (`e7a3502826b244aae5b16946d55850ffc04cc7ea`) — независимый от TCP payload детектор активности и накопительный процентный бюджет. Включение требует продолжительности, числа выборок и объёма; после паузы выключается. Направления должны создавать отдельные экземпляры State. Алгоритм не вводит задержку и не отправляет байты.
+- **Тесты:** `prototype/padding/policy_test.go` (`a51868a1581310a0d48c4d9d9d241086e347bbba`) — короткие/интерактивные OFF, длительный поток, бюджет, idle, изоляция направлений и overflow. **Только написаны, ещё не подтверждены PASS.**
+- **CI:** `.github/workflows/go-prototype.yml` (`7bbd90ad5888f8ab73df24882da0a2d200902f53`) содержит отдельный повторный race-check пакета padding. Результаты CI пока **NOT_VERIFIED**.
+- **Открыто:** wire capability negotiation с согласованной поддержкой padding; frame codec без изменения полезных данных; интеграция client/server и CLI-конфига; telemetry; regression/fuzz/race/e2e; доказанное ограничение overhead/latency и отдельная согласованная реальная проверка перед вводом в эксплуатацию.
+- **Статус:** M2 IN_PROGRESS, NOT_PASS, NOT_DEPLOYED, RELEASE_NONE. Production changes: NONE.
+
+
+**Пакет:** пассивные метрики, детектор устойчивых потоков, гистерезис, бюджеты overhead, раздельная адаптация направлений, OFF для интерактивного трафика; unit/integration tests.
+**Готово, когда:** нулевая порча данных, измерены overhead и ресурсы, отсутствует деградация на коротких потоках сверх утверждённых пределов.
+
+### M3 — Адаптивный Jitter
+**Пакет:** ограниченное управление отправкой, отмена задержек при интерактивности/перегрузке, fairness между потоками, метрики, тесты RTT/потерь/очередей.
+**Готово, когда:** доказаны границы задержки, нет starvation и зависших горутин/соединений.
+
+### M4 — Надёжность и соответствие HTTPS/2
+**Пакет:** управление жизненным циклом соединений, тайм-ауты, TLS/HTTP2 compliance, лимиты ресурсов, корректная обработка сетевых отказов; контроль утечек и тесты под нагрузкой. Не подменять этот модуль недоказанными заявлениями о DPI-невидимости.
+**Готово, когда:** есть воспроизводимые PASS для отказов, нагрузки и корректного завершения.
+
+### M5 — Измерения, интеграция, выпуск v1.0.1
+**Пакет:** сравнение v1.0.0 и v1.0.1 на идентичных маршрутах; короткие запросы, видеообразный ровный поток, порционный поток, скачивание, RTT/потери/переключения сети; реальный TCP VPN; документация, JSON, release notes, SHA256SUMS.
+**Готово, когда:** подтверждены точные результаты, нет регрессий, создан проверенный релиз. До этого не объявлять v1.0.1 выпущенным.
+
+### M6 — Android (только после M5)
+**Пакет:** аудит TervonVPN VpnService и ядра, поддерживаемый способ переиспользования Bridge, защищённое хранение ключей, защита сокетов от VPN-loop, переключатель «Обход DPI», тесты мобильных сетей. Без изменения действующего APK до отдельного решения.
+
+## Бэклог после v1.0.1 (не выполнять вместо текущего модуля)
+
+- TLS fingerprint consistency и HTTP/2 protocol compliance — измерять признаки, не обещать неотличимость от браузера.
+- Connection lifecycle/recovery, TLS session resumption, обработка смены сети.
+- Управляемое HTTP/2 multiplexing и оценка head-of-line blocking.
+- DNS/route leak protection, path MTU, буферы, безопасный fallback.
+- Реальный HTTPS-сервис/reverse proxy на главном сервере — отдельный проектный и эксплуатационный этап, без вмешательства в работающие службы.
+- QUIC/HTTP3/UDP не добавлять в текущий TCP scope без отдельного решения.
+
+## Уточнение M0 — 2026-11-17, решение пользователя
+
+- **Проверенный HEAD до записи:** `08fa345a4d492ed8dad3397533bbe014bc40990a`.
+- **Подтверждено чтением кода:** `prototype/bridge.go` реализует `Server.ServeHTTP`, `Client.HandleContext`, `Client.ListenAndServe`; `prototype/cmd/bridge/main.go` настраивает TLS 1.3, mTLS, HTTP/2, JSON и лимиты. Специального мониторингового интерфейса в прочитанных файлах нет. Padding/Jitter не подтверждены как реализованные.
+- **Решение:** дополнить M0 экспортом статистики для будущего подключения `stats.xrayvless.online` и закрывать M0 только после сборки, изолированных тестов, безопасного ввода в эксплуатацию и подтверждения двусторонней связи.
+- **Статус:** `IN_PROGRESS`; это фиксация требований и первичного аудита, **не реализация метрик, не PASS и не развёртывание**. Существующие службы не затронуты.
+- **Ближайший шаг M0:** разработать контракт и базовые инструменты телеметрии с тестами, затем проверить сборку и сценарии в изоляции. Перед установкой получить фактическую схему сервера/сайта и план безостановочного переключения.
+
+## Формат отчёта после каждого пакета
+
+```text
+Модуль: M?
+Статус: NOT_STARTED / IN_PROGRESS / BLOCKED / PASS
+Репозиторий/ветка/commit:
+Изменённые файлы:
+Что реализовано:
+Какие вопросы проверяли:
+Команды и среда тестов:
+Результаты и ограничения:
+Безопасность/совместимость:
+Влияние на работающие службы: NONE (либо явно согласованное)
+Следующий шаг В ЭТОМ ЖЕ модуле:
+Условие закрытия модуля:
+```
+
+## Протокол сохранения контекста для ассистента
+
+1. **В начале каждого нового чата** открыть этот файл в GitHub, проверить текущую ветку и commit, последний отчёт; не полагаться только на память диалога.
+2. **После каждого значимого изменения** обновить здесь статус текущего модуля и/или журнал `docs/DEVELOPMENT_LOG.md` (если он существует), закоммитить с кодом или отдельным docs-коммитом.
+3. Всегда различать: утверждённое требование, гипотезу, реализованное, протестированное, выпущенное. Не объявлять PASS без результата.
+4. Не переключаться на другой модуль при незакрытом текущем. При блокере остановиться, записать его и запросить ровно недостающий ресурс/решение.
+5. **Источник истины — этот файл и проверенный Git commit**, а не краткая память ChatGPT. В память сохранить только короткое правило-переходник к документу.
+
+## Короткий промпт для Memory / Personalization
+
+> Для проекта Tervon TCP Bridge единственный обязательный план разработки — `docs/DEVELOPMENT_PLAN.md` в `git@github.com:tervon-software/Tervon-TCP-Bridge.git`. В начале каждой работы открывай этот файл, сверяй ветку, commit, текущий модуль, критерии готовности и последний результат. Работай строго над одним модулем до завершения и доказанного PASS; не перепрыгивай на другие. Используй пакетную разработку внутри модуля (код + тесты + документация), когда это безопасно. После изменений обновляй статус и коммить. Git только SSH; сборки при необходимости на Homeserver; работающие службы не трогать. Не путай планы, код, тесты и релизы; не придумывай результаты. Сначала Linux Bridge v1.0.1 с адаптивными Padding/Jitter, затем Android. Если контекст неполон, восстанавливай его из Git, а не из догадок.
+
+
+### M0 — подтверждённый локальный E2E расширенной телеметрии (2026-11-17)
+
+- Два независимых процесса Bridge: PASS.
+- Двусторонняя передача 1 МиБ в каждом направлении: PASS.
+- TLS 1.3, ALPN h2, mTLS и TCP half-close: PASS.
+- Расширенный JSON-контракт `/metrics/v1` на обеих сторонах: PASS.
+- Сервер: 2 успешных backend dial, 2 измерения задержки, 2 подтверждённых TLS/HTTP2/mTLS-запроса.
+- Race-тесты, go vet, сборка и восстановление тестового бинарника: PASS.
+- Build metadata пока `dev/unknown`; выпуск не подтверждён.
+- Реальные двухсерверные испытания не выполнены.
+- **M0 остаётся IN_PROGRESS. M1 не начинать.**
+
+## Фактический результат M0 — 2026-11-17
+
+- Go unit/race tests: PASS для всех трёх пакетов.
+- `go vet ./...`: PASS.
+- Локальный E2E: PASS, двусторонняя побайтовая передача 1048576 байт
+  в каждом направлении, включая half-close.
+- TLS 1.3, HTTP/2 ALPN h2, mTLS: локальные проверки PASS.
+- Локальный контракт телеметрии и счётчики полезных байтов: PASS.
+- Finserver: основной и SOCKS5 Decapsulator обновлены, оба процесса
+  проверены по SHA-256: PASS.
+- Главный сервер каскада: Encapsulator обновлён, процесс проверен
+  по SHA-256: PASS.
+- SHA-256 установленного кандидата:
+  `fbc927f33cd0198329bb21ff0b40a5d4e8240bc9a92d3d62c1d9c4e4ec30fc0c`.
+- Реальная эксплуатация: пользователь подтвердил доступность интернета,
+  Telegram и YouTube, хорошую отзывчивость без прежних фризов.
+- Резервные копии v1.0.0 сохранены на обоих серверах.
+- Ограничение: отдельные измерения производительности, потерь,
+  RTT и проверка локального endpoint метрик на production
+  не представлены. Эксплуатационное подтверждение не является
+  измеренным performance benchmark.
+- Изменения M0 не означают выпуск v1.0.1.
+- Решение: перейти к M1 без изменения работающих служб.
+ .` committed at `2c2ad62d6e40dd26296bfe9942a515df35279193`. [GitHub Actions #44227694584](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44227694584) job **SUCCESS**. Full build/vet/unit/race and existing M1/M2 regression and fuzz remain PASS.
+- **Three detailed PASS results:** 60 sessions/run; useful bytes per direction **2,949,120**; actual PAD wire overhead per direction **147,420** bytes (<5%). Process-wide TotalAlloc deltas **37,529,600 / 34,028,200 / 39,717,616 bytes** and HeapAlloc at end **5,933,416 / 5,686,824 / 7,373,664 bytes**. All three session-wave runs PASS (0.35 / 0.26 / 0.58 s); no race failures.
+- **Limits:** repeated correctness test is not a soak test or proof of no long-lived goroutine/memory leak; process memory includes TLS and test infrastructure. No real route RTT/loss/retransmission or CPU/RSS measurements. **LIVE_PENDING**, no production changes, no M3, v1.0.1 NOT_RELEASED.
+
+
+
 #### M2 — cancellation isolation under shared mTLS HTTP/2 (2026-11-18, CI PASS)
 
 - **New regression:** `prototype/padding_cancel_isolation_test.go` at `6804bc4624b4d915e2a81bebbd2296d08f0e7d73`. A PAD-enabled stream exchanges valid bytes, then is canceled via `HandleContext` while a second stream uses the same HTTP/2 client. The canceled handler must return an error rather than successful FIN; the second completes byte-exact echo and normal close, both sides eventually report `SessionsActive=0` and PAD ACTIVE/OFF states OFF.
