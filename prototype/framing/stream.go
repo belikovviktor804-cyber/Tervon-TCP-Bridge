@@ -1,6 +1,7 @@
 package framing
 
 import (
+    "context"
     "crypto/rand"
     "errors"
     "io"
@@ -8,6 +9,7 @@ import (
     "time"
 
     "tervon-tcp-bridge/padding"
+    "tervon-tcp-bridge/jitter"
 )
 
 // Encoder writes opaque bytes as bounded DATA frames. PAD frames are emitted
@@ -20,6 +22,10 @@ type Encoder struct {
     onPadding func(uint64)
     onActivity func(bool)
     reportedActive bool
+    jitterState *jitter.State
+    jitterContext context.Context
+    onJitter func(time.Duration)
+    priorWriteCongested bool
 }
 
 func NewEncoder(w io.Writer) *Encoder { return &Encoder{w:w} }
@@ -35,6 +41,20 @@ func NewPaddingEncoder(w io.Writer, policy padding.Policy) (*Encoder,error) {
 // SetObservers installs bounded, synchronous aggregate callbacks. The callbacks
 // must not block or retain payloads. They report only emitted PAD bytes and
 // ACTIVE/OFF transitions, and are invoked by the encoder's single writer.
+// EnableJitter is an explicit local opt-in to the bounded scheduler. The
+// Bridge must negotiate jit1 with its peer before calling this method.
+// It is not enabled by existing M1/M2 constructors or configurations.
+func (e *Encoder) EnableJitter(ctx context.Context, policy jitter.Policy, onDelay func(time.Duration)) error {
+    if e.closed || ctx == nil { return jitter.ErrPolicy }
+    state, err := jitter.New(policy)
+    if err != nil { return err }
+    e.jitterState = state
+    e.jitterContext = ctx
+    e.onJitter = onDelay
+    if e.now == nil { e.now = time.Now }
+    return nil
+}
+
 func (e *Encoder) SetObservers(onPadding func(uint64), onActivity func(bool)) {
     e.onPadding=onPadding
     e.onActivity=onActivity
@@ -55,6 +75,19 @@ func (e *Encoder) Write(p []byte) (int,error) {
     for len(p)>0 {
         n:=len(p)
         if n>MaxPayload {n=MaxPayload}
+        // Jitter is always before DATA and bounded by the opt-in
+        // scheduler. A previously blocked downstream writer disables
+        // the next delay to avoid adding latency under backpressure.
+        if e.jitterState != nil {
+            d, err := e.jitterState.Observe(e.now(), uint64(n), e.priorWriteCongested)
+            if err != nil { e.fail(); return total, err }
+            if err := jitter.Wait(e.jitterContext, d); err != nil {
+                e.fail()
+                return total, err
+            }
+            if d > 0 && e.onJitter != nil { e.onJitter(d) }
+        }
+        writeStarted := time.Now()
         if err:=WriteFrame(e.w,TypeData,p[:n]);err!=nil{
             e.fail()
             return total,err
