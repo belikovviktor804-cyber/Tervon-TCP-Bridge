@@ -64,6 +64,8 @@ jobs:
         run: go test -race -count=3 -timeout=60s ./padding
       - name: M2 repeated HTTP2 negotiation and byte-exact regression
         run: go test -race -count=3 -timeout=180s -run '^TestM2' .
+      - name: M2 canceled-stream isolation repeated race regression
+        run: go test -race -count=3 -v -timeout=120s -run '^TestM2CancelOneHTTP2StreamPreservesOtherSessions$' .
       - name: M2 concurrent HTTP2 PAD streams repeated race and resource diagnostics
         run: go test -race -count=3 -v -timeout=120s -run '^TestM2ConcurrentPaddingSessions$' .
       - name: M2 encrypted HTTP2/TLS byte accounting (diagnostic)
