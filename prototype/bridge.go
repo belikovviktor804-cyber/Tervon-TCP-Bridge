@@ -14,6 +14,7 @@ import (
 	"tervon-tcp-bridge/telemetry"
 	"tervon-tcp-bridge/framing"
 	"tervon-tcp-bridge/padding"
+    "tervon-tcp-bridge/jitter"
 )
 
 // Backend addresses come from trusted server configuration, never from clients.
@@ -26,6 +27,8 @@ type Server struct {
 	// PaddingPolicy is nil for the existing M1 wire format. Never enable
 	// without a matching explicit client-side pad1 capability.
 	PaddingPolicy *padding.Policy
+    RatePaddingPolicy *padding.RatePolicy
+    JitterPolicy *jitter.Policy
 	Routes             map[string][]Backend
 	AuthorizedServices map[[32]byte]map[string]bool
 	DialTimeout        time.Duration
@@ -77,7 +80,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	framed := r.URL.Path == "/v2/stream"
     capability := r.Header.Get("Tervon-Wire-Capability")
-    padded := framed && capability == "tbf1-fin,pad1"
+    padded := framed && (capability == "tbf1-fin,pad1" ||
+        capability == "tbf1-fin,pad1,rate1" ||
+        capability == "tbf1-fin,pad1,rate1,jit1")
+    rated := capability == "tbf1-fin,pad1,rate1" ||
+        capability == "tbf1-fin,pad1,rate1,jit1"
+    jittered := capability == "tbf1-fin,pad1,rate1,jit1"
     if framed && (r.Header.Get("Tervon-Wire-Version") != "1" ||
         (capability != "tbf1-fin" && !padded)) {
 		http.Error(w, "unsupported framed protocol", http.StatusUpgradeRequired)
@@ -85,6 +93,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
     if padded && (s.PaddingPolicy == nil || s.PaddingPolicy.Validate() != nil) {
         http.Error(w, "padding capability unavailable", http.StatusUpgradeRequired)
+        return
+    }
+    if rated && (s.RatePaddingPolicy == nil || s.RatePaddingPolicy.Validate() != nil) {
+        http.Error(w, "rate padding unavailable", http.StatusUpgradeRequired)
+        return
+    }
+    if jittered && (s.JitterPolicy == nil || s.JitterPolicy.Validate() != nil) {
+        http.Error(w, "jitter unavailable", http.StatusUpgradeRequired)
         return
     }
 	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
@@ -142,7 +158,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if framed {
 		w.Header().Set("Tervon-Wire-Version", "1")
 		if padded {
-            w.Header().Set("Tervon-Wire-Capability", "tbf1-fin,pad1")
+            w.Header().Set("Tervon-Wire-Capability", capability)
         } else {
             w.Header().Set("Tervon-Wire-Capability", "tbf1-fin")
         }
@@ -178,9 +194,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var target io.Writer = flushWriter{w: w, rc: rc}
 	var encoder *framing.Encoder
 	if padded {
-        encoder, _ = framing.NewPaddingEncoder(target, *s.PaddingPolicy)
-        if s.Metrics!=nil{
+        if rated {
+            encoder, _ = framing.NewRatePaddingEncoder(target, *s.RatePaddingPolicy)
+        } else {
+            encoder, _ = framing.NewPaddingEncoder(target, *s.PaddingPolicy)
+        }
+        if s.Metrics!=nil {
             encoder.SetObservers(s.Metrics.AddPaddingDownload,s.Metrics.PaddingDownloadActive)
+        }
+        if jittered {
+            if e := encoder.EnableJitter(r.Context(), *s.JitterPolicy, nil); e != nil {
+                encoder.Abort()
+                return
+            }
         }
         target = encoder
     } else if framed {
@@ -271,13 +297,27 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
         return fmt.Errorf("padding requires /v2/stream")
     }
     padded := framed && cl.PaddingPolicy != nil
+    rated := padded && cl.RatePaddingPolicy != nil
+    jittered := rated && cl.JitterPolicy != nil
+    if cl.RatePaddingPolicy != nil && !padded {return fmt.Errorf("rate padding requires pad1")}
+    if cl.JitterPolicy != nil && !rated {return fmt.Errorf("jitter requires rate padding")}
     if padded {
         if err:=cl.PaddingPolicy.Validate();err!=nil{return err}
+    }
+    if rated {if err:=cl.RatePaddingPolicy.Validate();err!=nil{return err}}
+    if jittered {if err:=cl.JitterPolicy.Validate();err!=nil{return err}}
+    capability := "tbf1-fin"
+    if padded {
+        capability = "tbf1-fin,pad1"
+        if rated {
+            capability += ",rate1"
+            if jittered { capability += ",jit1" }
+        }
     }
     if framed {
         req.Header.Set("Tervon-Wire-Version", "1")
         if padded {
-            req.Header.Set("Tervon-Wire-Capability", "tbf1-fin,pad1")
+            req.Header.Set("Tervon-Wire-Capability", capability)
         } else {
             req.Header.Set("Tervon-Wire-Capability", "tbf1-fin")
         }
@@ -304,9 +344,21 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		var target io.Writer = writer
 		var encoder *framing.Encoder
 		if padded {
-            encoder, _ = framing.NewPaddingEncoder(writer, *cl.PaddingPolicy)
-            if cl.Metrics!=nil{
+            if rated {
+                encoder, _ = framing.NewRatePaddingEncoder(writer, *cl.RatePaddingPolicy)
+            } else {
+                encoder, _ = framing.NewPaddingEncoder(writer, *cl.PaddingPolicy)
+            }
+            if cl.Metrics!=nil {
                 encoder.SetObservers(cl.Metrics.AddPaddingUpload,cl.Metrics.PaddingUploadActive)
+            }
+            if jittered {
+                if e = encoder.EnableJitter(ctx, *cl.JitterPolicy, nil); e != nil {
+                    encoder.Abort()
+                    _ = writer.CloseWithError(e)
+                    upload <- e
+                    return
+                }
             }
             target = encoder
         } else if framed {
@@ -339,7 +391,7 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		return fmt.Errorf("remote status %d", resp.StatusCode)
 	}
 	expectedCapability := "tbf1-fin"
-    if padded { expectedCapability = "tbf1-fin,pad1" }
+    if padded { expectedCapability = capability }
     if framed && (resp.Header.Get("Tervon-Wire-Version") != "1" || resp.Header.Get("Tervon-Wire-Capability") != expectedCapability) {
 		_ = reader.Close()
 		_ = writer.Close()
