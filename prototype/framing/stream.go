@@ -92,6 +92,9 @@ func (e *Encoder) Write(p []byte) (int,error) {
             e.fail()
             return total,err
         }
+        if e.jitterState != nil {
+            e.priorWriteCongested = time.Since(writeStarted) > 10*time.Millisecond
+        }
         total+=n
         if e.pad!=nil{
             var count uint64
