@@ -9,6 +9,7 @@ import (
     "time"
 
     "tervon-tcp-bridge/jitter"
+    "tervon-tcp-bridge/padding"
 )
 
 func TestJitterFramingByteExactAndOptIn(t *testing.T) {
@@ -67,5 +68,45 @@ func TestJitterFramingPolicyValidation(t *testing.T) {
     p.MaxDelay=100*time.Millisecond
     if err:=NewEncoder(&bytes.Buffer{}).EnableJitter(context.Background(),p,nil);!errors.Is(err,jitter.ErrPolicy) {
         t.Fatalf("invalid jitter enabled: %v",err)
+    }
+}
+
+func TestM3JitterOnlyAfterRateQualifiedAndPayloadUnchanged(t *testing.T) {
+    p:=padding.DefaultRatePolicy()
+    p.Window=100*time.Millisecond
+    p.MaxInterSampleGap=100*time.Millisecond
+    j:=jitter.DefaultPolicy()
+    j.MinDuration=100*time.Millisecond
+    j.MaxInterSampleGap=100*time.Millisecond
+    j.MinUsefulBytes=1
+    j.MinSamples=2
+    var wire bytes.Buffer
+    enc,err:=NewRatePaddingEncoder(&wire,p)
+    if err!=nil {t.Fatal(err)}
+    var delayedFrames int
+    var totalDelay time.Duration
+    if err:=enc.EnableJitter(context.Background(),j,func(d time.Duration){
+        delayedFrames++
+        totalDelay+=d
+    });err!=nil{t.Fatal(err)}
+    at:=time.Unix(10000,0)
+    enc.now=func()time.Time{
+        now:=at
+        at=at.Add(10*time.Millisecond)
+        return now
+    }
+    packet:=bytes.Repeat([]byte{0,255,2,1,10},250) // 1250 bytes
+    for i:=0;i<100;i++ {
+        n,err:=enc.Write(packet)
+        if err!=nil || n!=len(packet){t.Fatalf("write %d: %d %v",i,n,err)}
+        if i<=20 && delayedFrames!=0 {t.Fatal("jitter active before rate qualified")}
+    }
+    if delayedFrames==0 || totalDelay<=0 {t.Fatal("qualified sustained stream never jittered")}
+    if totalDelay>j.MaxDelayPerWindow {t.Fatalf("jitter window budget exceeded: %v",totalDelay)}
+    if err:=enc.CloseWrite();err!=nil {t.Fatal(err)}
+    got,err:=io.ReadAll(NewPaddingDecoder(&wire))
+    expected:=bytes.Repeat(packet,100)
+    if err!=nil || !bytes.Equal(got,expected){
+        t.Fatalf("wire corrupted or decoder rejected PAD: got=%d want=%d err=%v",len(got),len(expected),err)
     }
 }
