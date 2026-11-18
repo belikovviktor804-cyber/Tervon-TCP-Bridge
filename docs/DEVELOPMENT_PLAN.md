@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — operator-approved direct deployment intent (2026-11-18, NOT EXECUTED)
+
+- **Operator decision:** install M2 directly on the existing Homeserver ↔ Finserver Bridge as soon as it is installable; do not create, launch or require a separate test bench and do not make optional test procedures a condition of that operator decision. The operator accepts a direct production change rather than an isolated trial.
+- **Safety of the actual change remains mandatory:** preserve verified, checksum-pinned current M1 binary and confidential configuration on both nodes, confirm the new M2 build provenance and compatibility, activate matching `padding_enabled` only at both endpoints in a safe sequence, verify systemd readiness and basic existing production connectivity immediately after restart, and automatically restore M1 if deployment or startup fails. These are integral installation and recovery steps, not a separate test program. Never change Xray, nginx, firewall, other services, or create lab listeners.
+- **Execution blocker at this checkpoint:** no remote shell/SSH or server command-execution connector is currently available to this ChatGPT session. GitHub connector access can edit source/docs and inspect CI but cannot install or restart services on Homeserver or Finserver. No M2 host binary/config or last-minute on-host hashes have been inspected. Therefore authorization is recorded **conditionally on technical readiness**; **installation NOT EXECUTED**, no production service changed.
+- **Do not misreport status:** code CI PASS is not the same as installed, operationally verified or released; M2 remains active and M3 blocked. The direct deployment decision supersedes earlier requirements for an independent test stand, but does not waive backup and automatic rollback.
+
+
+
 #### M2 — read-only M1 host baseline collector prepared (2026-11-18, CI PASS; NOT RUN ON HOSTS)
 
 - **Tool:** `tests/homeserver/collect_m2_baseline.py` (source SHA introduced at `5f87b507cbffc738332490cbb06f2a510da3f722`) — Python standard library only; takes explicitly chosen `--role` (`homeserver` or `finserver`) and existing systemd service unit name. Executes only `systemctl show` with allowlisted status properties, reads current `/proc/<PID>/exe` for SHA-256 and `/proc/<PID>/status` for RSS. Does NOT read Bridge configuration, TLS private keys, connection payloads, command lines, process environment or IP addresses; no shell, no service mutations, no files written by collector.
