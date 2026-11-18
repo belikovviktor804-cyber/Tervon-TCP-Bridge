@@ -27,6 +27,14 @@ An in-process authenticated HTTP/2 echo test wraps the TCP listener below TLS an
 
 One measurement: 196608 useful bytes/direction; M1 encrypted 201365 / 201345 (upload / download); M2 encrypted 207793 / 207841. Difference 6428 / 6496 (+3.27% / +3.30% of useful payload). PAD TBF1 wire overhead was 5742 per direction; the remaining difference includes TLS/HTTP2 record/framing variation. This measurement is local, excludes IP/TCP packet headers/retransmission and real network latency, and is not a field performance claim.
 
+## In-process HTTP/2 latency and memory diagnostics
+
+At source SHA `025e8c71f6f7500ce96b08305015faa3a7a3be6e`, GitHub Actions [#44218917305](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218917305) completed SUCCESS. The isolated diagnostic issues 48 request/echo round trips per case (M1 and M2, 128 B and 16 KiB), validates byte equality and PAD behavior and records nearest-rank latency percentiles plus process-wide memory counters.
+
+One CI sample: M1 128 B p50/p95/p99 114.112 µs / 148.224 µs / 4.035413 ms; M2 128 B 100.471 µs / 132.249 µs / 3.46089 ms, with zero PAD. M1 16 KiB 158.288 µs / 225.108 µs / 3.585938 ms; M2 16 KiB 192.51 µs / 366.3 µs / 3.48132 ms, with 24534 PAD wire bytes per direction. Process-wide `TotalAlloc` deltas were 480824 / 376232 / 2363256 / 2439968 B in that order.
+
+These values are **diagnostic observations only**, not a live VPN latency baseline: they use in-process loopback connections, shared Go runtime and a tiny sample, without real route RTT/loss, and are sensitive to scheduling and GC. No conclusive latency comparison is claimed. No services on Homeserver or Finserver were modified.
+
 ## Required verification and release constraints
 
 1. Latest SHA: Go build, vet, test, race, repeated M1+M2 E2E, bounded M1+M2 fuzz; correct Prometheus format and no goroutine leaks.
