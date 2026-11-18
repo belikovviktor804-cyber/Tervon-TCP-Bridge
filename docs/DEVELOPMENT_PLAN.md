@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — decoder receiving-side wire cap and PAD write failure (2026-11-18, CI PASS)
+
+- **Fix:** `prototype/framing/stream.go` commit `3e24ad53f17fd1f91ebfb6cf4a210237b56d7294` now includes the ten-byte TBF1 PAD header in the cumulative receiving-side **25%** protective budget. Previously the receiving-side limit counted PAD payload only, allowing overhead greater than 25% when PAD frames are small. Sender's stricter default 5% wire budget remains unchanged.
+- **Tests:** `prototype/framing/padding_test.go` commit `45e108ad0a621df92064004769d91c73921533d8` validates rejection of 25-byte PAD payload + 10-byte header with 100 useful bytes (35% wire overhead), accepts 15-byte payload + 10-byte header (exactly 25%), and injects PAD header write failure. Failed PAD write must surface an error, close encoder, never forge FIN and never increment the emitted-PAD telemetry callback.
+- **Verified code SHA:** `45e108ad0a621df92064004769d91c73921533d8`. [GitHub Actions #44218024674](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218024674), job **SUCCESS**. Includes build/vet/unit/race, repeated M1+M2 tests, encrypted HTTP2 diagnostics, codec benchmarks and bounded fuzz. No production services changed.
+- **Remaining:** release gate still **NOT MET**. Need per-route CPU/heap, latency p95/p99, short-flow behavior, loss/retransmission evidence, approved rollback and production verification. No M3, no v1.0.1 release.
+
+
+
 #### M2 — encrypted HTTP/2 + mTLS wire accounting (2026-11-18, CI PASS)
 
 - `prototype/padding_encrypted_wire_test.go` at `c3467cc139e69a63c00271df256031d3776632f0` measures actual TCP byte counts at the listener **below TLS**, using independent M1/M2 mTLS HTTP/2 sessions and identical echo payload in both directions. The test confirms exact useful bytes and that M2 emits PAD both ways, but purposely does not assert a fixed ratio on total TLS bytes (scheduler/record segmentation vary).
