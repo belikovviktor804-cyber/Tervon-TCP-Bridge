@@ -129,11 +129,14 @@ func (d *Decoder) Read(p []byte)(int,error){
             // Permit at most one PAD after DATA and a bounded cumulative
             // budget, even for a buggy or malicious authenticated peer.
             if !d.lastWasData || len(f.Payload)>4096 {return 0,ErrMalformed}
-            if d.padded>math.MaxUint64-uint64(len(f.Payload)){return 0,ErrMalformed}
-            d.padded+=uint64(len(f.Payload))
-            // The receiver allows at most 25% overhead; the configured
-            // encoder targets a stricter 5% by default.
-            if d.padded>d.useful/4 {return 0,ErrMalformed}
+            // Include the PAD frame header in the receiving-side budget.
+            // This prevents many tiny PAD frames from bypassing the limit.
+            wireBytes:=uint64(len(f.Payload))+uint64(HeaderSize)
+            if d.padded>math.MaxUint64-wireBytes{return 0,ErrMalformed}
+            d.padded+=wireBytes
+            // The receiver allows at most 25% of useful bytes as PAD wire
+            // overhead; the default encoder imposes a stricter 5% budget.
+            if d.padded>d.useful/4{return 0,ErrMalformed}
             d.lastWasData=false
             continue
         case TypeFIN:
