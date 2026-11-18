@@ -101,7 +101,7 @@ test("renders local Homeserver metrics with fixed, same-origin API", async () =>
   assert.equal(elements.get("tb-bytes").textContent, "2.0 КиБ / 1.0 КиБ");
   assert.equal(elements.get("tb-adaptation").textContent, "Не реализовано / Не реализовано");
   assert.equal(elements.get("tb-padding-bytes").textContent, "1.0 КиБ / 512 Б");
-  assert.equal(elements.get("tb-padding-direction").textContent, "Активно / Выкл.");
+  assert.equal(elements.get("tb-padding-direction").textContent, "Активно / Нет активности");
   assert.equal(elements.get("tb-padding-activity").textContent, "7 / 2 кадров; 3 / 1 переходов");
   assert.equal(elements.get("tb-backend").textContent, "На стороне Decapsulator");
   assert.equal(elements.get("tb-tls").textContent, "На стороне Decapsulator");
