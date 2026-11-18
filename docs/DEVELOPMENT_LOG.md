@@ -1,5 +1,15 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3: конкретное исправление неполной панели метрик (CODE WRITTEN, CI PENDING)
+
+- **Оператор:** M2 установлен, Padding включён и ранее наблюдался ACTIVE. На публичном Homeserver dashboard реальны данные сессий/трафика, но часть полей не отражает фактический режим. Повторный `activate-m2-metrics.py` не требуется: `client.json`, `bridge-stats.env`, `client.json.before-metrics` существуют; сценарий остановился на read-only preflight из-за уже существующего env. Production не менять.
+- **Рабочая ветка M3:** `work/m3-adaptive-jitter`. В исходниках M3 уже реализованы `rate1` (≥1 Мбит/с × два полных окна по 1 с, exit <0.7 Мбит/с, idle-reset >1 с, ≤5% wire overhead) и `jit1`; в существующей production M2 бинарной реализации действует прежний классификатор `pad1`. Новый M3 в production не устанавливался этим пакетом.
+- **Коммиты панели:** `0e4f97e` (JS), `85c2564` (HTML), `83b44ce` (Node regression). Добавлены отображение `padding_upload_state/padding_download_state`, `padding_upload_frames/padding_download_frames`, transitions; состояние OFF при `padding_configured=true` явно означает ожидание условий. Ранее реализованная в M3 Stats-адаптация уже позволяет передавать эти optional allowlist поля. Отсутствующие поля остаются `—`, а не придуманным нулём.
+- **Семантика:** на единственном публичном узле Homeserver Encapsulator `backend_dial_*` и TLS-handshake server-side counters не являются показателями проверки удалённого Decapsulator. Вместо вводящих в заблуждение `0/0` и `0` панель сообщает «На стороне Decapsulator». Latency P50/P95/P99 выводится только при `connect_latency_samples > 0`, иначе «Нет измерений». Это не сетевой тест или диагностика работоспособности mTLS.
+- **Тесты, добавленные к исходникам:** Node UI fixture включает PAD states/frames/transitions и latency sample count; проверяются ожидаемые значения и отсутствие ложного `0.0 ms`. **Результат GitHub CI этого нового пакета ещё не подтверждён; никаких production файлов, сервисов, nginx, конфигурации или бинарника не менялось.**
+- **Дальнейшая очередь внутри M3:** CI на точном SHA, затем опциональное обновление только файлов Stats UI с backup/rollback без Bridge restart, проверка реального внешнего HTTPS; отдельно согласованный реальный `rate1/jit1` E2E, RTT/fairness/CPU/overhead и rollback до M3 PASS. v1.0.1 НЕ ВЫПУЩЕН.
+
+
 ## 2026-11-18 — M3: velocity-based video Padding/Jitter and monitoring (IN PROGRESS)
 
 - **Repository / branch:** `git@github.com:tervon-software/Tervon-TCP-Bridge.git`, `work/m3-adaptive-jitter`. **No change to active Homeserver/Finserver binaries after operator's M2 deployment.**
