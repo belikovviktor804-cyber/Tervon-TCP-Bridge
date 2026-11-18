@@ -99,3 +99,20 @@ func TestWaitCancellationAndNoExtraTimerForZero(t *testing.T) {
     if !errors.Is(Wait(ctx2, time.Hour), context.DeadlineExceeded) { t.Fatal("deadline not enforced") }
     if time.Since(start) > time.Second { t.Fatal("cancelable wait exceeded bound") }
 }
+
+func TestM3VideoWithSmallInterleavedWritesRetainsJitterEligibility(t *testing.T) {
+    p:=DefaultPolicy()
+    state,err:=New(p)
+    if err!=nil{t.Fatal(err)}
+    start:=time.Unix(9500,0)
+    for i:=0;i<20;i++{
+        now:=start.Add(time.Duration(i)*200*time.Millisecond)
+        _,err:=state.Observe(now,16*1024,false)
+        if err!=nil{t.Fatal(err)}
+        small,err:=state.Observe(now.Add(time.Millisecond),128,false)
+        if err!=nil || small!=0 {
+            t.Fatalf("tiny write delayed at i=%d: %v %v",i,small,err)
+        }
+    }
+    if !state.Active(){t.Fatal("interleaved tiny writes wrongly reset sustained video activity")}
+}
