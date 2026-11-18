@@ -428,6 +428,12 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — dashboard visual confirmation and remaining PAD-observability gap (2026-11-18)
+
+- Operator supplied a screenshot of `Tervon TCP Bridge` monitoring: `Bridge готов`, 15 active sessions, 66 started / 51 completed / 0 rejected, 1.1 MiB upload / 14.5 MiB download, 0 aggregate errors, about 421 seconds uptime. This confirms a rendered dashboard with live-looking Homeserver metrics but **does not establish the observing device was in an external network or certify the HTTPS route**.
+- Screenshot shows `Padding / Jitter: Выкл. / Не реализовано`, with **no PAD byte/overhead cards**. This is consistent with older deployed Bridge Stats UI (new GitHub UI assets not yet installed). The M2 `padding_state=OFF` reflects absence of currently ACTIVE qualified data streams, **not** proof that `padding_enabled` is false; local preflight previously confirmed `PADDING_CONFIG=ENABLED`. Actual PAD bytes, frames and transitions must be read from the private `/metrics/v1` source before diagnosing inactivity.
+- Backend dial / connect percentiles / verified mTLS counters are measured on the Decapsulator side and can legitimately show zero on Homeserver Encapsulator. Need clear labels or conditional presentation for client-only dashboard, not fabricated values. Remaining M3 monitor work: deploy latest Stats-only UI with backup/rollback and verify counters, source freshness, public route from an external observer, and no regressions; **no M3 binary deployment yet**.
+
 #### M3 — Homeserver telemetry link restored, operator LOCAL PASS (2026-11-18)
 
 - Operator executed the agreed narrow monitoring recovery on active Homeserver M2, **not an M3/Jitter deployment**. Preflight and config edit: `CONFIG_PREFLIGHT=PASS`, `CONFIG_UPDATED=PASS`. Restarted only `tervon-bridge-client.service` and `tervon-bridge-stats.service`. `/etc/tervon-tcp-bridge/client.json` now uses loopback-only `metrics_listen=127.0.0.1:8895`; Stats environment `/etc/tervon/bridge-stats.env` points to `http://127.0.0.1:8895/metrics/v1`.
