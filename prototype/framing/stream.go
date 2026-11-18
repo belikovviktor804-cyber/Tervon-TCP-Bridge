@@ -18,6 +18,7 @@ type Encoder struct {
     w io.Writer
     closed bool
     pad *padding.State
+    ratePad *padding.RateState
     now func() time.Time
     onPadding func(uint64)
     onActivity func(bool)
@@ -36,6 +37,15 @@ func NewPaddingEncoder(w io.Writer, policy padding.Policy) (*Encoder,error) {
     state,err:=padding.New(policy)
     if err!=nil{return nil,err}
     return &Encoder{w:w,pad:state,now:time.Now},nil
+}
+
+// NewRatePaddingEncoder enables the M3 rate-based policy only for a
+// stream whose peers explicitly negotiated pad1,rate1. Existing M2 peers
+// must continue using NewPaddingEncoder.
+func NewRatePaddingEncoder(w io.Writer, policy padding.RatePolicy) (*Encoder, error) {
+    state, err := padding.NewRateState(policy)
+    if err != nil { return nil, err }
+    return &Encoder{w:w, ratePad:state, now:time.Now}, nil
 }
 
 // SetObservers installs bounded, synchronous aggregate callbacks. The callbacks
@@ -97,12 +107,17 @@ func (e *Encoder) Write(p []byte) (int,error) {
             e.priorWriteCongested = time.Since(writeStarted) > 10*time.Millisecond
         }
         total+=n
-        if e.pad!=nil{
+        if e.pad!=nil || e.ratePad!=nil {
             var count uint64
-            if !e.pad.ObserveSmallFrame(uint64(n)) {
-                count = e.pad.Observe(e.now(),uint64(n))
+            if e.ratePad!=nil {
+                count=e.ratePad.Observe(e.now(),uint64(n))
+                e.updateActive(e.ratePad.Active())
+            } else {
+                if !e.pad.ObserveSmallFrame(uint64(n)) {
+                    count=e.pad.Observe(e.now(),uint64(n))
+                }
+                e.updateActive(e.pad.Active())
             }
-            e.updateActive(e.pad.Active())
             if count>0{
                 // Only emit padding after DATA, never by delaying a DATA frame.
                 pad:=make([]byte,int(count))
@@ -128,6 +143,7 @@ func (e *Encoder) CloseWrite() error {
     return WriteFrame(e.w,TypeFIN,nil)
 }
 func (e *Encoder) PaddingBytes() uint64 {
+    if e.ratePad!=nil {return e.ratePad.PaddingBytes()}
     if e.pad==nil {return 0}
     return e.pad.PaddingBytes()
 }
