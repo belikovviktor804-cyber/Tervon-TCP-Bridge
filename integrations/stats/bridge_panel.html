@@ -27,13 +27,15 @@
     <div class="stat-card"><div class="number" id="tb-sessions-active">—</div><div class="label">Активные TCP-сессии</div></div>
     <div class="stat-card"><div class="number" id="tb-sessions-counts">—</div><div class="label">Начато / завершено / отклонено</div></div>
     <div class="stat-card"><div class="number" id="tb-bytes">—</div><div class="label">Полезный трафик ↑ / ↓</div></div>
-    <div class="stat-card"><div class="number" id="tb-backend">—</div><div class="label">Backend: успешно / ошибки</div></div>
+    <div class="stat-card"><div class="number" id="tb-backend">—</div><div class="label">Backend dial: измеряется на Decapsulator</div></div>
     <div class="stat-card"><div class="number" id="tb-latency">—</div><div class="label">Соединение p50 / p95 / p99, мс</div></div>
-    <div class="stat-card"><div class="number" id="tb-tls">—</div><div class="label">TLS 1.3 + HTTP/2 + mTLS</div></div>
+    <div class="stat-card"><div class="number" id="tb-tls">—</div><div class="label">TLS 1.3 + HTTP/2 + mTLS: измеряется на Decapsulator</div></div>
     <div class="stat-card"><div class="number" id="tb-runtime">—</div><div class="label">Uptime / goroutines / память</div></div>
     <div class="stat-card"><div class="number" id="tb-adaptation">—</div><div class="label">Padding / Jitter</div></div>
     <div class="stat-card"><div class="number" id="tb-padding-bytes">—</div><div class="label">PAD ↑ / ↓ (байты)</div></div>
     <div class="stat-card"><div class="number" id="tb-padding-overhead">—</div><div class="label">PAD wire overhead ↑ / ↓</div></div>
+    <div class="stat-card"><div class="number" id="tb-padding-direction">—</div><div class="label">Padding ↑ / ↓: состояние направлений</div></div>
+    <div class="stat-card"><div class="number" id="tb-padding-activity">—</div><div class="label">PAD ↑ / ↓: кадров и переходов</div></div>
     <div class="stat-card"><div class="number" id="tb-jitter-delays">—</div><div class="label">Jitter ↑ / ↓: кадров и задержки, мс</div></div>
     <div class="stat-card"><div class="number" id="tb-errors">—</div><div class="label">Ошибки (суммарно)</div></div>
   </div>
