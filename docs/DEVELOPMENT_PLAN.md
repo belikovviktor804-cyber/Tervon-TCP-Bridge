@@ -2,6 +2,9 @@
 
 **Статус:** утверждённый порядок работы, актуализировано 2026-11-18. **Единственный рабочий план для следующих изменений.**
 
+> **M3 Stats collector gate (2026-11-18):** На фоне работающего M2 и ранее подтверждённого `MONITORING_LOCAL=PASS` создан отдельный `integrations/stats/update-m3-collector.py` и offline тесты `test_update_m3_collector.py` (коммиты `5ffebb2`, `12f49f6`, `c69f026`, `7e5bc2a`, `681117e`). Это **CODE PREPARED, NEW CI PENDING, HOST NOT RUN**. Он не касается Bridge/Finserver/nginx; при отдельно согласованном применении может перезапустить только существующий `tervon-bridge-stats.service`, с backup/rollback и ограниченной проверкой. После PASS CI: UI-only обновление → отдельно Stats collector → реальная внешняя проверка → двухузловые тесты M3 rate1/jit1. До подтверждённых живых результатов M3 IN_PROGRESS, v1.0.1 NOT RELEASED.
+
+
 > **M3 UI corrected CI gate PASS (2026-11-18):** [Go prototype checks #44306965079](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306965079) completed **SUCCESS** at exact implementation SHA `ee68d50f2910d3125ce39e091d0ab3d0d3099db4`: all 36 steps succeeded, including stats Python, Node panel cases (configured/unknown OFF), rollback tests, Go build/vet/unit/race and M1/M2/M3 regressions/fuzz. Previous FAIL on `0038e082` was an outdated JS fixture expectation (`Активно / Выкл.` instead of `Активно / Нет активности`), corrected by `ee68d50f`. **CODE CI PASS only; UI/adapter M3 not installed**, working M2 and stats unchanged. The confirmed M3 UI hot-update changes only HTML/JS; existing Python collector remains a separate deployment gate. 
 
 
