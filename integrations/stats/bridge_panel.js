@@ -6,7 +6,8 @@
   const api = "/bridge/api/status";
   const ids = [
     "tb-sessions-active", "tb-sessions-counts", "tb-bytes", "tb-backend",
-    "tb-latency", "tb-tls", "tb-runtime", "tb-adaptation", "tb-errors",
+    "tb-latency", "tb-tls", "tb-runtime", "tb-adaptation",
+    "tb-padding-bytes", "tb-padding-overhead", "tb-errors",
   ];
   const byId = (id) => document.getElementById(id);
   const setText = (id, value) => {
@@ -61,6 +62,14 @@
     setText("tb-runtime", decimal(m.uptime_seconds) + " с / " +
       fmt(m.goroutines) + " / " + bytes(m.memory_alloc_bytes));
     setText("tb-adaptation", state(m.padding_state) + " / " + state(m.jitter_state));
+    setText("tb-padding-bytes", bytes(m.padding_upload_bytes) + " / " +
+      bytes(m.padding_download_bytes));
+    setText("tb-padding-overhead",
+      [m.padding_upload_wire_overhead_percent,
+        m.padding_download_wire_overhead_percent].map(
+          (value) => number(value) ? value.toFixed(2) + "%" : "—"
+        ).join(" / "));
+
     const errors = m.errors && typeof m.errors === "object" ?
       Object.values(m.errors) : [];
     setText("tb-errors", errors.length && errors.every(integer) ?
