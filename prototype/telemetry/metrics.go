@@ -68,6 +68,13 @@ type Snapshot struct {
     PaddingUploadTransitions uint64 `json:"padding_upload_transitions"`
     PaddingDownloadTransitions uint64 `json:"padding_download_transitions"`
 	JitterState           string            `json:"jitter_state"`
+    PaddingConfigured bool `json:"padding_configured"`
+    PaddingRateConfigured bool `json:"padding_rate_configured"`
+    JitterConfigured bool `json:"jitter_configured"`
+    JitterUploadFrames uint64 `json:"jitter_upload_frames"`
+    JitterDownloadFrames uint64 `json:"jitter_download_frames"`
+    JitterUploadDelayNs uint64 `json:"jitter_upload_delay_ns"`
+    JitterDownloadDelayNs uint64 `json:"jitter_download_delay_ns"`
 }
 
 // Registry is safe for concurrent data-plane updates and infrequent snapshots.
@@ -89,6 +96,12 @@ type Registry struct {
 	up             atomic.Uint64
 	down           atomic.Uint64
     padConfigured atomic.Bool
+    padRateConfigured atomic.Bool
+    jitterConfigured atomic.Bool
+    jitterUpFrames atomic.Uint64
+    jitterDownFrames atomic.Uint64
+    jitterUpDelay atomic.Uint64
+    jitterDownDelay atomic.Uint64
     padUp atomic.Uint64
     padDown atomic.Uint64
     padFramesUp atomic.Uint64
@@ -188,6 +201,14 @@ func (r *Registry) AddDownload(n int64) {
 // SetPaddingConfigured reports whether the local bridge accepts pad1.
 // It does not assert that a remote peer negotiated padding.
 func (r *Registry) SetPaddingConfigured(enabled bool) {r.padConfigured.Store(enabled)}
+func (r *Registry) SetPaddingRateConfigured(enabled bool) {r.padRateConfigured.Store(enabled)}
+func (r *Registry) SetJitterConfigured(enabled bool) {r.jitterConfigured.Store(enabled)}
+func (r *Registry) AddJitterUpload(d time.Duration) {
+    if d > 0 {r.jitterUpFrames.Add(1);r.jitterUpDelay.Add(uint64(d))}
+}
+func (r *Registry) AddJitterDownload(d time.Duration) {
+    if d > 0 {r.jitterDownFrames.Add(1);r.jitterDownDelay.Add(uint64(d))}
+}
 func (r *Registry) AddPaddingUpload(n uint64) {if n>0{r.padUp.Add(n);r.padFramesUp.Add(1)}}
 func (r *Registry) AddPaddingDownload(n uint64) {if n>0{r.padDown.Add(n);r.padFramesDown.Add(1)}}
 func (r *Registry) PaddingUploadActive(active bool) {
@@ -278,7 +299,15 @@ func (r *Registry) Snapshot() Snapshot {
     s.PaddingDownloadOverheadPercent=paddingRatio(s.PaddingDownloadBytes,down)
     s.PaddingUploadTransitions=r.padTransitionsUp.Load()
     s.PaddingDownloadTransitions=r.padTransitionsDown.Load()
-    enabled:=r.padConfigured.Load()
+    s.PaddingConfigured=r.padConfigured.Load()
+    s.PaddingRateConfigured=r.padRateConfigured.Load()
+    s.JitterConfigured=r.jitterConfigured.Load()
+    s.JitterUploadFrames=r.jitterUpFrames.Load()
+    s.JitterDownloadFrames=r.jitterDownFrames.Load()
+    s.JitterUploadDelayNs=r.jitterUpDelay.Load()
+    s.JitterDownloadDelayNs=r.jitterDownDelay.Load()
+    if s.JitterConfigured {s.JitterState="ENABLED"}
+    enabled:=s.PaddingConfigured
     s.PaddingUploadState=padStatus(enabled,r.padActiveUp.Load())
     s.PaddingDownloadState=padStatus(enabled,r.padActiveDown.Load())
     if s.PaddingUploadState=="ACTIVE" || s.PaddingDownloadState=="ACTIVE" {s.PaddingState="ACTIVE"}
