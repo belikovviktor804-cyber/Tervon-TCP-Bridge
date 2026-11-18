@@ -21,7 +21,7 @@ ERROR_REASONS = (
     "backend_dial", "http_status", "timeout", "cancellation",
     "shutdown", "authorization", "tls_handshake",
 )
-STATES = frozenset({"NOT_IMPLEMENTED", "OFF", "ACTIVE", "ERROR"})
+STATES = frozenset({"NOT_IMPLEMENTED", "OFF", "ACTIVE", "ENABLED", "ERROR"})
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -106,6 +106,15 @@ def _snapshot(raw: object) -> dict:
         if state not in STATES:
             raise ValueError("invalid feature state")
         values[key] = state
+    for key in ("padding_configured", "padding_rate_configured", "jitter_configured"):
+        if key in raw:
+            if type(raw[key]) is not bool:
+                raise ValueError("invalid configured state")
+            values[key] = raw[key]
+    for key in ("jitter_upload_frames", "jitter_download_frames",
+                "jitter_upload_delay_ns", "jitter_download_delay_ns"):
+        if key in raw:
+            values[key] = _nonnegative_number(raw[key])
     values["ready"] = raw["ready"]
     return values
 
