@@ -13,7 +13,8 @@ function mount(fetcher) {
   for (const id of [
     "tb-panel", "tb-status", "tb-updated", "tb-sessions-active",
     "tb-sessions-counts", "tb-bytes", "tb-backend", "tb-latency",
-    "tb-tls", "tb-runtime", "tb-adaptation", "tb-errors",
+    "tb-tls", "tb-runtime", "tb-adaptation",
+    "tb-padding-bytes", "tb-padding-overhead", "tb-errors",
   ]) elements.set(id, { textContent: "" });
   const calls = [];
   const context = {
@@ -63,6 +64,10 @@ function response() {
             memory_alloc_bytes: 1024,
             padding_state: "NOT_IMPLEMENTED",
             jitter_state: "NOT_IMPLEMENTED",
+            padding_upload_bytes: 1024,
+            padding_download_bytes: 512,
+            padding_upload_wire_overhead_percent: 2.5,
+            padding_download_wire_overhead_percent: 1.25,
             errors: { timeout: 1, backend_dial: 2 },
           },
         },
@@ -83,6 +88,8 @@ test("renders local Homeserver metrics with fixed, same-origin API", async () =>
   assert.equal(elements.get("tb-sessions-active").textContent, "2");
   assert.equal(elements.get("tb-bytes").textContent, "2.0 КиБ / 1.0 КиБ");
   assert.equal(elements.get("tb-adaptation").textContent, "Не реализовано / Не реализовано");
+  assert.equal(elements.get("tb-padding-bytes").textContent, "1.0 КиБ / 512 Б");
+  assert.equal(elements.get("tb-padding-overhead").textContent, "2.50% / 1.25%");
   assert.equal(elements.get("tb-errors").textContent, "3");
 });
 
