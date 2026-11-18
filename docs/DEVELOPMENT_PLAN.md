@@ -428,6 +428,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — operator observed no PAD during ~4 Mbit/s file upload (2026-11-18)
+
+- Operator performed an actual file upload reportedly at **about 4 Mbit/s** and reports that Padding **did not activate**. Treat as **LIVE PAD ACTIVATION FAIL/NOT_OBSERVED** for the tested workload, not a blanket verdict that all traffic fails and not a proof of current code defect until packet-boundary and route evidence is collected.
+- At ~4 Mbit/s, sustained eligible 32 KiB DATA frames every 64 ms should satisfy the existing M2 2-second, 64-KiB, 5-frame, <=1-s-gap classifier and emit PAD. Code-level regression tests added in `prototype/padding/policy_test.go`: `TestFourMegabitSustainedUploadActivatesPadding` and `TestFourMegabitWithSmallInterspersedFramesStaysOff`, to distinguish smooth large writes from small interleaved writes at the same approximate useful throughput.
+- **Open explanations to discriminate:** (a) tested upload did not actually traverse Homeserver Bridge encoder (check `upload_bytes` delta during experiment), (b) bridge saw frequent <512-byte TCP reads causing continual burst reset, (c) each bridge stream was short/gappy despite aggregate 4 Mbit/s, (d) wrong negotiated capability/metrics source. Do **not** tune policy or declare success without determining which case is true.
+- **Next low-risk check:** operator compare *existing private* `upload_bytes`, `padding_upload_frames`, `padding_upload_transitions` before and after a single known upload, without changing services. If useful bytes increase while PAD stays zero, add bounded aggregate classifier diagnostics in M3 code/tests and validate on real bridge before adjusting classification. Do not log payloads, connection identities or destinations.
+
+
+
 #### M3 — real M2 PAD counters observed all zero on Homeserver (2026-11-18)
 
 - Operator read **actual private Bridge JSON metrics** from `http://127.0.0.1:8895/metrics/v1`: `padding_state=OFF`, upload/download states `OFF`, upload/download PAD bytes `0`, frames `0`, transitions `0`, overhead percentages `0`. **Observed fact:** no locally accounted PAD activity since the current process started; this is not proof of a broken implementation or of a disabled configuration. Preflight had `padding_enabled=true` and M2 binary SHA verified.
