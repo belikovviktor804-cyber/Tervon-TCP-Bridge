@@ -92,7 +92,8 @@ func TestM3RateOneMbpsHTTP2FramingAndLegacyIsolation(t *testing.T) {
     }
     clientMetrics:=cl.Metrics.Snapshot()
     serverMetrics:=sm.Snapshot()
-    if clientMetrics.PaddingUploadFrames==0 || serverMetrics.PaddingDownloadFrames==0{
+    if clientMetrics.PaddingUploadFrames==0 || serverMetrics.PaddingDownloadFrames==0 ||
+        clientMetrics.PaddingDownloadFrames==0 || serverMetrics.PaddingUploadFrames==0 {
         t.Fatalf("M3 rate PAD not emitted in negotiated HTTP2 session: upload=%d download=%d",
             clientMetrics.PaddingUploadFrames,serverMetrics.PaddingDownloadFrames)
     }
