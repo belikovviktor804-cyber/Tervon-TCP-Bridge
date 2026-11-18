@@ -428,6 +428,17 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — 1 Mbit/s throughput policy and negotiated Jitter implementation (2026-11-18; CODE IN PROGRESS)
+
+- Operator confirms a use case of steady video streaming at **1 Mbit/s and above**; real video applications may also transfer in bursts, so acceptance must include both regular and chunked load patterns. This modifies only M3 in GitHub, not installed M2.
+- **M3 opt-in classifier:** `prototype/padding/rate.go` + `rate_test.go` introduce independent per-stream/per-direction useful-throughput classification: ≥1,000,000 bits/s across **two consecutive 1-second windows**, ≥5 samples per window, entry after ~2s; exit below 700,000 bits/s per subsequent completed window; reset on gaps greater than 1s. Small frames contribute normally instead of forcing reset. Cumulative **5% PAD wire overhead** still enforced, including frame header. Explicit `padding_rate_enabled` defaults to false; existing M2 `padding_enabled` remains the unchanged `pad1` path. Tests cover 1Mbps fragmented video, 4Mbps interspersed small writes, below-threshold, short bursts, hysteresis, inactivity, independent directions, budget and edge arithmetic.
+- **M3 transport integration:** `prototype/framing/stream.go` opt-in `NewRatePaddingEncoder`. `prototype/bridge.go` accepts bilateral `tbf1-fin,pad1,rate1` and `tbf1-fin,pad1,rate1,jit1` only if enabled on matching peer; rejects unsupported capability with 426. M2 `tbf1-fin,pad1` and M1 `tbf1-fin` unchanged. `prototype/cmd/bridge/main.go` validates `padding_rate_enabled` requires `padding_enabled` and `jitter_enabled` requires rate padding. Separate authenticated HTTP/2 tests validate actual byte-exact fragmented flow, independent negotiation, 426 fail-closed, and no stream hang.
+- **Metrics/UI:** `prototype/telemetry/metrics.go` exposes explicit PAD/RATE/Jitter *configured* flags and bounded jitter frame/delay counts. Stats adapter allowlists optional fields; UI distinguishes `OFF` despite `padding_configured=true` as `Ожидает подходящий поток`. These are source-code changes; they are **not yet installed** into the existing Homeserver Bridge Stats service.
+- **CI provenance:** earlier opt-in rate/jitter HTTP2 batch [Go prototype checks #44278167937](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44278167937) completed **SUCCESS** and Linux build artifact run [#44278167985](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44278167985) **SUCCESS**; subsequent telemetry/UI/config extensions are undergoing another CI cycle and are **NOT PASS until checked**. On M3 branch, workflow version and artifact labels are corrected to `v1.0.1-m3-candidate` (NOT release/deployment).
+- **Open:** jitter scheduler still needs performance/fairness tests with video-like chunking and short competing streams, congestion/cancellation and real multi-stream integration; monitoring UI must be installed with backup/rollback; external TLS monitoring route and live M3 rate1/Jitter must be verified on operator-approved Homeserver/Finserver deployment. **Do not publish v1.0.1 or claim M3 finished.**
+
+
+
 #### M3 — throughput-based adaptive PAD activation target (2026-11-18)
 
 - Operator proposes **1 Mbit/s** as the activation threshold for Padding (`Паддинг должен активироваться от 1 мбит/с по идее`), after a ~4 Mbit/s upload failed to show PAD activation. Record as the **target policy to implement and validate in M3**, not something M2 already does and not an observed PASS.
