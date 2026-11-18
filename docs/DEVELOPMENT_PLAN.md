@@ -172,6 +172,16 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — repair intermittent default-policy test telemetry snapshot (2026-11-18; CI PASS)
+
+- **Failure evidence:** GitHub Actions [#44233867705](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44233867705) on docs-only HEAD `89bef654d07532e46026bc003a01679684c633c0`: **FAIL** at `TestM2DefaultPolicyIdleResume`, message `PAD emitted after idle gap on an interactive frame`. Build/vet passed. This superseded the earlier single-run success as reliability evidence and was treated as a test-gate blocker.
+- **Root cause and correction:** a complete echoed DATA payload may arrive before the *server* finishes writing the subsequent PAD frame and invoking its telemetry callback. The regression captured its pre-idle PAD baseline immediately following the echoed DATA, so it sometimes counted a delayed PAD from the prior eligible DATA frame as new PAD after the later short interactive request. Code commit `f190584e26abf61564505649e3a013453ed7a8d3` moves the baseline snapshot to **after** the >1s quiet period, immediately before the short interactive frame; the actual default policy, application traffic and PAD wire enforcement are unchanged.
+- **Initial repaired CI:** [#44239131439](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44239131439), code SHA `f190584e26abf61564505649e3a013453ed7a8d3`, full job **SUCCESS** with build/vet/unit/race/M1-M2 regressions/fuzz.
+- **Repeated CI gate:** workflow step `go test -race -count=3 -v -timeout=180s -run '^TestM2DefaultPolicyIdleResume$' .` at SHA `c9b369d3ed63b7fabbb9d17008414e0467d5e27a`. [GitHub Actions #44239483601](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44239483601), job **SUCCESS**, three repetitions **PASS** (7.31 / 7.20 / 7.28s), each 245,888 useful bytes per direction and 2,610 PAD TBF1 wire bytes per direction. No race report.
+- **Scope:** regression verifies the CI fixture and conservative default PAD timing; does not prove production network behavior or lifetime resource stability. **CODE PASS / LIVE PENDING**. No M3, no release and no production changes.
+
+
+
 #### M2 — default policy sustained/idle/reactivation regression (2026-11-18, CI PASS)
 
 - **Documentation integrity:** prior `docs/DEVELOPMENT_PLAN.md` entry about `TestM2RepeatedSessionWaves` was damaged by an unsafe text replacement (unintended interpretation of `$'`), while source code and CI remained intact. Restored full plan content from the preceding verified document revision, reinserted the actual wave test evidence without string interpolation, and confirmed exactly one M2 session-wave section and one M3 heading. Repair commit: `67f86b5ef675d80f440e1e72930edee358cf7514`.
