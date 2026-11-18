@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3 Stats collector update and rollback code (awaiting full CI)
+
+- Прочитан реальный `bridge_site.py`: импортирует `BridgeMetricsCollector` один раз на старте процесса, поэтому копирование нового Python-адаптера без рестарта Stats не сделает новые PAD-поля видимыми. Существующие метрики M2 уже доступны; нельзя повторно выполнять `activate-m2-metrics.py`.
+- `integrations/stats/update-m3-collector.py` коммиты `5ffebb2`, `12f49f6`, `7e5bc2a`: root/SSH/M3 clean preflight, проверка текущего локального источника/панели, закрытый backup, атомарная замена только `bridge_metrics.py`, restart только Stats, bounded wait с проверкой allowlist PAD. PAD-counters могут расти между снимками; state может меняться; тест не требует буквального совпадения таких значений. Rollback восстанавливает прежний Python-файл и проверяет готовность Stats. Другие службы и конфигурации не меняются.
+- Изолированные mocked тесты `test_update_m3_collector.py` коммиты `c69f026` и `681117e`: успех/backup, преднамеренный FAIL→rollback, проверка отсутствующих PAD-полей, монотонные counters между чтениями, root preflight. Это исходники и тесты, не доказанный CI PASS на новом пакете и не live rollout.
+- Отдельное руководство и разделение UI/adapter: `docs/M3_MONITORING_RECOVERY.md`. Следующий gate — точный CI PASS, затем операторская последовательная установка и независимое внешнее HTTPS подтверждение; далее live two-node rate1/jit1. M3 IN_PROGRESS, no release.
+
+
 ## 2026-11-18 — M3 complete verification of UI hot-update package: PASS (CI only)
 
 - **Exact passing source SHA:** `ee68d50f2910d3125ce39e091d0ab3d0d3099db4`. [GitHub Actions #44306965079](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306965079) completed **SUCCESS** (36/36 job steps); stats Python/Node, UI hot-update/rollback, Go build/vet/unit/race and M1/M2/M3 regressions/fuzz. Earlier `0038e082` CI FAIL was caused by one old Node fixture's wording after correction of missing `padding_configured`, not by transport; commit `ee68d50f` adjusted the assertion to the correct `Нет активности` state.
