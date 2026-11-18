@@ -255,6 +255,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type Client struct {
 	Metrics      *telemetry.Registry
 	PaddingPolicy *padding.Policy
+    RatePaddingPolicy *padding.RatePolicy
+    JitterPolicy *jitter.Policy
 	HTTP         *http.Client
 	URL, Service string
 	// ShutdownTimeout bounds listener shutdown when a handler fails to exit.
