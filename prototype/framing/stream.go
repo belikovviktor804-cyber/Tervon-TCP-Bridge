@@ -89,7 +89,9 @@ func (e *Encoder) Write(p []byte) (int,error) {
         // scheduler. A previously blocked downstream writer disables
         // the next delay to avoid adding latency under backpressure.
         if e.jitterState != nil {
-            d, err := e.jitterState.Observe(e.now(), uint64(n), e.priorWriteCongested)
+            backlog := e.priorWriteCongested ||
+                (e.ratePad != nil && !e.ratePad.Active())
+            d, err := e.jitterState.Observe(e.now(), uint64(n), backlog)
             if err != nil { e.fail(); return total, err }
             if err := jitter.Wait(e.jitterContext, d); err != nil {
                 e.fail()
