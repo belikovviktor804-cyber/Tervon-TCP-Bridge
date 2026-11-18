@@ -41,6 +41,10 @@ CI now checks 12 simultaneous PAD-enabled sessions through shared authenticated 
 
 Whole-process TotalAlloc deltas were 10,099,504 / 9,761,000 / 10,282,048 bytes and ending HeapAlloc was 3,798,592 / 3,461,424 / 4,553,360 bytes. Measurements include test infrastructure and TLS. A goroutine snapshot before=4 versus after=7 does **not** establish a leak or absence of one; idle transport worker lifetime and stabilization were not separately tested.
 
+## Canceled-stream isolation (CI verification)
+
+At code SHA `cc1459995541e79acdfe6a31b83ae80df3a865fc`, [GitHub Actions #44223298969](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44223298969) successfully completed three race-instrumented repetitions of `TestM2CancelOneHTTP2StreamPreservesOtherSessions`. One PAD-enabled HTTP/2 upload is canceled after real byte-exact exchanges while another stream on the same transport continues and finishes successfully. The canceled handler returns an error rather than fake successful FIN; final telemetry observes zero active client/server sessions and both Padding directions OFF. Each run emitted 4505 PAD wire bytes per direction. This only proves bounded cancellation isolation in the in-process CI scenario, not real-route performance or long-lived network behavior.
+
 ## Required verification and release constraints
 
 1. Latest SHA: Go build, vet, test, race, repeated M1+M2 E2E, bounded M1+M2 fuzz; correct Prometheus format and no goroutine leaks.
