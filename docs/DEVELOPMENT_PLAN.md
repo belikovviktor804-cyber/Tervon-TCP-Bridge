@@ -428,6 +428,12 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — first isolated policy batch CI PASS (2026-11-18)
+
+- **Tested commit:** `53ca0b82e43c3f9550a513c53ce12cefd2e7bacf` (source and tests; no subsequent source modifications). GitHub Actions [Go prototype checks #44260427878](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44260427878): **SUCCESS**, including Go build, unit, race and existing M1/M2 regressions. Separate artifact-build [#44260427827](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44260427827): **SUCCESS**; artifact is not deployed and does not turn on jitter.
+- **Verified scope:** new `prototype/jitter` policy and its cancellation/queue/budget tests build and pass in CI. The module is **NOT complete**: timing logic is not wired to active framing/HTTP2 send path, negotiation/config/telemetry and actual RTT/loss/fairness/integration checks remain. Production still runs operator-installed **M2**.
+- **Next step within M3:** integrate bounded jitter with authenticated stream writing behind bilateral opt-in, ensure no delays under congestion/interactive traffic, then repeat CI/race and controlled live verification. **Status M3: POLICY CODE PASS / INTEGRATION PENDING**.
+
 #### M3 — implementation started on operator instruction (2026-11-18; NOT PASS)
 
 - **Branch:** `work/m3-adaptive-jitter`, branched from `work/m2-adaptive-padding`. Operator explicitly instructed: `Всё. Работаем над M3. М2 установлен и работает. Паддинг включен.` This is acceptance of **deployed M2 Padding and normal traffic**; it does not create measurement results that were not taken.
