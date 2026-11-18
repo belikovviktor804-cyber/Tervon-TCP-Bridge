@@ -1,0 +1,51 @@
+name: M2 Linux release candidate (no deployment)
+on:
+  push:
+    branches:
+      - work/m2-adaptive-padding
+    paths:
+      - '.github/workflows/build-m2-candidate.yml'
+      - 'prototype/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-amd64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: prototype/go.mod
+          cache-dependency-path: prototype/go.mod
+      - name: Build Linux amd64 M2 candidate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p dist
+          (
+            cd prototype
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+              -trimpath -buildvcs=false \
+              -ldflags="-s -w -X main.buildVersion=v1.0.1-m2-candidate -X main.buildCommit=${GITHUB_SHA}" \
+              -o ../dist/tervon-bridge-linux-amd64 ./cmd/bridge
+          )
+          test -s dist/tervon-bridge-linux-amd64
+          chmod 0755 dist/tervon-bridge-linux-amd64
+          (cd dist && sha256sum tervon-bridge-linux-amd64 > SHA256SUMS)
+          printf 'SOURCE_COMMIT=%s\nVERSION=v1.0.1-m2-candidate\nGOOS=linux\nGOARCH=amd64\nCGO_ENABLED=0\n' "${GITHUB_SHA}" > dist/BUILD_INFO
+          test "$(wc -l < dist/SHA256SUMS)" -eq 1
+          sha256sum -c dist/SHA256SUMS --ignore-missing 2>/dev/null || (
+            cd dist && sha256sum -c SHA256SUMS
+          )
+      - name: Upload binary and provenance (not a release or deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tervon-bridge-m2-linux-amd64-${{ github.sha }}
+          path: |
+            dist/tervon-bridge-linux-amd64
+            dist/SHA256SUMS
+            dist/BUILD_INFO
+          retention-days: 14
+          if-no-files-found: error
