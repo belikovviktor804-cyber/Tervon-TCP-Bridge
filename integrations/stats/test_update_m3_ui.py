@@ -9,6 +9,7 @@ SOURCE = Path(__file__).with_name("update-m3-ui.py")
 spec = importlib.util.spec_from_file_location("update_m3_ui", SOURCE)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+REAL_PREFLIGHT = module.preflight
 
 
 class UIUpdateTests(unittest.TestCase):
@@ -58,11 +59,11 @@ class UIUpdateTests(unittest.TestCase):
         src = SOURCE.parent
         with patch.object(module.os, "geteuid", return_value=1000):
             with self.assertRaisesRegex(RuntimeError, "root"):
-                module.preflight(src.parents[1], src)
+                REAL_PREFLIGHT(src.parents[1], src)
         with patch.object(module.os, "geteuid", return_value=0), \
              patch.object(module, "command", return_value="https://github.com/wrong"):
             with self.assertRaisesRegex(RuntimeError, "SSH remote"):
-                module.preflight(src.parents[1], src)
+                REAL_PREFLIGHT(src.parents[1], src)
 
 
 if __name__ == "__main__":
