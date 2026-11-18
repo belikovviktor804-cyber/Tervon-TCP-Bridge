@@ -125,8 +125,13 @@ def preflight() -> dict:
         raise RuntimeError("deployed bridge binary missing or symlink")
     if any(p.is_symlink() for p in (CONFIG, BACKUP, ENVFILE)):
         raise RuntimeError("symlinks forbidden")
-    if not CONFIG.is_file() or BACKUP.exists() or ENVFILE.exists():
-        raise RuntimeError("config missing or existing backup/env requires review")
+    if not CONFIG.is_file() or ENVFILE.exists():
+        raise RuntimeError("config missing or existing metrics env requires review")
+    # Prior failed attempt intentionally left a backup. Reuse only if it
+    # exactly matches the current configuration; never overwrite a mismatch.
+    if BACKUP.exists() and (not BACKUP.is_file() or
+                            BACKUP.read_bytes() != CONFIG.read_bytes()):
+        raise RuntimeError("existing config backup differs; manual review required")
     if not active(BRIDGE_UNIT) or not active(STATS_UNIT):
         raise RuntimeError("both existing services must be active")
     effective_exec = command("systemctl", "show", BRIDGE_UNIT, "-p", "ExecStart", "--value")
@@ -164,10 +169,11 @@ def activate() -> None:
     env_created = False
     bridge_restarted = False
     stats_restarted = False
-    shutil.copy2(CONFIG, BACKUP)
-    os.chmod(BACKUP, 0o600)
+    if not BACKUP.exists():
+        shutil.copy2(CONFIG, BACKUP)
+        os.chmod(BACKUP, 0o600)
     try:
-        atomic_write(CONFIG, (json.dumps(updated, ensure_ascii=False, indent=2) + "\n").encode(), BACKUP)
+        atomic_write(CONFIG, (json.dumps(updated, ensure_ascii=False, indent=2) + "\n").encode(), CONFIG)
         config_modified = True
         print("CONFIG_UPDATED=PASS", flush=True)
 
@@ -191,7 +197,7 @@ def activate() -> None:
     except Exception:
         print("ACTIVATION=FAILED; ROLLBACK STARTED", flush=True)
         if config_modified:
-            atomic_write(CONFIG, original, BACKUP)
+            atomic_write(CONFIG, original, CONFIG)
         if env_created:
             ENVFILE.unlink(missing_ok=True)
         # Restore only services actually restarted; report failure separately.
