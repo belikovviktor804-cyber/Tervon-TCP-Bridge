@@ -17,12 +17,12 @@ class MonitoringDiagnosisTests(unittest.TestCase):
             path = Path(tmp) / "stats.env"
             expected = "http://127.0.0.1:8895/metrics/v1"
             self.assertEqual(module.stats_source_env(path, expected), "NOT_CONFIGURED")
-            path.write_text("TERVON_BRIDGE_METRICS_URL=" + expected + "\\n")
+            path.write_text("TERVON_BRIDGE_METRICS_URL=" + expected + "\n")
             self.assertEqual(module.stats_source_env(path, expected), "MATCH")
             path.write_text("TERVON_BRIDGE_METRICS_URL=https://private.example/secret\\n")
             self.assertEqual(module.stats_source_env(path, expected), "INVALID_OR_REMOTE")
-            path.write_text("TERVON_BRIDGE_METRICS_URL=" + expected + "\\n" +
-                            "TERVON_BRIDGE_METRICS_URL=" + expected + "\\n")
+            path.write_text("TERVON_BRIDGE_METRICS_URL=" + expected + "\n" +
+                            "TERVON_BRIDGE_METRICS_URL=" + expected + "\n")
             self.assertEqual(module.stats_source_env(path, expected), "AMBIGUOUS")
 
     def test_url_requires_loopback_explicit_port(self):
