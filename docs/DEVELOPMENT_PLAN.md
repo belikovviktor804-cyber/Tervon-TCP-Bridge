@@ -172,6 +172,16 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — cancellation isolation under shared mTLS HTTP/2 (2026-11-18, CI PASS)
+
+- **New regression:** `prototype/padding_cancel_isolation_test.go` at `6804bc4624b4d915e2a81bebbd2296d08f0e7d73`. A PAD-enabled stream exchanges valid bytes, then is canceled via `HandleContext` while a second stream uses the same HTTP/2 client. The canceled handler must return an error rather than successful FIN; the second completes byte-exact echo and normal close, both sides eventually report `SessionsActive=0` and PAD ACTIVE/OFF states OFF.
+- **Repeat CI:** `.github/workflows/go-prototype.yml` at `cc1459995541e79acdfe6a31b83ae80df3a865fc` includes 3 repetitions of the cancellation isolation regression under Go race detector (in addition to full build/vet/unit/race, existing M1/M2 regressions, bounded fuzz).
+- **Verified code SHA:** `cc1459995541e79acdfe6a31b83ae80df3a865fc`. [GitHub Actions #44223298969](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44223298969): full job **SUCCESS**. Named cancellation regression PASS on all three invocations; each logged 4505 PAD wire bytes emitted on upload and download across these sessions, zero remaining active client/server sessions and both PAD states OFF. No race report observed.
+- **Evidence limits:** test uses in-process authenticated localhost HTTP/2 fixtures only; a 3x cancellation regression cannot establish lifetime/no-leak behavior under long-lived public network loss. Real Homeserver/Finserver RTT, loss/retransmissions, resource trends and approved rollback still unverified. Neither production node was touched; no new laboratory units started.
+- **Status:** CODE CI PASS / LIVE PENDING / RELEASE NONE. Current module remains M2, M3 blocked.
+
+
+
 #### M2 — concurrent multiplexed PAD stream regression (2026-11-18, CI PASS)
 
 - **Implementation:** `prototype/padding_concurrency_test.go` at commit `ddbd28549be52a93457f2b0028175eff9a4f1d48`. Uses the existing in-process authenticated HTTP/2 test helper with 12 concurrently active independent TCP sessions, 12 bidirectional 8192-byte echo exchanges per session, independent data patterns, aggregate telemetry and explicit session end. No Homeserver/Finserver service or lab unit used.
