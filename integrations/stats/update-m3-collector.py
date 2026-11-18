@@ -142,8 +142,9 @@ def wait_ready(timeout: float = 20) -> bool:
     deadline = time.monotonic() + timeout
     while True:
         try:
-            if command("systemctl", "is-active", SERVICE) == "active":
-                return dashboard().get("ready") is True
+            if (command("systemctl", "is-active", SERVICE) == "active"
+                    and dashboard().get("ready") is True):
+                return True
         except (OSError, ValueError, RuntimeError, TimeoutError):
             pass
         if time.monotonic() >= deadline:
