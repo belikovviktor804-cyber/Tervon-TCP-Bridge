@@ -2,6 +2,9 @@
 
 **Статус:** утверждённый порядок работы, актуализировано 2026-11-18. **Единственный рабочий план для следующих изменений.**
 
+> **M3 STATS CODE PASS (2026-11-18; production unchanged):** полный [Go prototype checks #44308674234](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308674234) — **SUCCESS, 36/36** на точном кодовом SHA `1661d93000f11dfe74a12543efffd23df04084e1`. Проверены отдельно новые `update-m3-collector.py` + `test_update_m3_collector.py` (включая mock rollback), UI и прежние Go M1/M2/M3 тесты/race/fuzz. Collector читает только локальные источники без прокси/HTTP redirect, не публикует сырой endpoint; допускает ограниченный restart **только Stats** при операторском запуске, восстанавливает файл при ошибке. UI-only скрипт ранее прошёл CI. **Это CODE/CI PASS, не INSTALL/LIVE PASS**. На Homeserver M2 и его ранее подключённые метрики продолжают работать; M3 rate1/jit1 live, независимый внешний HTTPS и полный мониторинг остаются NOT_VERIFIED. Не объявлять M3 завершённым до живого двухузлового и Stats acceptance.
+
+
 > **M3 Stats collector gate (2026-11-18):** На фоне работающего M2 и ранее подтверждённого `MONITORING_LOCAL=PASS` создан отдельный `integrations/stats/update-m3-collector.py` и offline тесты `test_update_m3_collector.py` (коммиты `5ffebb2`, `12f49f6`, `c69f026`, `7e5bc2a`, `681117e`). Это **CODE PREPARED, NEW CI PENDING, HOST NOT RUN**. Он не касается Bridge/Finserver/nginx; при отдельно согласованном применении может перезапустить только существующий `tervon-bridge-stats.service`, с backup/rollback и ограниченной проверкой. После PASS CI: UI-only обновление → отдельно Stats collector → реальная внешняя проверка → двухузловые тесты M3 rate1/jit1. До подтверждённых живых результатов M3 IN_PROGRESS, v1.0.1 NOT RELEASED.
 
 
