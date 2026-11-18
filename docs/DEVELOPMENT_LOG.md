@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3 complete verification of UI hot-update package: PASS (CI only)
+
+- **Exact passing source SHA:** `ee68d50f2910d3125ce39e091d0ab3d0d3099db4`. [GitHub Actions #44306965079](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306965079) completed **SUCCESS** (36/36 job steps); stats Python/Node, UI hot-update/rollback, Go build/vet/unit/race and M1/M2/M3 regressions/fuzz. Earlier `0038e082` CI FAIL was caused by one old Node fixture's wording after correction of missing `padding_configured`, not by transport; commit `ee68d50f` adjusted the assertion to the correct `Нет активности` state.
+- **Actual status:** the UI-only install script and M3 panel source are CODE+CI PASS; **not installed on Homeserver**. Existing local M2 monitoring is working. The Python Stats collector in the running service has not been replaced/reloaded, so full PAD/Jitter optional field coverage is not yet guaranteed. No new live network performance evidence or M3 rollout occurred. Next controlled UI-only deployment with backup/rollback, then distinct collector/data-plane gates. v1.0.1 NOT RELEASED.
+
+
+
 ## 2026-11-18 — M3 monitoring UI package: verified previous SHA and legacy-state follow-up
 
 - **GitHub Actions PASS:** [Go prototype checks #44306152672](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306152672), exact tested SHA `669fa32e65fee712d70891ba38507c10772b444d`, completed SUCCESS. Python stats tests (including `test_update_m3_ui.py` success/forced rollback), Node.js UI tests, Go build/vet/unit/race, M1/M2/M3 regression suites and bounded fuzz passed. M3 Linux candidate [#44306153058](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306153058) completed SUCCESS (artifact only).
