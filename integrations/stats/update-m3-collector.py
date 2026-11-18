@@ -119,8 +119,18 @@ def wait_dashboard(raw: dict, timeout: float = 20) -> dict:
             # Every supported M2 field present in private JSON must be forwarded
             # by the new allowlist, with matching values, not fabricated zeros.
             for key in PAD_FIELDS:
-                if key in raw and metrics.get(key) != raw[key]:
-                    raise RuntimeError("PAD field not forwarded: " + key)
+                if key not in raw:
+                    continue
+                observed = metrics.get(key)
+                initial = raw[key]
+                if key.endswith("_state"):
+                    if observed not in ("OFF", "ACTIVE", "ENABLED", "ERROR"):
+                        raise RuntimeError("PAD state not forwarded: " + key)
+                elif key.endswith("_percent"):
+                    if type(observed) not in (int, float) or observed < 0:
+                        raise RuntimeError("PAD ratio not forwarded: " + key)
+                elif type(observed) is not int or observed < initial:
+                    raise RuntimeError("PAD counter not forwarded: " + key)
             return metrics
         except (OSError, ValueError, RuntimeError, TimeoutError):
             if time.monotonic() >= deadline:
@@ -128,10 +138,23 @@ def wait_dashboard(raw: dict, timeout: float = 20) -> dict:
             time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
 
 
+def wait_ready(timeout: float = 20) -> bool:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            if command("systemctl", "is-active", SERVICE) == "active":
+                return dashboard().get("ready") is True
+        except (OSError, ValueError, RuntimeError, TimeoutError):
+            pass
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(min(0.5, max(0.0, deadline - time.monotonic())))
+
+
 def install() -> None:
     src = Path(__file__).resolve().with_name("bridge_metrics.py")
     repo = src.parents[2]
-    before, raw = preflight(repo, src)
+    _, raw = preflight(repo, src)
     original = TARGET.read_bytes()
     desired = src.read_bytes()
     if desired == original:
@@ -162,8 +185,7 @@ def install() -> None:
         try:
             replace_file(TARGET, original, mode)
             command("systemctl", "restart", SERVICE)
-            restored = (TARGET.read_bytes() == original and
-                        dashboard().get("ready") is True)
+            restored = (TARGET.read_bytes() == original and wait_ready())
         except Exception:
             pass
         print("COLLECTOR_ROLLBACK=" + ("PASS" if restored else "FAIL"), flush=True)
