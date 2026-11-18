@@ -157,8 +157,8 @@ def activate() -> None:
     original = CONFIG.read_bytes()
     updated = dict(config)
     updated["metrics_listen"] = f"127.0.0.1:{PORT}"
-    # The envfile contains only this literal, non-secret URL. 0644 is required
-    # for systemd DynamicUser; 0600 root-only caused the earlier issue.
+    # systemd's manager reads EnvironmentFile before dropping privileges;
+    # keep the file root-only. The earlier error was not shown to involve it.
     env_text = f"TERVON_BRIDGE_METRICS_URL={METRICS_URL}\n".encode()
     config_modified = False
     env_created = False
@@ -178,11 +178,11 @@ def activate() -> None:
         print("M2_LOCAL_METRICS=PASS", flush=True)
         print("ACTIVE_SESSIONS=" + str(m["sessions_active"]), flush=True)
 
-        fd = os.open(ENVFILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        fd = os.open(ENVFILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         env_created = True
         with os.fdopen(fd, "wb") as f:
             f.write(env_text)
-        os.chmod(ENVFILE, 0o644)
+        os.chmod(ENVFILE, 0o600)
         stats_restarted = True
         command("systemctl", "restart", STATS_UNIT)
         d = await_http(STATUS_URL, STATS_UNIT, ready_dashboard)
