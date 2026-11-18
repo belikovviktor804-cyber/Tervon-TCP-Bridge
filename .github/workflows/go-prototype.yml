@@ -66,6 +66,8 @@ jobs:
         run: go test -race -count=3 -timeout=180s -run '^TestM2' .
       - name: M2 encrypted HTTP2/TLS byte accounting (diagnostic)
         run: go test -count=1 -v -run '^TestM2EncryptedHTTP2Accounting$' .
+      - name: M2 HTTP2 latency and heap diagnostics (CI only)
+        run: go test -count=1 -v -timeout=90s -run '^TestM2HTTP2LatencyAllocationDiagnostics$' .
       - name: M2 policy CPU/alloc benchmark (diagnostic, no pass threshold yet)
         run: go test -run '^$' -bench '^BenchmarkPaddingObserve$' -benchmem -benchtime=200ms ./padding
       - name: M2 comparative short and sustained encoding benchmarks
