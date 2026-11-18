@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — operator-reported binary installation on both production nodes (2026-11-18; PADDING NOT ENABLED)
+
+- **Homeserver:** operator supplied installer output `M1_INSTALL=PASS`, `CONFIG_CHANGED=NO` and `INSTALL_EXIT_CODE` not recorded in first output. Running executable separately confirmed at PID `2229132` as SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`; retained prior M1 backup directory `/opt/tervon-tcp-bridge/backups/m0-aV1CqZ3C`. This is a direct M2 **binary installation** despite legacy installer output name `M1_INSTALL`.
+- **Finserver:** operator ran explicit existing-unit preflight and install for `tervon-bridge-server.service` (live executable `/opt/tervon-bridge-linux-amd64`). Installer output confirmed `M1_INSTALL=PASS`, `CONFIG_CHANGED=NO`, `INSTALL_EXIT_CODE=0`; candidate M2 hash `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`; retained prior M1 backup `/opt/tervon-tcp-bridge/backups/m0-cSx4CMGr`. **No separate post-install running /proc PID/hash supplied yet**; do not silently equate script PASS with independent runtime hash verification.
+- **Operator console incident:** earlier installation attempts exited because `sudo` does not exist on Finserver (user is root), returning exit code 127; interactive shell `exit 1` / inherited `set -e` could close terminal. Successful Finserver install used `bash` with no `sudo` and safe shell flow. Do not recommend `exit` or `set -e` for interactive root-console instructions.
+- **Current stage:** M2 binary INSTALL PASS as reported by operator on each node, **`padding_enabled` not changed** and pad1 live negotiation **NOT RUN / NOT VERIFIED**. Do not claim operational M2 Padding PASS or release. Next safe action is staged enablement on server first, client second with preserved configs and rollback. No unrelated production units touched. M3 remains blocked.
+
+
+
 #### M2 — operator-approved direct deployment intent (2026-11-18, NOT EXECUTED)
 
 - **Operator decision:** install M2 directly on the existing Homeserver ↔ Finserver Bridge as soon as it is installable; do not create, launch or require a separate test bench and do not make optional test procedures a condition of that operator decision. The operator accepts a direct production change rather than an isolated trial.
