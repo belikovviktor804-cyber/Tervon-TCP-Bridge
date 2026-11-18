@@ -1,5 +1,16 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3: velocity-based video Padding/Jitter and monitoring (IN PROGRESS)
+
+- **Repository / branch:** `git@github.com:tervon-software/Tervon-TCP-Bridge.git`, `work/m3-adaptive-jitter`. **No change to active Homeserver/Finserver binaries after operator's M2 deployment.**
+- **Operator runtime evidence:** M2 `padding_enabled=true` and M2 binary hash verified; 4 Mbit/s real file-upload test did not activate Padding according to reported live counters. This is a measured case of no activation, not proof of packet boundaries or wrong network routing.
+- **M3 code:** optional `padding_rate_enabled` performs per-flow, per-direction 1 Mbps qualification over two complete 1s windows independent of small or large TCP writes; 0.7 Mbps exit hysteresis; 5% PAD header-inclusive wire budget. `jitter_enabled` additionally requires rate padding and bilateral `jit1` support, with cancellation, bounded delay and conservative congestion bypass. M1/M2 `tbf1-fin`/`tbf1-fin,pad1` remain valid.
+- **Test coverage added:** 1 Mbps small fragments and 125 KB once per second (video chunks), 4 Mbps fragmented upload, below-threshold and short interactive bursts, idle/hysteresis, independent sessions, 32 concurrent Jitter policy streams, byte-exact mTLS HTTP/2 both directions, supported/rejected capabilities, malformed PAD rejected before counting. Code and tests are in GitHub; results depend on exact CI commit.
+- **Monitoring:** the operator verified original M2 private metrics and Bridge Stats locally, `MONITORING_LOCAL=PASS`, backup `/opt/tervon-tcp-bridge/backups/m3-metrics-jta0z8Y3`. Additional code now tracks received PAD frames at the decoder, configured rate/jitter flags and per-direction Jitter delay counters, with public-site UI display. New files not yet installed on Homeserver.
+- **CI:** previous pre-fix unit failure from inconsistent fake timestamps corrected; [CI #44280393604](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280393604) PASS on previous integration snapshot. Latest [CI #44280950111](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280950111) still pending at document time; [M3 Linux build #44280950001](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280950001) PASS artifact only. Do not equate CI build with live deployment or release.
+- **Status:** M3 `IN_PROGRESS`; genuine 1 Mbps and 4 Mbps live PAD/Jitter behavior, RTT/fairness and external Bridge Stats check require operator-controlled verification. Current M2 stays active; `v1.0.1` NOT RELEASED.
+
+
 Журнал фиксирует проверяемые факты. Источник критериев и очередности: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
 ## 2026-11-17 — M1: foundation кадрирования
