@@ -87,7 +87,8 @@ func (e *Encoder) Write(p []byte) (int,error) {
             }
             if d > 0 && e.onJitter != nil { e.onJitter(d) }
         }
-        writeStarted := time.Now()
+        var writeStarted time.Time
+        if e.jitterState != nil { writeStarted = time.Now() }
         if err:=WriteFrame(e.w,TypeData,p[:n]);err!=nil{
             e.fail()
             return total,err
