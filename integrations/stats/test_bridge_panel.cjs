@@ -14,7 +14,8 @@ function mount(fetcher) {
     "tb-panel", "tb-status", "tb-updated", "tb-sessions-active",
     "tb-sessions-counts", "tb-bytes", "tb-backend", "tb-latency",
     "tb-tls", "tb-runtime", "tb-adaptation",
-    "tb-padding-bytes", "tb-padding-overhead", "tb-jitter-delays", "tb-errors",
+    "tb-padding-bytes", "tb-padding-overhead", "tb-padding-direction",
+    "tb-padding-activity", "tb-jitter-delays", "tb-errors",
   ]) elements.set(id, { textContent: "" });
   const calls = [];
   const context = {
@@ -55,6 +56,7 @@ function response() {
             download_bytes: 1024,
             backend_dial_success: 9,
             backend_dial_failure: 1,
+            connect_latency_samples: 3,
             connect_latency_p50_ms: 1,
             connect_latency_p95_ms: 5,
             connect_latency_p99_ms: 10,
@@ -64,6 +66,12 @@ function response() {
             memory_alloc_bytes: 1024,
             padding_state: "NOT_IMPLEMENTED",
             jitter_state: "NOT_IMPLEMENTED",
+            padding_upload_state: "ACTIVE",
+            padding_download_state: "OFF",
+            padding_upload_frames: 7,
+            padding_download_frames: 2,
+            padding_upload_transitions: 3,
+            padding_download_transitions: 1,
             padding_upload_bytes: 1024,
             padding_download_bytes: 512,
             padding_upload_wire_overhead_percent: 2.5,
@@ -93,6 +101,10 @@ test("renders local Homeserver metrics with fixed, same-origin API", async () =>
   assert.equal(elements.get("tb-bytes").textContent, "2.0 КиБ / 1.0 КиБ");
   assert.equal(elements.get("tb-adaptation").textContent, "Не реализовано / Не реализовано");
   assert.equal(elements.get("tb-padding-bytes").textContent, "1.0 КиБ / 512 Б");
+  assert.equal(elements.get("tb-padding-direction").textContent, "Активно / Выкл.");
+  assert.equal(elements.get("tb-padding-activity").textContent, "7 / 2 кадров; 3 / 1 переходов");
+  assert.equal(elements.get("tb-backend").textContent, "На стороне Decapsulator");
+  assert.equal(elements.get("tb-tls").textContent, "На стороне Decapsulator");
   assert.equal(elements.get("tb-padding-overhead").textContent, "2.50% / 1.25%");
   assert.equal(elements.get("tb-jitter-delays").textContent, "4 / 2.50 мс / 3 / 1.00 мс");
   assert.equal(elements.get("tb-errors").textContent, "3");
@@ -113,6 +125,8 @@ test("configured but inactive padding is shown as waiting, not disabled", async 
   await tick();
   assert.equal(elements.get("tb-adaptation").textContent,
     "Ожидает подходящий поток / Включено");
+  assert.equal(elements.get("tb-padding-direction").textContent,
+    "Активно / Ожидание");
 });
 
 test("does not render remote node data or stale values when source is unavailable", async () => {
@@ -134,6 +148,15 @@ test("failed fetch shows unavailable rather than fabricated zeroes", async () =>
   await tick();
   assert.equal(elements.get("tb-status").textContent, "Метрики Homeserver недоступны");
   assert.equal(elements.get("tb-errors").textContent, "—");
+});
+
+test("latency without samples is not presented as zero milliseconds", async () => {
+  const data = await response().json();
+  data.nodes.homeserver.metrics.connect_latency_samples = 0;
+  const { elements } = mount(async () => ({ ok: true, json: async () => data }));
+  await tick();
+  await tick();
+  assert.equal(elements.get("tb-latency").textContent, "Нет измерений");
 });
 
 test("never uses HTML injection sinks or remote metrics endpoints", () => {
