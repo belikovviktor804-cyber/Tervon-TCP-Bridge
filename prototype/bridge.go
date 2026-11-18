@@ -203,7 +203,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
             encoder.SetObservers(s.Metrics.AddPaddingDownload,s.Metrics.PaddingDownloadActive)
         }
         if jittered {
-            if e := encoder.EnableJitter(r.Context(), *s.JitterPolicy, nil); e != nil {
+            if e := encoder.EnableJitter(r.Context(), *s.JitterPolicy, func(d time.Duration) { if s.Metrics != nil { s.Metrics.AddJitterDownload(d) } }); e != nil {
                 encoder.Abort()
                 return
             }
@@ -355,7 +355,7 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
                 encoder.SetObservers(cl.Metrics.AddPaddingUpload,cl.Metrics.PaddingUploadActive)
             }
             if jittered {
-                if e = encoder.EnableJitter(ctx, *cl.JitterPolicy, nil); e != nil {
+                if e = encoder.EnableJitter(ctx, *cl.JitterPolicy, func(d time.Duration) { if cl.Metrics != nil { cl.Metrics.AddJitterUpload(d) } }); e != nil {
                     encoder.Abort()
                     _ = writer.CloseWithError(e)
                     upload <- e
