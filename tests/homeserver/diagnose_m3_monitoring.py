@@ -19,6 +19,7 @@ BRIDGE_UNIT = "tervon-bridge-client.service"
 STATS_UNIT = "tervon-bridge-stats.service"
 CONFIG = Path("/etc/tervon-tcp-bridge/client.json")
 STATS_LOCAL = "http://127.0.0.1:8894/bridge/api/status"
+STATS_ENV = Path("/etc/tervon/bridge-stats.env")
 SCHEMA = "tervon.bridge.telemetry.v1"
 DASH_SCHEMA = "tervon.bridge.dashboard.v1"
 
@@ -73,6 +74,28 @@ def local_json(url: str, timeout: float = 1.0) -> dict | None:
         return None
 
 
+def stats_source_env(path: Path, expected_url: str | None) -> str:
+    # Deliberately recognize only the single known non-secret environment
+    # assignment. Never print other lines, environment or secret values.
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return "NOT_CONFIGURED"
+    except OSError:
+        return "UNKNOWN"
+    matches = [line.split("=", 1)[1].strip().strip("'\\\"")
+               for line in lines
+               if line.strip().startswith("TERVON_BRIDGE_METRICS_URL=")]
+    if len(matches) != 1:
+        return "NOT_CONFIGURED" if not matches else "AMBIGUOUS"
+    value = matches[0]
+    if expected_url and value == expected_url:
+        return "MATCH"
+    if value.startswith(("http://127.0.0.1:", "http://[::1]:")):
+        return "LOOPBACK_OTHER_OR_SOURCE_DISABLED"
+    return "INVALID_OR_REMOTE"
+
+
 def diagnose(config_path: Path = CONFIG) -> dict:
     result = {
         "schema": "tervon.bridge.monitoring.preflight.v1",
@@ -81,9 +104,11 @@ def diagnose(config_path: Path = CONFIG) -> dict:
         "bridge_metrics_config": "UNKNOWN",
         "bridge_metrics_local": "NOT_CHECKED",
         "stats_api_local": "UNAVAILABLE",
+        "stats_source_env": "UNKNOWN",
         "stats_bridge_node": "NOT_CHECKED",
         "public_site_external": "NOT_TESTED",
     }
+    url = None
     try:
         cfg = json.loads(config_path.read_text(encoding="utf-8"))
         if cfg.get("mode") != "client":
@@ -98,6 +123,7 @@ def diagnose(config_path: Path = CONFIG) -> dict:
             result["bridge_metrics_local"] = (
                 "PASS" if metrics and metrics.get("schema") == SCHEMA else "UNAVAILABLE"
             )
+    result["stats_source_env"] = stats_source_env(STATS_ENV, url)
     if result["stats_service"] == "ACTIVE":
         dash = local_json(STATS_LOCAL)
         if dash is not None and dash.get("schema") == DASH_SCHEMA:
