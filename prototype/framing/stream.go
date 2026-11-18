@@ -85,13 +85,20 @@ func (e *Encoder) Write(p []byte) (int,error) {
     for len(p)>0 {
         n:=len(p)
         if n>MaxPayload {n=MaxPayload}
+        // Rate classification uses the timestamp when DATA arrives at
+        // the encoder. Reuse it for Jitter: any artificial send delay
+        // must not make the original stream appear slower.
+        var frameAt time.Time
+        if e.ratePad != nil { frameAt = e.now() }
         // Jitter is always before DATA and bounded by the opt-in
         // scheduler. A previously blocked downstream writer disables
         // the next delay to avoid adding latency under backpressure.
         if e.jitterState != nil {
             backlog := e.priorWriteCongested ||
                 (e.ratePad != nil && !e.ratePad.Active())
-            d, err := e.jitterState.Observe(e.now(), uint64(n), backlog)
+            jitterAt := frameAt
+            if jitterAt.IsZero() { jitterAt = e.now() }
+            d, err := e.jitterState.Observe(jitterAt, uint64(n), backlog)
             if err != nil { e.fail(); return total, err }
             if err := jitter.Wait(e.jitterContext, d); err != nil {
                 e.fail()
@@ -112,7 +119,7 @@ func (e *Encoder) Write(p []byte) (int,error) {
         if e.pad!=nil || e.ratePad!=nil {
             var count uint64
             if e.ratePad!=nil {
-                count=e.ratePad.Observe(e.now(),uint64(n))
+                count=e.ratePad.Observe(frameAt,uint64(n))
                 e.updateActive(e.ratePad.Active())
             } else {
                 if !e.pad.ObserveSmallFrame(uint64(n)) {
