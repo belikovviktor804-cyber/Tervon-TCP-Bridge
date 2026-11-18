@@ -155,3 +155,67 @@ func TestPaddingAbortClearsActivityWithoutFIN(t *testing.T){
 func TestM2PaddingHeaderConstantMatchesFraming(t *testing.T){
     if padding.FrameOverheadBytes!=HeaderSize{t.Fatalf("padding overhead=%d framing header=%d",padding.FrameOverheadBytes,HeaderSize)}
 }
+
+func TestPaddingDecoderCountsWireHeadersInBudget(t *testing.T) {
+    // A 25-byte PAD payload after 100 useful bytes is 25% by payload alone,
+    // but 35% once its 10-byte TBF1 header is accounted for.
+    var over bytes.Buffer
+    _=WriteFrame(&over,TypeData,bytes.Repeat([]byte{1},100))
+    _=WritePaddingFrame(&over,bytes.Repeat([]byte{2},25))
+    _=WriteFrame(&over,TypeFIN,nil)
+    if _,err:=io.ReadAll(NewPaddingDecoder(bytes.NewReader(over.Bytes())));!errors.Is(err,ErrMalformed){
+        t.Fatalf("accepted 35%% PAD wire overhead: %v",err)
+    }
+
+    // Exactly 25% wire overhead is allowed by the defensive receiver.
+    var equal bytes.Buffer
+    _=WriteFrame(&equal,TypeData,bytes.Repeat([]byte{1},100))
+    _=WritePaddingFrame(&equal,bytes.Repeat([]byte{2},15))
+    _=WriteFrame(&equal,TypeFIN,nil)
+    got,err:=io.ReadAll(NewPaddingDecoder(bytes.NewReader(equal.Bytes())))
+    if err!=nil||len(got)!=100{t.Fatalf("valid 25%% wire overhead refused: bytes=%d err=%v",len(got),err)}
+}
+
+type rejectPADHeaderWriter struct {
+    wire bytes.Buffer
+    err error
+}
+func (w *rejectPADHeaderWriter) Write(p []byte)(int,error){
+    if len(p)==HeaderSize && string(p[:4])=="TBF1" && p[5]==TypePadding {
+        return 0,w.err
+    }
+    return w.wire.Write(p)
+}
+
+func TestPaddingWriteErrorFailsClosedWithoutFalseFINOrMetrics(t *testing.T) {
+    sentinel:=errors.New("injected PAD write failure")
+    writer:=&rejectPADHeaderWriter{err:sentinel}
+    p:=padding.DefaultPolicy()
+    p.MinDuration=time.Nanosecond
+    p.MinUsefulBytes=1024
+    p.MinSamples=2
+    enc,err:=NewPaddingEncoder(writer,p)
+    if err!=nil{t.Fatal(err)}
+    start:=time.Unix(100,0)
+    ticks:=0
+    enc.now=func()time.Time{
+        ticks++
+        return start.Add(time.Duration(ticks)*time.Millisecond)
+    }
+    var recorded uint64
+    transitions:=[]bool{}
+    enc.SetObservers(func(n uint64){recorded+=n},func(active bool){transitions=append(transitions,active)})
+    frame:=bytes.Repeat([]byte{3},16*1024)
+    if n,err:=enc.Write(frame);n!=len(frame)||err!=nil{t.Fatalf("initial DATA n=%d err=%v",n,err)}
+    n,err:=enc.Write(frame)
+    if n!=len(frame)||!errors.Is(err,sentinel){t.Fatalf("PAD failure: n=%d err=%v",n,err)}
+    if recorded!=0{t.Fatalf("failed PAD counted as successful: %d",recorded)}
+    if len(transitions)!=2 || !transitions[0] || transitions[1]{
+        t.Fatalf("active state not cleared on error: %v",transitions)
+    }
+    if _,err:=enc.Write(frame);!errors.Is(err,io.ErrClosedPipe){t.Fatalf("continued after failure: %v",err)}
+    if err:=enc.CloseWrite();!errors.Is(err,io.ErrClosedPipe){t.Fatalf("created false FIN after failure: %v",err)}
+    if _,err:=io.ReadAll(NewPaddingDecoder(bytes.NewReader(writer.wire.Bytes())));!errors.Is(err,ErrMalformed){
+        t.Fatalf("truncated stream incorrectly accepted: %v",err)
+    }
+}
