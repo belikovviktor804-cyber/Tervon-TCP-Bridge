@@ -6,6 +6,10 @@ on:
     paths:
       - '.github/workflows/build-m2-candidate.yml'
       - 'prototype/**'
+  pull_request:
+    paths:
+      - '.github/workflows/build-m2-candidate.yml'
+      - 'prototype/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,9 +40,7 @@ jobs:
           (cd dist && sha256sum tervon-bridge-linux-amd64 > SHA256SUMS)
           printf 'SOURCE_COMMIT=%s\nVERSION=v1.0.1-m2-candidate\nGOOS=linux\nGOARCH=amd64\nCGO_ENABLED=0\n' "${GITHUB_SHA}" > dist/BUILD_INFO
           test "$(wc -l < dist/SHA256SUMS)" -eq 1
-          sha256sum -c dist/SHA256SUMS --ignore-missing 2>/dev/null || (
-            cd dist && sha256sum -c SHA256SUMS
-          )
+          (cd dist && sha256sum -c SHA256SUMS)
       - name: Upload binary and provenance (not a release or deployment)
         uses: actions/upload-artifact@v4
         with:
