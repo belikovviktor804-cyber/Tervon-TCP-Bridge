@@ -172,6 +172,14 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### External HTTPS redirect confirmed by operator (2026-11-18)
+
+- Operator confirms that an ordinary external visit to `https://vp.xrayvless.online/` now redirects to `https://ya.ru/`. The implementation uses existing Homeserver Nginx with the domain's existing TLS certificate; no Caddy/Docker/new listener was requested. This is an **operator-reported redirect functionality PASS**, not independent network tracing by ChatGPT.
+- Separate subscription endpoint on port 2096 and Bridge have not been reported as changed, but independent post-change regression validation of those endpoints has not been supplied; do not claim those checks PASS without evidence.
+- **Open M2 issue:** monitoring previously reported not working, root cause unknown. Complete M2 monitoring diagnostics/fix/verification before M3; the new redirect does not close this issue.
+
+
+
 #### Operator request — existing nginx HTTPS redirect and M3 progression (2026-11-18; NOT EXECUTED)
 
 - Operator requests that an ordinary browser visit to `https://vp.xrayvless.online/` receive an HTTP 302 redirect to `https://ya.ru/`, while existing subscription route on port 2096 and existing Tervon Bridge traffic remain unchanged. Port 443 is already occupied; do not introduce another listener or modify unrelated virtual hosts. Before any change, inspect exact Nginx server block/listeners on Homeserver, back up only the affected configuration, validate `nginx -t`, reload existing Nginx and verify redirect and subscriptions separately. **No actual Nginx host inspection or change has been performed by the assistant.**
