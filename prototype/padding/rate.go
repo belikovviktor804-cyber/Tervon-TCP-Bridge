@@ -3,6 +3,7 @@ package padding
 import (
     "errors"
     "math"
+    "math/bits"
     "time"
 )
 
@@ -81,23 +82,13 @@ func (s *RateState) resetClassification() {
 }
 
 func thresholdBytes(rate uint64, window time.Duration) uint64 {
-    // Compute rate*duration/8e9 without overflowing the integer product.
-    // The window is validated to <=10s and rate capped by runtime usage:
-    // saturate at MaxUint64 for pathological policy inputs.
-    const ticks = uint64(8_000_000_000)
-    ns := uint64(window)
-    q, rem := rate/ticks, rate%ticks
-    if q != 0 && ns > math.MaxUint64/q { return math.MaxUint64 }
-    whole := q*ns
-    if rem != 0 && ns > math.MaxUint64/rem {
-        // Exact quotient without multiplying rem*ns directly.
-        // Intentionally reject pathological rates at validation instead;
-        // this branch is defensive and fails closed.
-        return math.MaxUint64
-    }
-    part := rem*ns/ticks
-    if math.MaxUint64-whole < part { return math.MaxUint64 }
-    return whole+part
+    // Exact 128-bit multiplication avoids overflow for extreme yet valid
+    // policies. Saturation is conservative: never activate on an overflow.
+    const bitsPerByteSecond = uint64(8_000_000_000)
+    hi, lo := bits.Mul64(rate, uint64(window))
+    if hi >= bitsPerByteSecond { return math.MaxUint64 }
+    q, _ := bits.Div64(hi, lo, bitsPerByteSecond)
+    return q
 }
 
 // Observe returns the permissible PAD payload bytes after DATA has been sent.
@@ -143,7 +134,7 @@ func (s *RateState) Observe(at time.Time, bytes uint64) uint64 {
 
     if !s.active { return 0 }
     budget := fractionOf(s.useful, s.p.RatioPercent, 100)
-    if budget <= s.paddedWire+FrameOverheadBytes { return 0 }
+    if budget <= s.paddedWire || budget-s.paddedWire <= FrameOverheadBytes { return 0 }
     remaining := budget-s.paddedWire-FrameOverheadBytes
     desired := bytes/16
     if desired > s.p.MaxPaddingPerFrame { desired = s.p.MaxPaddingPerFrame }
