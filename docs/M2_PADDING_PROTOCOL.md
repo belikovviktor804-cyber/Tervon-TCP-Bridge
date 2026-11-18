@@ -45,6 +45,12 @@ Whole-process TotalAlloc deltas were 10,099,504 / 9,761,000 / 10,282,048 bytes a
 
 At code SHA `cc1459995541e79acdfe6a31b83ae80df3a865fc`, [GitHub Actions #44223298969](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44223298969) successfully completed three race-instrumented repetitions of `TestM2CancelOneHTTP2StreamPreservesOtherSessions`. One PAD-enabled HTTP/2 upload is canceled after real byte-exact exchanges while another stream on the same transport continues and finishes successfully. The canceled handler returns an error rather than fake successful FIN; final telemetry observes zero active client/server sessions and both Padding directions OFF. Each run emitted 4505 PAD wire bytes per direction. This only proves bounded cancellation isolation in the in-process CI scenario, not real-route performance or long-lived network behavior.
 
+## Repeated short-lived session waves (CI verification)
+
+The M2 lifecycle regression reuses one authenticated HTTP/2 client for ten sequential waves, six concurrent TCP streams per wave and six 8192-byte full-duplex exchanges per stream (60 sessions total). At each wave boundary, it asserts exact Started/Completed session count, zero active streams and PAD states OFF, byte-exact user traffic accounting and cumulative PAD wire overhead within 5%.
+
+Source SHA `2c2ad62d6e40dd26296bfe9942a515df35279193`, [GitHub Actions #44227694584](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44227694584), three repeated `-race` runs **PASS**. Each transferred 2,949,120 useful bytes and 147,420 PAD wire bytes per direction. Whole-process allocation deltas were 37,529,600 / 34,028,200 / 39,717,616 bytes; ending heap was 5,933,416 / 5,686,824 / 7,373,664 bytes. The test does not establish long-lived memory/no-goroutine-leak properties on the actual servers.
+
 ## Required verification and release constraints
 
 1. Latest SHA: Go build, vet, test, race, repeated M1+M2 E2E, bounded M1+M2 fuzz; correct Prometheus format and no goroutine leaks.
