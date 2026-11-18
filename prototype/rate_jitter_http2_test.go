@@ -151,3 +151,21 @@ func TestM3PolicyValidationIndependent(t *testing.T){
     j:=jitter.DefaultPolicy()
     if err:=j.Validate();err!=nil{t.Fatal(err)}
 }
+
+func TestM3JitterCapabilityRejectsUnsupportedServer(t *testing.T) {
+    cl,_,cleanup:=m3Pair(t,"127.0.0.1:1",false,true)
+    defer cleanup()
+    j:=jitter.DefaultPolicy()
+    cl.JitterPolicy=&j
+    local,peer:=net.Pipe()
+    defer peer.Close()
+    result:=make(chan error,1)
+    go func(){result<-cl.Handle(local)}()
+    select {
+    case err:=<-result:
+        if err==nil || !bytes.Contains([]byte(err.Error()),[]byte("426")){
+            t.Fatalf("jitter capability not rejected: %v",err)
+        }
+    case <-time.After(5*time.Second):t.Fatal("jitter capability mismatch hung")
+    }
+}
