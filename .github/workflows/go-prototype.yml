@@ -64,6 +64,8 @@ jobs:
         run: go test -race -count=3 -timeout=60s ./padding
       - name: M2 repeated HTTP2 negotiation and byte-exact regression
         run: go test -race -count=3 -timeout=180s -run '^TestM2' .
+      - name: M2 unmodified default-policy idle/resume repeated race regression
+        run: go test -race -count=3 -v -timeout=180s -run '^TestM2DefaultPolicyIdleResume$' .
       - name: M2 repeated PAD session lifecycle and accounting (race)
         run: go test -race -count=3 -v -timeout=150s -run '^TestM2RepeatedSessionWaves$' .
       - name: M2 canceled-stream isolation repeated race regression
