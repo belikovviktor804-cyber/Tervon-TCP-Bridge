@@ -13,8 +13,7 @@ import json
 import subprocess
 from pathlib import Path
 from urllib.error import URLError
-from urllib.parse import urlsplit
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 BRIDGE_UNIT = "tervon-bridge-client.service"
 STATS_UNIT = "tervon-bridge-stats.service"
@@ -52,9 +51,14 @@ def safe_metrics_url(config: dict) -> str | None:
     return f"http://{host}:{port}/metrics/v1"
 
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def local_json(url: str, timeout: float = 1.0) -> dict | None:
     # No environment proxies or redirects to unexpected destinations.
-    opener = build_opener(ProxyHandler({}))
+    opener = build_opener(ProxyHandler({}), NoRedirect())
     try:
         request = Request(url, headers={"Accept": "application/json"})
         with opener.open(request, timeout=timeout) as response:
