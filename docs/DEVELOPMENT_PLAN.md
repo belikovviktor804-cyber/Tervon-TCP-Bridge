@@ -428,6 +428,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — throughput-based adaptive PAD activation target (2026-11-18)
+
+- Operator proposes **1 Mbit/s** as the activation threshold for Padding (`Паддинг должен активироваться от 1 мбит/с по идее`), after a ~4 Mbit/s upload failed to show PAD activation. Record as the **target policy to implement and validate in M3**, not something M2 already does and not an observed PASS.
+- The current M2 classifier has **no explicit bits-per-second threshold**: it classifies per-frame sustained activity and resets whenever a DATA chunk is <512 bytes. 4 Mbit/s nominal input with interleaved small frames may never activate. CI [#44276220405](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44276220405) **PASS** on code-only deterministic tests demonstrating both smooth activation and small-frame reset, not live validation.
+- **M3 design gate:** calculate useful-payload throughput over a bounded time window **per stream and per direction** without inspecting payload; a ≥1,000,000 bit/s sustained rate for ~2 seconds enables consideration for PAD, with a defined hysteresis/idle reset and exclusion of short interactive bursts. PAD wire overhead remains limited to the existing 5% policy budget. Tests must cover fragmented writes, multiple streams, loss/gaps, budget, short and interactive traffic, cancellation and false activations, plus real Homeserver→Finserver uplink verification.
+- Do not claim aggregate 1 Mbit/s across many unrelated TCP sessions qualifies every session; the threshold applies to one sustained stream/direction until separately validated otherwise. No production settings changed or binary deployed at this checkpoint.
+
+
+
 #### M3 — operator observed no PAD during ~4 Mbit/s file upload (2026-11-18)
 
 - Operator performed an actual file upload reportedly at **about 4 Mbit/s** and reports that Padding **did not activate**. Treat as **LIVE PAD ACTIVATION FAIL/NOT_OBSERVED** for the tested workload, not a blanket verdict that all traffic fails and not a proof of current code defect until packet-boundary and route evidence is collected.
