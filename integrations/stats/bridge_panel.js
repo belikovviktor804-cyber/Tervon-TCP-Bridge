@@ -7,7 +7,7 @@
   const ids = [
     "tb-sessions-active", "tb-sessions-counts", "tb-bytes", "tb-backend",
     "tb-latency", "tb-tls", "tb-runtime", "tb-adaptation",
-    "tb-padding-bytes", "tb-padding-overhead", "tb-errors",
+    "tb-padding-bytes", "tb-padding-overhead", "tb-jitter-delays", "tb-errors",
   ];
   const byId = (id) => document.getElementById(id);
   const setText = (id, value) => {
@@ -75,6 +75,11 @@
         m.padding_download_wire_overhead_percent].map(
           (value) => number(value) ? value.toFixed(2) + "%" : "—"
         ).join(" / "));
+
+    const jitterSide = (frames, delayNs) => integer(frames) &&
+      number(delayNs) ? fmt(frames) + " / " + (delayNs / 1e6).toFixed(2) + " мс" : "—";
+    setText("tb-jitter-delays", jitterSide(m.jitter_upload_frames, m.jitter_upload_delay_ns) +
+      " / " + jitterSide(m.jitter_download_frames, m.jitter_download_delay_ns));
 
     const errors = m.errors && typeof m.errors === "object" ?
       Object.values(m.errors) : [];
