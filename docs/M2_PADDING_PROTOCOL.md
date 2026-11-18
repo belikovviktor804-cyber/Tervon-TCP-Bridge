@@ -51,6 +51,10 @@ The M2 lifecycle regression reuses one authenticated HTTP/2 client for ten seque
 
 Source SHA `2c2ad62d6e40dd26296bfe9942a515df35279193`, [GitHub Actions #44227694584](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44227694584), three repeated `-race` runs **PASS**. Each transferred 2,949,120 useful bytes and 147,420 PAD wire bytes per direction. Whole-process allocation deltas were 37,529,600 / 34,028,200 / 39,717,616 bytes; ending heap was 5,933,416 / 5,686,824 / 7,373,664 bytes. The test does not establish long-lived memory/no-goroutine-leak properties on the actual servers.
 
+## Unmodified default-policy idle and resume verification
+
+At source SHA `b0336d2e4f0fa8bc9c31f8d7204b88145cfccae8`, [GitHub Actions #44233416106](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44233416106) completed successfully. `TestM2DefaultPolicyIdleResume` uses the actual unmodified production defaults (2s minimum duration, 5 eligible samples, 64 KiB of recent useful traffic, 1s max gap, 5% cumulative PAD TBF1 wire budget). It checks zero PAD before classification, PAD after sustained traffic in both directions, a greater-than-one-second idle pause followed by an interactive frame that deactivates Padding with no additional PAD, and a fresh sustained sequence that reactivates it. It also asserts byte-exact payload and clean final session/PAD OFF state. This CI scenario is not evidence of real route latency, production CPU/RSS, network loss or 24/7 operation.
+
 ## Required verification and release constraints
 
 1. Latest SHA: Go build, vet, test, race, repeated M1+M2 E2E, bounded M1+M2 fuzz; correct Prometheus format and no goroutine leaks.
