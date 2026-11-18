@@ -10,6 +10,20 @@ Status: **PREPARED, NOT AUTHORIZED, NOT EXECUTED**. Module: M2 Adaptive Padding.
 - **No test/laboratory services or listeners may be launched.** Any future exercise must use the authorized existing production path, with normal service traffic, and must not disrupt live users.
 - Current M2 CI source evidence: GitHub Actions [#44218917305](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218917305), PASS at `025e8c71f6f7500ce96b08305015faa3a7a3be6e`. This is **not** a host or live acceptance PASS.
 
+## Optional prepared read-only collector (NOT EXECUTED)
+
+The repository includes `tests/homeserver/collect_m2_baseline.py`, a Python standard-library-only instrument for **a single, already-running** Bridge systemd service. Its only external command is `systemctl show` with four allowlisted properties; it reads `/proc/<PID>/exe` for a running-executable SHA-256 and `/proc/<PID>/status` for RSS. It never reads Bridge configs, TLS private keys, command lines, environment variables, endpoints or application traffic, and never changes systemd state. It does not use SSH or git.
+
+**Example only; not performed or authorized for execution by this commit:**
+
+```bash
+python3 tests/homeserver/collect_m2_baseline.py --role homeserver --unit tervon-bridge-client.service
+```
+
+The service unit for Finserver must be independently verified by the operator before any comparable invocation. The script emits JSON to standard output and no file writes; verify privately before sharing. It deliberately marks `cpu_percent`, `route_rtt_ms`, `tcp_retransmissions` and `padding_live_enabled` `NOT_MEASURED`; do not infer that these are healthy or zero. A hash mismatch with the last confirmed M1 binary is evidence to investigate, **not** permission to replace it. It reports only a point-in-time observation and is not itself an M2 live acceptance test.
+
+Tests for this helper mock `systemctl` and use fake procfs fixtures in GitHub CI. Never run the helper as a scheduled daemon or add it to production service start/stop hooks.
+
 ## Phase A: read-only collection, before any operational action
 
 Collect separately for both production nodes (do not copy private keys, passwords or full configs into GitHub):
