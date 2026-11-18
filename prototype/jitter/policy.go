@@ -73,10 +73,14 @@ func (s *State) Active() bool { return s.active }
 // backlog, and idle bursts always bypass jitter. No delay is accumulated
 // without a frame and no timer or background goroutine is created.
 func (s *State) Observe(now time.Time, n uint64, backlog bool) (time.Duration, error) {
-    if now.IsZero() || n < s.p.MinFrameBytes || backlog {
+    if now.IsZero() || backlog {
         s.resetBurst()
         return 0, nil
     }
+    // A small interactive write is never delayed. It does not erase the
+    // sustained classification of surrounding large video DATA frames;
+    // elapsed time since the last eligible frame still enforces idle reset.
+    if n < s.p.MinFrameBytes { return 0, nil }
     if !s.last.IsZero() && (now.Before(s.last) || now.Sub(s.last) > s.p.MaxInterSampleGap) {
         s.resetBurst()
     }
