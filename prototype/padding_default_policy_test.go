@@ -67,6 +67,10 @@ func TestM2DefaultPolicyIdleResume(t *testing.T) {
 		time.Sleep(450 * time.Millisecond)
 		roundTrip(large)
 	}
+	// Allow the final large response to finish its PAD write and telemetry
+	// callback before taking the quiet-interval baseline. A peer can receive
+	// DATA before the server has finished appending that DATA's PAD frame.
+	time.Sleep(policy.MaxInterSampleGap + 250*time.Millisecond)
 	firstUpload := client.Metrics.Snapshot().PaddingUploadWireOverheadBytes
 	firstDownload := serverMetrics.Snapshot().PaddingDownloadWireOverheadBytes
 	if firstUpload == 0 || firstDownload == 0 {
@@ -75,7 +79,6 @@ func TestM2DefaultPolicyIdleResume(t *testing.T) {
 
 	// Silence is not padded. A subsequent interactive frame turns ACTIVE
 	// back OFF, retains the cumulative budget and sends no PAD.
-	time.Sleep(policy.MaxInterSampleGap + 250*time.Millisecond)
 	roundTrip(small)
 	if client.Metrics.Snapshot().PaddingUploadWireOverheadBytes != firstUpload ||
 		serverMetrics.Snapshot().PaddingDownloadWireOverheadBytes != firstDownload {
