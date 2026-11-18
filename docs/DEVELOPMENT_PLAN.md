@@ -172,6 +172,17 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — in-process latency / allocation diagnostics (2026-11-18, CI PASS)
+
+- **New code/test:** `prototype/padding_latency_diagnostic_test.go`, commit `879de1bae1aead55235e95b89d78dbf091882608`. Four 48-exchange workloads (M1/M2 × 128 B/16 KiB) run through authenticated loopback HTTP/2 over TLS with an echo backend; exact payload equality and PAD behavior are asserted. Report nearest-rank p50/p95/p99, process-wide `TotalAlloc` delta and ending `HeapAlloc` as diagnostics, not service-level resource guarantees.
+- **CI:** `.github/workflows/go-prototype.yml` adds a verbose named diagnostics step at commit `025e8c71f6f7500ce96b08305015faa3a7a3be6e`. [GitHub Actions run #44218917305](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218917305), job conclusion **SUCCESS**: full build, vet, unit, race, repeated M1/M2, three bounded fuzz targets and existing codec benchmarks. Verified source SHA `025e8c71f6f7500ce96b08305015faa3a7a3be6e`.
+- **One CI sample (48 echo exchanges each):** M1 128 B p50=114.112 µs, p95=148.224 µs, p99=4.035413 ms, total allocated delta=480824 B, heap end=1972232 B; M2 128 B p50=100.471 µs, p95=132.249 µs, p99=3.46089 ms, total delta=376232 B, heap end=3037192 B. **No PAD generated in the short case.**
+- **One CI sample sustained 16 KiB:** M1 p50=158.288 µs, p95=225.108 µs, p99=3.585938 ms, total allocated delta=2363256 B, heap end=2465400 B; M2 p50=192.51 µs, p95=366.3 µs, p99=3.48132 ms, total delta=2439968 B, heap end=2579880 B. **PAD wire bytes upload/download=24534/24534 B** on M2; M1=0.
+- **Limitations:** four serial, order-dependent tests on one shared CI process, tiny sample and loopback network, no induced RTT/loss, unsynchronized GC and no CPU isolation. Values cannot establish production p95/p99, statistical regression, absolute heap consumption, or live-route SLO. `TotalAlloc` counts the whole process including testing and TLS, not a per-connection allocation. No thresholds derived from these data alone.
+- **Open gates:** real Homeserver ↔ Finserver route evidence, accepted latency/CPU/memory/loss limits, signed off restore/rollback plan and controlled production verification; **no existing units touched, no M3, no v1.0.1 release**.
+
+
+
 #### M2 — decoder receiving-side wire cap and PAD write failure (2026-11-18, CI PASS)
 
 - **Fix:** `prototype/framing/stream.go` commit `3e24ad53f17fd1f91ebfb6cf4a210237b56d7294` now includes the ten-byte TBF1 PAD header in the cumulative receiving-side **25%** protective budget. Previously the receiving-side limit counted PAD payload only, allowing overhead greater than 25% when PAD frames are small. Sender's stricter default 5% wire budget remains unchanged.
