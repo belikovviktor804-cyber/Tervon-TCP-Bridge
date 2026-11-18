@@ -172,6 +172,13 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — Finserver PAD enabled by operator (2026-11-18; client pending)
+
+- Operator executed direct server JSON activation for existing `tervon-bridge-server.service` on Finserver. Reported `CONFIG_MODE=server`, prior `padding_enabled=False`, `M2_PADDING=ENABLED`, new PID `46322`, running SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c` and `ACTIVATION_COMMAND_EXIT_CODE=0`. Private configuration backup `/opt/tervon-tcp-bridge/backups/m2pad-server-bHxygPhh` retained.
+- **Deployment distinction:** Finserver server-side PAD capability is enabled and process hash verified; Homeserver client-side `padding_enabled` **NOT YET ENABLED**. No observed pad1 request/response or normal-client connectivity PASS was reported, so E2E PAD **LIVE PENDING**. Next action: enable Homeserver client only after verifying its `/v2/stream` URL, back up its private JSON, confirm exact M2 running hash, and restart the client with bounded automatic config rollback on startup failure. Never change unrelated services.
+
+
+
 #### M2 — operator-reported binary installation on both production nodes (2026-11-18; PADDING NOT ENABLED)
 
 - **Homeserver:** operator supplied installer output `M1_INSTALL=PASS`, `CONFIG_CHANGED=NO` and `INSTALL_EXIT_CODE` not recorded in first output. Running executable separately confirmed at PID `2229132` as SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`; retained prior M1 backup directory `/opt/tervon-tcp-bridge/backups/m0-aV1CqZ3C`. This is a direct M2 **binary installation** despite legacy installer output name `M1_INSTALL`.
