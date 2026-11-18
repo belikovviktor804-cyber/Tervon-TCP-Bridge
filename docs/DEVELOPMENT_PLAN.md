@@ -438,6 +438,11 @@
 
 
 
+#### M3 — verified monitoring recovery preflight (2026-11-18; NOT APPLIED)
+
+- Operator output: `ss -H -lntp '( sport = :8895 )'` returned **no listener**; systemd `EnvironmentFiles=/etc/tervon/bridge-stats.env (ignore_errors=yes)`; live Bridge PID 2276833 executable SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c` matches M2 production SHA. This confirms free candidate port, expected Stats environment file declaration, correct running M2 binary **as of preflight only**.
+- Next operator action: narrowly set `metrics_listen=127.0.0.1:8895` and `TERVON_BRIDGE_METRICS_URL=http://127.0.0.1:8895/metrics/v1`, with closed backups and automatic rollback on local failure; restart only Bridge Client and Bridge Stats units, check local telemetry/schema and Stats `homeserver.status=ok`. Expect brief interruption of existing Bridge sessions upon restart; no Nginx, 3x-ui, Finserver, or other unit change. **Not executed at this checkpoint**.
+
 #### M3 — Homeserver read-only monitoring chain diagnosis (2026-11-18; root cause identified)
 
 - Operator executed `tests/homeserver/diagnose_m3_monitoring.py` on existing Homeserver from the SSH checkout `/opt/tervon-tcp-bridge/m3/source`. Reported `bridge_service=ACTIVE`, `stats_service=ACTIVE`, `bridge_metrics_config=DISABLED_OR_INVALID`, `bridge_metrics_local=NOT_CHECKED`, `stats_api_local=PASS`, `stats_bridge_node=UNAVAILABLE`, `stats_source_env=NOT_CONFIGURED`, `public_site_external=NOT_TESTED`.
