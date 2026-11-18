@@ -172,7 +172,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		var source io.Reader = r.Body
 		if padded {
-            source = framing.NewPaddingDecoder(source)
+            decoder := framing.NewPaddingDecoder(source)
+            if s.Metrics != nil {
+                decoder.SetPaddingObserver(s.Metrics.AddPaddingUpload)
+            }
+            source = decoder
         } else if framed {
             source = framing.NewDecoder(source)
         }
@@ -401,7 +405,11 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 	}
 	var source io.Reader = resp.Body
 	if padded {
-        source = framing.NewPaddingDecoder(source)
+        decoder := framing.NewPaddingDecoder(source)
+        if cl.Metrics != nil {
+            decoder.SetPaddingObserver(cl.Metrics.AddPaddingDownload)
+        }
+        source = decoder
     } else if framed {
         source = framing.NewDecoder(source)
     }
