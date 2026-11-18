@@ -12,6 +12,19 @@ spec.loader.exec_module(module)
 
 
 class MonitoringDiagnosisTests(unittest.TestCase):
+    def test_stats_env_link_is_validated_without_exposing_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "stats.env"
+            expected = "http://127.0.0.1:8895/metrics/v1"
+            self.assertEqual(module.stats_source_env(path, expected), "NOT_CONFIGURED")
+            path.write_text("TERVON_BRIDGE_METRICS_URL=" + expected + "\\n")
+            self.assertEqual(module.stats_source_env(path, expected), "MATCH")
+            path.write_text("TERVON_BRIDGE_METRICS_URL=https://private.example/secret\\n")
+            self.assertEqual(module.stats_source_env(path, expected), "INVALID_OR_REMOTE")
+            path.write_text("TERVON_BRIDGE_METRICS_URL=" + expected + "\\n" +
+                            "TERVON_BRIDGE_METRICS_URL=" + expected + "\\n")
+            self.assertEqual(module.stats_source_env(path, expected), "AMBIGUOUS")
+
     def test_url_requires_loopback_explicit_port(self):
         self.assertEqual(
             module.safe_metrics_url({"metrics_listen": "127.0.0.1:8895"}),
