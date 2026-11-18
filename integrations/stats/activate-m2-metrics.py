@@ -194,14 +194,21 @@ def activate() -> None:
         d = await_http(STATUS_URL, STATS_UNIT, ready_dashboard)
         print("DASHBOARD_METRICS=PASS", flush=True)
         print("DASHBOARD_SESSIONS=" + str(d["nodes"]["homeserver"]["metrics"]["sessions_active"]), flush=True)
-    except Exception:
+    except BaseException:
         print("ACTIVATION=FAILED; ROLLBACK STARTED", flush=True)
-        if config_modified:
-            atomic_write(CONFIG, original, CONFIG)
-        if env_created:
-            ENVFILE.unlink(missing_ok=True)
-        # Restore only services actually restarted; report failure separately.
+        # Make a best effort to restore each component even if another step fails.
         errors = []
+        if config_modified:
+            try:
+                atomic_write(CONFIG, original, CONFIG)
+            except Exception:
+                errors.append("CONFIG")
+        if env_created:
+            try:
+                ENVFILE.unlink(missing_ok=True)
+            except Exception:
+                errors.append("ENV")
+        # Restore only services actually restarted; report failure separately.
         if bridge_restarted:
             try:
                 command("systemctl", "restart", BRIDGE_UNIT)
