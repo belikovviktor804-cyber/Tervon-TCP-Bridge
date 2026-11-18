@@ -35,6 +35,12 @@ One CI sample: M1 128 B p50/p95/p99 114.112 µs / 148.224 µs / 4.035413 ms; M2 
 
 These values are **diagnostic observations only**, not a live VPN latency baseline: they use in-process loopback connections, shared Go runtime and a tiny sample, without real route RTT/loss, and are sensitive to scheduling and GC. No conclusive latency comparison is claimed. No services on Homeserver or Finserver were modified.
 
+## Concurrent HTTP/2 stream verification
+
+CI now checks 12 simultaneous PAD-enabled sessions through shared authenticated HTTP/2 transport, each completing 12 echo exchanges of 8192 useful bytes. The three repeated race-instrumented runs at [Actions #44221520831](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44221520831), source SHA `a22f3a71a1c0af8739b3ae09333e0d021c7a0734`, succeeded: **1,179,648** useful bytes per direction; **58,980** PAD TBF1 wire-overhead bytes per direction, within the 5% policy; correct payload; all application sessions and PAD activity states closed. This verifies concurrent codec/bridge accounting in a local CI environment, not long-term production operation.
+
+Whole-process TotalAlloc deltas were 10,099,504 / 9,761,000 / 10,282,048 bytes and ending HeapAlloc was 3,798,592 / 3,461,424 / 4,553,360 bytes. Measurements include test infrastructure and TLS. A goroutine snapshot before=4 versus after=7 does **not** establish a leak or absence of one; idle transport worker lifetime and stabilization were not separately tested.
+
 ## Required verification and release constraints
 
 1. Latest SHA: Go build, vet, test, race, repeated M1+M2 E2E, bounded M1+M2 fuzz; correct Prometheus format and no goroutine leaks.
