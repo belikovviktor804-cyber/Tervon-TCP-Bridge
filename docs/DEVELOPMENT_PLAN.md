@@ -428,6 +428,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — operator mandates monitoring completion inside M3 (2026-11-18)
+
+- **Operator decision:** `Продолжай. Мониторинг делай в М3, раз в М1 и М2 не смог.` Carry the previously unresolved Homeserver Bridge Stats / metrics issue into the **mandatory M3 scope**, not a future backlog. No claim that M1/M2 monitoring was fixed.
+- **Code fact:** `prototype/cmd/bridge/main.go` starts its loopback-only JSON metrics HTTP listener **only** when `metrics_listen` in the existing Homeserver client configuration is non-empty. `integrations/stats/bridge_site.py` requires `TERVON_BRIDGE_METRICS_URL` to collect that listener. Earlier operator baseline showed `metrics_listen` disabled, which can explain a dashboard `unavailable` response, but current host values have not been rechecked; treat as a **diagnostic hypothesis**, not a proven root cause.
+- **First diagnostic implementation:** `tests/homeserver/diagnose_m3_monitoring.py` checks the already-existing client and Bridge Stats units, reads only whether `metrics_listen` is valid loopback, tests only the declared private metrics endpoint and Stats API on `127.0.0.1:8894`, and emits only allowlisted status flags. No TLS keys, subscription tokens, config values, public IPs, or payloads printed; no changes to systemd or nginx. `test_diagnose_m3_monitoring.py` mocks both healthy and missing-source scenarios and checks no secret leak. Public `stats.xrayvless.online` must be verified **from an external network over its actual DNS**; local loopback is appropriate only for private telemetry chain testing, never as substitute for public site validation.
+- **M3 monitoring acceptance gate:** actual Homeserver metrics listener active and loopback-only; current Bridge Stats API returns real `homeserver.status=ok` and current counters; page renders live data, including relevant PAD/Jitter fields; external same-domain access verified without DNS override; no regression to subscriptions, existing admin site, Nginx or working Bridge. Deployment and restart require operator-run commands with backups and recovery. **Status MONITORING=IN_PROGRESS, HOST NOT VERIFIED**.
+
+
+
 #### M3 — first isolated policy batch CI PASS (2026-11-18)
 
 - **Tested commit:** `53ca0b82e43c3f9550a513c53ce12cefd2e7bacf` (source and tests; no subsequent source modifications). GitHub Actions [Go prototype checks #44260427878](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44260427878): **SUCCESS**, including Go build, unit, race and existing M1/M2 regressions. Separate artifact-build [#44260427827](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44260427827): **SUCCESS**; artifact is not deployed and does not turn on jitter.
