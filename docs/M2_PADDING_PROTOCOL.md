@@ -9,7 +9,7 @@ Status: **IMPLEMENTED IN WORK BRANCH / NOT RELEASED**. Source branch: `work/m2-a
 - Padding enabled at both ends: `Tervon-Wire-Capability: tbf1-fin,pad1`. Server reflects the exact capability only if it supports PAD. If the peer is disabled or refuses the capability, fail closed with 426 (no silent downgrade). Client requires the matching echoed capability.
 - Enable **only** together with `/v2/stream`. Legacy `/v1/stream` is unaffected and rejects `padding_enabled` in client configuration.
 - The wire header remains 10 bytes with magic TBF1, version 1 and bounded size. PAD uses frame type 3. It is never exposed to the TCP backend and is forbidden by the original `ReadFrame` API. `ReadFrameWithPadding` is an explicit opt-in reader.
-- PAD is sent only after a DATA frame, max one PAD per DATA; never before any DATA, never after FIN. Decoder rejects malformed/truncated PAD, PAD frames >4096 bytes and cumulative PAD exceeding 25% of received useful bytes. Encoder default caps cumulative PAD wire overhead (PAD payload plus the 10-byte PAD frame header) at 5% of useful bytes, with a max of 512 PAD payload bytes per DATA frame. If the remaining budget does not cover both header and payload, no PAD is emitted.
+- PAD is sent only after a DATA frame, max one PAD per DATA; never before any DATA, never after FIN. Decoder rejects malformed/truncated PAD, PAD frames >4096 bytes and cumulative PAD *wire overhead* (payload plus ten-byte header per PAD frame) exceeding 25% of received useful bytes. Encoder default caps cumulative PAD wire overhead (PAD payload plus the 10-byte PAD frame header) at 5% of useful bytes, with a max of 512 PAD payload bytes per DATA frame. If the remaining budget does not cover both header and payload, no PAD is emitted.
 - PAD contents come from Go `crypto/rand`. Neither the TCP payload nor the negotiated certificate/tunnel authentication is modified.
 - Both directions instantiate independent policy states; the client controls upload encoding and the server controls download encoding.
 
@@ -37,3 +37,7 @@ One measurement: 196608 useful bytes/direction; M1 encrypted 201365 / 201345 (up
 ## Rollback
 
 If PAD negotiation, traffic integrity, latency or service health fails, restore prior M1 binary/configuration from checksum-verified backup on the affected bridge units using an explicit controlled step. Do not change Xray/nginx, DNS, firewall or monitoring components as part of M2.
+
+## Error handling regression (M2)
+
+A PAD write failure after a valid DATA frame is fatal to that stream: the encoder reports an error, refuses further writes and does not append a false FIN. The emitted-PAD telemetry callback fires only after the entire PAD frame was successfully written. This was verified with a deterministic injected header write failure at code SHA `45e108ad0a621df92064004769d91c73921533d8`, [GitHub Actions #44218024674](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44218024674), PASS. The per-stream classifier's internal reserved-budget counter is distinct from the emitted-PAD telemetry and is not a substitute for actual bytes successfully written.
