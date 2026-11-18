@@ -172,6 +172,14 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — controlled live acceptance preparation (2026-11-18, PREPARED ONLY)
+
+- **Documentation:** `docs/M2_LIVE_ACCEPTANCE.md` added at `986bff28de1ad7a5999ad8f9fe157444e68612ae`. It specifies a **read-only** per-node baseline (running PID/executable SHA, service health, nonsecret settings, production traffic/CPU/RSS/error/RTT sources), explicit operator authorization before production changes, agreed acceptance thresholds and checksum-pinned M1 rollback requirements.
+- **Current state:** checklist created; **no host data collected**, no synthetic/laboratory services run, no production binary/config changed. The current source evidence remains CI PASS #44218917305 at `025e8c71f6f7500ce96b08305015faa3a7a3be6e`, plus docs-only commits.
+- **User constraints honored:** live production services remain untouched. A normal `continue` request is not authorization to replace a running service or to run new test units. Live confirmation remains a distinct gate from CI. M2 IN_PROGRESS / LIVE_PENDING / v1.0.1 NOT_RELEASED; M3 BLOCKED.
+
+
+
 #### M2 — in-process latency / allocation diagnostics (2026-11-18, CI PASS)
 
 - **New code/test:** `prototype/padding_latency_diagnostic_test.go`, commit `879de1bae1aead55235e95b89d78dbf091882608`. Four 48-exchange workloads (M1/M2 × 128 B/16 KiB) run through authenticated loopback HTTP/2 over TLS with an echo backend; exact payload equality and PAD behavior are asserted. Report nearest-rank p50/p95/p99, process-wide `TotalAlloc` delta and ending `HeapAlloc` as diagnostics, not service-level resource guarantees.
