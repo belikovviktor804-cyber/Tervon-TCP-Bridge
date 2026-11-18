@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — default policy sustained/idle/reactivation regression (2026-11-18, CI PASS)
+
+- **Documentation integrity:** prior `docs/DEVELOPMENT_PLAN.md` entry about `TestM2RepeatedSessionWaves` was damaged by an unsafe text replacement (unintended interpretation of `$'`), while source code and CI remained intact. Restored full plan content from the preceding verified document revision, reinserted the actual wave test evidence without string interpolation, and confirmed exactly one M2 session-wave section and one M3 heading. Repair commit: `67f86b5ef675d80f440e1e72930edee358cf7514`.
+- **New real-policy test:** `prototype/padding_default_policy_test.go` at `b0336d2e4f0fa8bc9c31f8d7204b88145cfccae8` uses **unmodified `padding.DefaultPolicy()`** with actual wall clock: MinDuration=2 seconds, MinSamples=5, MinUsefulBytes=64 KiB, MaxInterSampleGap=1 second and RatioPercent=5. Authenticated in-process HTTP/2 + echo TCP verifies initial no-PAD, sustained upload and download activation, a >1s gap followed by an interactive frame that disables PAD without new overhead, and fresh-burst reactivation instead of inheriting prior burst duration. It verifies byte-exact echo, terminal session/active state OFF and cumulative PAD TBF1 wire budget.
+- **Latest verified code SHA:** `b0336d2e4f0fa8bc9c31f8d7204b88145cfccae8`; [GitHub Actions #44233416106](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44233416106), job **SUCCESS**: build/vet/unit/race, repeated M1 and M2 tests, bounded PAD and M1 fuzz. No override of default detector thresholds in the new test.
+- **Scope/remaining:** test exercises a single synthetic in-process CI connection and ~seconds-long pauses; not proof of production route loss/RTT/CPU/RSS, multi-hour stability or absence of long-lived leaks. Production M1 binaries/config remain unchanged; no lab units. M2 CODE CI PASS / LIVE PENDING / v1.0.1 NOT_RELEASED; M3 BLOCKED.
+
+
+
 #### M2 — repeated HTTP/2 session-wave lifecycle and accounting (2026-11-18, CI PASS)
 
 - **Code:** `prototype/padding_session_churn_test.go` committed at `4395dc8cac020601edd7723d541f8b09649df7fa`. Ten sequential waves of six simultaneous connections; six bidirectional 8192-byte echo exchanges per connection, all through one reusable authenticated HTTP/2 client. After **each wave**, verify Started=Completed, SessionsActive=0 and PAD states OFF on client/server, exact application byte counters, cumulative PAD wire overhead <= configured 5%. Test uses only GitHub CI in-process fixtures.
