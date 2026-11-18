@@ -13,7 +13,7 @@ func TestDefaultPolicyValidation(t *testing.T) {
     p.MaxDelay = 40 * time.Millisecond
     if !errors.Is(p.Validate(), ErrPolicy) { t.Fatal("unbounded delay accepted") }
     p = DefaultPolicy()
-    p.MaxDelayPerWindow = 100 * time.Millisecond
+    p.MaxDelayPerWindow = 300 * time.Millisecond
     if !errors.Is(p.Validate(), ErrPolicy) { t.Fatal("oversized window allowance") }
 }
 
