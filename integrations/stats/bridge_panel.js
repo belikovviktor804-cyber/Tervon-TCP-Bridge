@@ -35,6 +35,7 @@
     NOT_IMPLEMENTED: "Не реализовано",
     OFF: "Выкл.",
     ACTIVE: "Активно",
+    ENABLED: "Включено",
     ERROR: "Ошибка",
   })[value] || "—";
   const clear = () => {
@@ -61,7 +62,12 @@
     setText("tb-tls", fmt(m.tls13_h2_mtls_requests));
     setText("tb-runtime", decimal(m.uptime_seconds) + " с / " +
       fmt(m.goroutines) + " / " + bytes(m.memory_alloc_bytes));
-    setText("tb-adaptation", state(m.padding_state) + " / " + state(m.jitter_state));
+    const paddingStatus = m.padding_configured === true &&
+      m.padding_state === "OFF" ? "Ожидает подходящий поток" :
+      state(m.padding_state);
+    const jitterStatus = m.jitter_configured === true &&
+      m.jitter_state === "OFF" ? "Ожидает поток" : state(m.jitter_state);
+    setText("tb-adaptation", paddingStatus + " / " + jitterStatus);
     setText("tb-padding-bytes", bytes(m.padding_upload_bytes) + " / " +
       bytes(m.padding_download_bytes));
     setText("tb-padding-overhead",
