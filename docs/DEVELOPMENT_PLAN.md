@@ -172,6 +172,17 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — encrypted HTTP/2 + mTLS wire accounting (2026-11-18, CI PASS)
+
+- `prototype/padding_encrypted_wire_test.go` at `c3467cc139e69a63c00271df256031d3776632f0` measures actual TCP byte counts at the listener **below TLS**, using independent M1/M2 mTLS HTTP/2 sessions and identical echo payload in both directions. The test confirms exact useful bytes and that M2 emits PAD both ways, but purposely does not assert a fixed ratio on total TLS bytes (scheduler/record segmentation vary).
+- Initial integration test CI [#44216532330](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44216532330) succeeded. Separate verbose diagnostics added by `59484421f1a682daf0bc596c200dd9edeaf0064b`; latest full CI [#44216825423](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44216825423) job **SUCCESS** (build/vet/unit/race, repeated M1/M2, bounded PAD/M1 fuzz, benchmark).
+- **Measured on GitHub Actions Go 1.23.0 runner, one sample:** useful TCP bytes per direction **196608**. M1 encrypted network bytes: client→server **201365**, server→client **201345**. M2: client→server **207793**, server→client **207841**. Difference **6428 bytes (3.27% useful)** and **6496 bytes (3.30% useful)** respectively. M2 emitted PAD wire overhead **5742 bytes in each direction**, including PAD frame headers. Differences beyond PAD wire overhead include altered TLS/HTTP2 framing and timing, not an isolated constant overhead attribution.
+- These are measurements of **local encrypted TCP bytestream only** (TLS records + HTTP/2 + TBF1). They exclude IP/TCP headers, retransmissions/packet loss, genuine cross-site RTT, congestion, real server resource contention and long-term statistics. Do NOT generalize to actual VPN network latency or throughput. No representative repeated distribution or bounds available yet.
+- **Diagnostic CPU:** detector 18.04 ns/op, 0 B/op, 0 allocs; short M1 45.40 ns/op, 32 B/op, 2 allocs; short M2 120.5 ns/op, 256 B/op, 4 allocs; sustained M2 PAD 1553 ns/16KiB, 543 B/op, 3 allocs (single hosted runner, io.Discard codec-only).
+- **Gates still OPEN:** real RTT/p95/p99 latency, CPU/heap under traffic, packet loss/retransmissions, short/interactive behavior on supported live Homeserver/Finserver, accepted thresholds, checksum-pinned backup/rollback. **No production changes or M3; v1.0.1 NOT_RELEASED.**
+
+
+
 #### M2 — serialized TBF1 overhead verification (2026-11-18, CI PASS)
 
 - New `prototype/framing/padding_wire_test.go` commit `0dfcad1ca9417602c9f5ba7654c404d03c904c41`: independently parses complete TBF1 frames to compute useful DATA bytes, DATA/PAD/FIN frame counts, total PAD payload and 10-byte headers. Cases: short interactive, sustained, sustained-to-short pulse with idle gap.
