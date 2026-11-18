@@ -9,6 +9,7 @@ SOURCE = Path(__file__).with_name("update-m3-collector.py")
 spec = importlib.util.spec_from_file_location("update_m3_collector", SOURCE)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+REAL_PREFLIGHT = module.preflight
 
 
 class CollectorUpdateTests(unittest.TestCase):
@@ -72,7 +73,7 @@ class CollectorUpdateTests(unittest.TestCase):
             self.assertEqual(module.wait_dashboard(raw, timeout=0), snap)
 
     def test_preflight_fails_closed_without_root(self):
-        real = module.preflight
+        real = REAL_PREFLIGHT
         with patch.object(module.os, "geteuid", return_value=1000):
             with self.assertRaisesRegex(RuntimeError, "root"):
                 real(SOURCE.parents[2], SOURCE.with_name("bridge_metrics.py"))
