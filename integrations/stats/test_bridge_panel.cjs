@@ -150,6 +150,38 @@ test("failed fetch shows unavailable rather than fabricated zeroes", async () =>
   assert.equal(elements.get("tb-errors").textContent, "—");
 });
 
+test("legacy OFF padding with unknown configuration does not say disabled", async () => {
+  const data = await response().json();
+  const m = data.nodes.homeserver.metrics;
+  m.padding_state = "OFF";
+  m.padding_upload_state = "OFF";
+  m.padding_download_state = "OFF";
+  delete m.padding_configured;
+  const { elements } = mount(async () => ({ ok: true, json: async () => data }));
+  await tick();
+  await tick();
+  assert.equal(elements.get("tb-adaptation").textContent,
+    "Нет активности (настройка неизвестна) / Не реализовано");
+  assert.equal(elements.get("tb-padding-direction").textContent,
+    "Нет активности / Нет активности");
+});
+
+test("explicitly disabled padding is reported as disabled", async () => {
+  const data = await response().json();
+  const m = data.nodes.homeserver.metrics;
+  m.padding_configured = false;
+  m.padding_state = "OFF";
+  m.padding_upload_state = "OFF";
+  m.padding_download_state = "OFF";
+  const { elements } = mount(async () => ({ ok: true, json: async () => data }));
+  await tick();
+  await tick();
+  assert.equal(elements.get("tb-adaptation").textContent,
+    "Выключено / Не реализовано");
+  assert.equal(elements.get("tb-padding-direction").textContent,
+    "Выключено / Выключено");
+});
+
 test("latency without samples is not presented as zero milliseconds", async () => {
   const data = await response().json();
   data.nodes.homeserver.metrics.connect_latency_samples = 0;
