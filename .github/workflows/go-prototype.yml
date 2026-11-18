@@ -8,6 +8,8 @@ on:
       - 'tests/homeserver/deploy-m1-with-m0-backup.sh'
       - 'tests/homeserver/activate-m1-framing.py'
       - 'tests/homeserver/test_activate_m1_framing.py'
+      - 'tests/homeserver/collect_m2_baseline.py'
+      - 'tests/homeserver/test_collect_m2_baseline.py'
       - '.github/workflows/go-prototype.yml'
   pull_request:
     paths:
@@ -42,6 +44,8 @@ jobs:
         run: bash -n ../integrations/stats/install-site-service.sh
       - name: Test guarded v2 activation helper (no systemd)
         run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
+      - name: Test M2 read-only production baseline collector (mocked)
+        run: python3 -m unittest discover -s ../tests/homeserver -p 'test_collect_m2_baseline.py' -v
       - name: Install FastAPI for isolated dashboard route tests
         run: python3 -m pip install 'fastapi>=0.115,<1'
       - name: Test isolated stats collector (no production services)
