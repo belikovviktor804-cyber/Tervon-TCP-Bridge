@@ -21,6 +21,12 @@ DefaultPolicy (provisional): at least 2 seconds, 5 observations, 64 KiB within o
 
 Existing application byte counters remain application bytes. PAD payload counters record only successfully emitted PAD payload bytes; separate PAD wire overhead counters include the 10-byte TBF1 header per PAD frame. TLS, HTTP/2 and DATA frame headers remain excluded. Export includes a percentage PAD-payload / useful bytes, directional ACTIVE/OFF and transition count. Encoder abort clears ACTIVE state without adding fake FIN or affecting backend bytes. All metrics remain aggregate, fixed-cardinality and loopback-only. No client identifiers or payloads.
 
+## Encrypted HTTP/2 mTLS measurement (CI, not production)
+
+An in-process authenticated HTTP/2 echo test wraps the TCP listener below TLS and independently counts encrypted bytes read and written for equal useful payloads in M1 and M2. At source SHA `59484421f1a682daf0bc596c200dd9edeaf0064b`, [CI run #44216825423](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44216825423) passed.
+
+One measurement: 196608 useful bytes/direction; M1 encrypted 201365 / 201345 (upload / download); M2 encrypted 207793 / 207841. Difference 6428 / 6496 (+3.27% / +3.30% of useful payload). PAD TBF1 wire overhead was 5742 per direction; the remaining difference includes TLS/HTTP2 record/framing variation. This measurement is local, excludes IP/TCP packet headers/retransmission and real network latency, and is not a field performance claim.
+
 ## Required verification and release constraints
 
 1. Latest SHA: Go build, vet, test, race, repeated M1+M2 E2E, bounded M1+M2 fuzz; correct Prometheus format and no goroutine leaks.
