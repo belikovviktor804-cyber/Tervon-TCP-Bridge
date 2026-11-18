@@ -428,6 +428,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — real M2 PAD counters observed all zero on Homeserver (2026-11-18)
+
+- Operator read **actual private Bridge JSON metrics** from `http://127.0.0.1:8895/metrics/v1`: `padding_state=OFF`, upload/download states `OFF`, upload/download PAD bytes `0`, frames `0`, transitions `0`, overhead percentages `0`. **Observed fact:** no locally accounted PAD activity since the current process started; this is not proof of a broken implementation or of a disabled configuration. Preflight had `padding_enabled=true` and M2 binary SHA verified.
+- **Source-code explanation:** M2 `padding.DefaultPolicy()` activates only after **at least 2 seconds** of qualifying activity, **at least five** DATA frames each **>=512 bytes**, **at least 64KiB** of useful qualifying bytes in that streak, and gaps **<=1 second**. A small DATA frame <512 bytes or a >1-second gap resets streak; early frames are never padded. M2 client metrics measure PAD frames emitted by the **Homeserver upload encoder**, while downloads received at Homeserver are decoded; download PAD emission/telemetry is performed by the Finserver server-side encoder. Thus predominantly downstream traffic can keep all Homeserver PAD emission counters at zero.
+- **Next required check:** generate an operator-controlled, naturally sustained **uplink** through the existing Bridge and compare private PAD upload bytes/frames/transitions before/after, while separately checking ordinary client connectivity. No forced synthetic traffic or production tuning without authorization. Improve M3 dashboard to distinguish configured/enabled vs active vs never-qualified/observed (do not display `Выкл.` as if user had disabled PAD). Verify Finserver-downlink telemetry independently only when deliberately enabled safely; do not infer server PAD from Homeserver zeros.
+- **Status:** `M2_PAD_CONFIG_ENABLED / PAD_ACTIVITY_NOT_OBSERVED / ROOT_CAUSE_UNPROVEN`; M3 monitoring task remains open pending controlled reproduction and accurate UI status.
+
+
+
 #### M3 — dashboard visual confirmation and remaining PAD-observability gap (2026-11-18)
 
 - Operator supplied a screenshot of `Tervon TCP Bridge` monitoring: `Bridge готов`, 15 active sessions, 66 started / 51 completed / 0 rejected, 1.1 MiB upload / 14.5 MiB download, 0 aggregate errors, about 421 seconds uptime. This confirms a rendered dashboard with live-looking Homeserver metrics but **does not establish the observing device was in an external network or certify the HTTPS route**.
