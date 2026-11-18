@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3 Stats browser screenshot: M2 PAD emitted and displayed (operator evidence)
+
+- На публичной странице Tervon TCP Bridge оператор предоставил снимок с временем обновления **18.11.2026 20:45:17**. Панель выводит `Bridge готов`, активных сессий **15**, started/completed/rejected **1572/1557/0**, полезный трафик upload/download **25.9 / 981.7 MiB**, uptime **17328.4 s**, goroutines **52**, память **12.3 MiB**, ошибки суммарно **0**.
+- На панели M3 UI с установленным M2 telemetry: PAD upload **18.3 KiB**, PAD download **0 B**; upload/download PAD frames **41/0**, transitions **12/0**; PAD wire overhead **0.07% / 0.00%**. Это подтверждает **фактическую ранее зарегистрированную отправку PAD кадров Homeserver upload** и работоспособность новой локально установленной пары Stats UI + collector. Состояние обеих PAD-направлений на момент снимка: **«Нет активности»**; это моментальное состояние, а не отсутствие PAD ранее.
+- На той же странице `padding_state=OFF` при отсутствии доступного `padding_configured` корректно отражено как **«Нет активности (настройка неизвестна)»**. Оператор отдельно ранее подтверждал `padding_enabled=true` в конфигурации. Jitter отображён как «Не реализовано» в работающем M2; на M3 binary `jit1` это не распространяется.
+- Нули и прочерки на отдельных cards: backend/TLS «На стороне Decapsulator», latency «Нет измерений», Jitter `— / —` — не доказывают неисправность TCP или отсутствие HTTPS. Отсутствуют проверка нового порога `rate1` ≥1 Мбит/с в двух окнах, измерения Jitter на реальном потоке, bilateral M3 deployment, внешний независимый DNS/TLS тест и подтверждение пользовательской производительности.
+- **Evidence:** операторский скриншот в переписке, а не секреты/сырые endpoint-потоки. Снимок не публикуется в репозиторий. **Status: M3_STATS_BROWSER_RENDER=OBSERVED, M2_PAD_EMISSION=OBSERVED, M3_DATA_PLANE=NOT_DEPLOYED, M3=IN_PROGRESS.**
+
+
 ## 2026-11-18 — M3 bridge metrics UI + collector installed on Homeserver: LOCAL PASS (operator evidence)
 
 - Оператор выполнил `git fetch origin work/m3-adaptive-jitter`, fast-forward **`a315139..5015a3b`** и последовательно `python3 integrations/stats/update-m3-ui.py`, `python3 integrations/stats/update-m3-collector.py`. Текущая среда — действующий Homeserver, **не** CI.
