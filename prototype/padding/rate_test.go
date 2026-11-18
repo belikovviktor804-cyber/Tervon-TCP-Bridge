@@ -99,3 +99,24 @@ func TestRateRejectBadPolicy(t *testing.T){
     p.ExitRateBitsPerSecond=p.MinRateBitsPerSecond
     if _,err:=NewRateState(p);err!=ErrRatePolicy {t.Fatalf("invalid hysteresis allowed %v",err)}
 }
+
+func TestRateOneMbpsChunkedVideoIsIndependentOfWriteCount(t *testing.T) {
+    // Video can arrive in one 125 KiB-ish chunk per second instead of
+    // dozens of TCP writes. The new rate policy must not count frames.
+    p:=DefaultRatePolicy()
+    rateState,err:=NewRateState(p)
+    if err!=nil{t.Fatal(err)}
+    start:=time.Unix(15000,0)
+    for i:=0;i<3;i++{
+        n:=rateState.Observe(start.Add(time.Duration(i)*time.Second),125000)
+        if i<2 && (n!=0 || rateState.Active()){
+            t.Fatalf("chunked video activated too early at %d",i)
+        }
+    }
+    if !rateState.Active() || rateState.PaddingBytes()==0 {
+        t.Fatal("two sustained 1Mbps windows never qualified chunked video")
+    }
+    if rateState.PaddingWireBytes()>fractionOf(rateState.UsefulBytes(),p.RatioPercent,100) {
+        t.Fatal("chunked video exceeded 5% PAD budget")
+    }
+}
