@@ -172,6 +172,15 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — both production endpoints PAD configuration enabled (2026-11-18; connectivity unverified)
+
+- **Homeserver:** operator reports direct `tervon-bridge-client.service` activation `M2_PADDING=ENABLED`, `ACTIVATION_COMMAND_EXIT_CODE=0`, `mode=client`, existing TBF1 HTTPS `/v2/stream`, `padding_enabled` previously false, restarted PID `2276833`, running SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`, configuration backup `/opt/tervon-tcp-bridge/backups/m2pad-client-XpjLETZN`. Prior binary M1 backup `/opt/tervon-tcp-bridge/backups/m0-aV1CqZ3C` retained.
+- **Finserver:** prior operator report `M2_PADDING=ENABLED`, `ACTIVATION_COMMAND_EXIT_CODE=0`, new PID `46322`, same running SHA-256, configuration backup `/opt/tervon-tcp-bridge/backups/m2pad-server-bHxygPhh`. Prior M1 binary backup `/opt/tervon-tcp-bridge/backups/m0-cSx4CMGr` retained.
+- **Confirmed:** M2 binary installed and both configs opt in to PAD at startup. These observations come from operator-provided commands and outputs; no direct host connection from ChatGPT. **Not yet confirmed:** live successful client→server `tbf1-fin,pad1` negotiation, normal Internet traffic through the bridge after client activation, production performance. A clean process restart proves startup, not throughput or application-layer connectivity.
+- **Status:** `M2 DEPLOYED / PADDING CONFIG ENABLED / CONNECTIVITY PENDING / LIVE PERFORMANCE PENDING / NOT_RELEASED`. Do not mark complete or start M3 until an operator-reported normal connection PASS is recorded and acceptance conditions are explicitly resolved. No lab/test service was started.
+
+
+
 #### M2 — Finserver PAD enabled by operator (2026-11-18; client pending)
 
 - Operator executed direct server JSON activation for existing `tervon-bridge-server.service` on Finserver. Reported `CONFIG_MODE=server`, prior `padding_enabled=False`, `M2_PADDING=ENABLED`, new PID `46322`, running SHA-256 `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c` and `ACTIVATION_COMMAND_EXIT_CODE=0`. Private configuration backup `/opt/tervon-tcp-bridge/backups/m2pad-server-bHxygPhh` retained.
