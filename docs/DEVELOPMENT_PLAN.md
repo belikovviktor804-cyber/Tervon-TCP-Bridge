@@ -172,6 +172,13 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### Operator request — existing nginx HTTPS redirect and M3 progression (2026-11-18; NOT EXECUTED)
+
+- Operator requests that an ordinary browser visit to `https://vp.xrayvless.online/` receive an HTTP 302 redirect to `https://ya.ru/`, while existing subscription route on port 2096 and existing Tervon Bridge traffic remain unchanged. Port 443 is already occupied; do not introduce another listener or modify unrelated virtual hosts. Before any change, inspect exact Nginx server block/listeners on Homeserver, back up only the affected configuration, validate `nginx -t`, reload existing Nginx and verify redirect and subscriptions separately. **No actual Nginx host inspection or change has been performed by the assistant.**
+- Operator additionally requests continuation to `M3 Adaptive Jitter`. Per confirmed sequential-development gate, `M2` is still open due to reported broken monitoring and missing telemetry confirmation; the operator's request is recorded but M3 work does **not** start until the M2 closure criteria and outstanding monitoring regression are resolved. No release claim.
+
+
+
 #### M2 — operator confirms connectivity PASS; monitoring regression reported (2026-11-18)
 
 - After both existing Homeserver and Finserver M2 binaries were installed and `padding_enabled=true` activated, operator explicitly confirmed **`Всё работает`** (normal existing service connectivity). Record **M2 live connectivity PASS (operator qualitative report)**, NOT a quantified throughput/latency/jitter/long-running acceptance PASS. Do not conflate process health and actual PAD frame counter activity; the latter has not been observed yet.
