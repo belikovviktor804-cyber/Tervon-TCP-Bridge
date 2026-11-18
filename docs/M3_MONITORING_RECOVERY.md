@@ -1,5 +1,32 @@
 # M3 — восстановление мониторинга Tervon TCP Bridge
 
+## M3 collector-only recovery gate (2026-11-18, code pending CI)
+
+**Факт:** публичный Stats уже подключён к M2; запрет повторной активации `metrics_listen` остаётся. Опциональные поля PAD/Jitter доступны в новом исходном `integrations/stats/bridge_metrics.py`, но старая запущенная Python-служба их не импортировала.
+
+Подготовлен отдельный `integrations/stats/update-m3-collector.py` со следующими ограничениями:
+- Только работающий Homeserver Stats, `work/m3-adaptive-jitter`, чистый SSH checkout; исходный приватный `/metrics/v1` остаётся loopback.
+- Перед любыми изменениями проверяются действующий `/bridge/api/status` и `/metrics/v1` с `ready=true`; backup существующего `bridge_metrics.py` root-only.
+- Атомарная замена **только** `/opt/tervon/bridge-stats/bridge_metrics.py`, затем restart **только** `tervon-bridge-stats.service`; ограниченное ожидание dashboard ready и проверка, что поддерживаемые приватные PAD-счётчики не потерялись в публичном allowlist. При ошибке восстановить файл, перезапустить ту же Stats-службу и проверить readiness. Активный `tervon-bridge-client.service`, Finserver, Xray, Guard, nginx, DNS и stats env не изменять.
+- Исключение: текущий локальный JSON M2 может не содержать ещё не выпущенные M3 Jitter-поля. Не выдавать их отсутствие за ошибку или нулевую активность.
+
+**Два операторских последовательных шага после полного CI PASS на точном SHA:**
+
+```bash
+REPO=/opt/tervon/bridge-m0-check/build/repo
+# Сначала read-only git и чистота checkout; ветка должна быть work/m3-adaptive-jitter.
+git -C "$REPO" remote get-url origin
+git -C "$REPO" branch --show-current
+git -C "$REPO" status --short
+# Если checkout не M3: использовать отдельный уже проверенный SSH checkout M3.
+sudo python3 "$REPO/integrations/stats/update-m3-ui.py"
+# Отдельная согласованная операция с перезапуском только Stats:
+sudo python3 "$REPO/integrations/stats/update-m3-collector.py"
+```
+
+**Не выполнять эти команды из `work/m1-framing`:** оба установщика намеренно откажутся. Не делать checkout/merge поверх действующего дерева без проверки. Полный PASS мониторинга требует независимого внешнего реального DNS/TLS запроса к `https://stats.xrayvless.online/bridge/` и подтверждения панели. Полный PASS M3 дополнительно требует двухузловых испытаний `rate1`/`jit1`, реального ≥1 Мбит/с в течение двух окон, оценки overhead/RTT/fairness и отката. `v1.0.1` не выпускается раньше M5.
+
+
 > **Состояние на 2026-11-18 (приоритет над историей ниже):** оператор восстановил существующие метрики M2 — `MONITORING_LOCAL=PASS`, публичный интерфейс показывает реальные сессии и полезный трафик. `bridge-stats.env` и `client.json` существуют; повторный `activate-m2-metrics.py` не запускать, службы Bridge/Stats не перезапускать без отдельной операции. Описанный ниже этап восстановления источника — исторический, **уже не текущая задача**. Текущая задача: расширенная визуализация и M3-метрики.
 >
 > **Два независимых ограничения:** (1) `update-m3-ui.py` на ветке `work/m3-adaptive-jitter` способен обновить `bridge_panel.html` и `bridge_panel.js` без перезапуска действующих служб, с backup и проверкой локального HTML/JS. Это **только UI**. (2) Активный Python Stats-процесс импортировал старую `bridge_metrics.py` при запуске: даже после UI hot-update новые PAD/Jitter поля могут отсутствовать в dashboard API, пока обновлённый adapter не установлен и не загружен Stats-службой. **Не выдавать UI hot-update за полный `MONITORING_PASS`.** Для замены Python-адаптера требуется отдельный согласованный, проверенный на откат шаг, который допускает перезапуск **только** `tervon-bridge-stats.service`, не Encapsulator, Finserver, nginx, Guard или Xray. До него все недоступные поля должны отображаться как «—», не как нули. Новая M3 телеметрия из бинарника `rate1/jit1` появится только после отдельного согласованного перехода транспорта на M3.
