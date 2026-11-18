@@ -9,6 +9,7 @@ import (
     "net"
     "net/http/httptest"
     "testing"
+    "sync"
     "time"
 
     "tervon-tcp-bridge/jitter"
@@ -168,5 +169,62 @@ func TestM3JitterCapabilityRejectsUnsupportedServer(t *testing.T) {
             t.Fatalf("jitter capability not rejected: %v",err)
         }
     case <-time.After(5*time.Second):t.Fatal("jitter capability mismatch hung")
+    }
+}
+
+func TestM3ParallelVideoAndInteractiveStreams(t *testing.T) {
+    addr,stop:=echo(t)
+    defer stop()
+    cl,sm,cleanup:=m3Pair(t,addr,true,true)
+    defer cleanup()
+    const streams=4
+    var workers sync.WaitGroup
+    failures:=make(chan error,streams)
+    for index:=0;index<streams;index++{
+        workers.Add(1)
+        go func(index int){
+            defer workers.Done()
+            local,peer:=net.Pipe()
+            defer peer.Close()
+            completed:=make(chan error,1)
+            go func(){completed<-cl.Handle(local)}()
+            _=peer.SetDeadline(time.Now().Add(10*time.Second))
+            size:=4096
+            if index==streams-1 {size=128}
+            data:=bytes.Repeat([]byte{0,255,1,42},size/4)
+            for i:=0;i<60;i++ {
+                if _,err:=peer.Write(data);err!=nil {failures<-err;return}
+                read:=make([]byte,len(data))
+                if _,err:=io.ReadFull(peer,read);err!=nil{failures<-err;return}
+                if !bytes.Equal(read,data){failures<-errors.New("concurrent stream payload mismatch");return}
+                time.Sleep(20*time.Millisecond)
+            }
+            _=peer.Close()
+            select{
+            case err:=<-completed:
+                if err!=nil && !errors.Is(err,io.EOF){failures<-err;return}
+            case <-time.After(5*time.Second):
+                failures<-errors.New("concurrent HTTP2 stream starvation")
+                return
+            }
+        }(index)
+    }
+    workers.Wait()
+    close(failures)
+    for err:=range failures {t.Fatal(err)}
+    clientSnap:=cl.Metrics.Snapshot()
+    serverSnap:=sm.Snapshot()
+    if clientSnap.SessionsActive!=0 || serverSnap.SessionsActive!=0 ||
+        clientSnap.SessionsStarted!=streams || clientSnap.SessionsCompleted!=streams {
+        t.Fatalf("session leak or accounting mismatch client=%+v server=%+v",clientSnap,serverSnap)
+    }
+    if clientSnap.PaddingUploadFrames==0 || clientSnap.PaddingDownloadFrames==0 ||
+        clientSnap.JitterUploadFrames==0 {
+        t.Fatalf("concurrent rate/jitter not exercised PAD-upload=%d PAD-download=%d jitter=%d",
+            clientSnap.PaddingUploadFrames,clientSnap.PaddingDownloadFrames,
+            clientSnap.JitterUploadFrames)
+    }
+    if clientSnap.PaddingUploadWireOverheadBytes>clientSnap.UploadBytes*5/100 {
+        t.Fatal("concurrent upload PAD overhead >5%")
     }
 }
