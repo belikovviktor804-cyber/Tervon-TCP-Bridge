@@ -172,6 +172,16 @@
 
 ### M2 — Адаптивный Padding [ТЕКУЩИЙ: CODE CI PASS, LIVE/RELEASE NOT VERIFIED]
 
+#### M2 — concurrent multiplexed PAD stream regression (2026-11-18, CI PASS)
+
+- **Implementation:** `prototype/padding_concurrency_test.go` at commit `ddbd28549be52a93457f2b0028175eff9a4f1d48`. Uses the existing in-process authenticated HTTP/2 test helper with 12 concurrently active independent TCP sessions, 12 bidirectional 8192-byte echo exchanges per session, independent data patterns, aggregate telemetry and explicit session end. No Homeserver/Finserver service or lab unit used.
+- **CI reinforcement:** `.github/workflows/go-prototype.yml` at `a22f3a71a1c0af8739b3ae09333e0d021c7a0734` runs 3x race-instrumented verbose concurrency regression in addition to full build/vet/unit/race, repeated M1+M2, bounded fuzz, latency and encrypted-byte diagnostics.
+- **Verified CI:** [GitHub Actions run #44221520831](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44221520831), **SUCCESS** on code SHA `a22f3a71a1c0af8739b3ae09333e0d021c7a0734`. Repeated 3x concurrency results: useful bytes each direction **1,179,648**; actual PAD wire overhead each direction **58,980 bytes** (just under 5%), byte-exact echo, all client/server sessions active=0 and Padding ACTIVE states cleared. No data corruption or race failure observed.
+- **Diagnostic memory logs (three samples):** process-wide TotalAlloc deltas **10,099,504 / 9,761,000 / 10,282,048 bytes** and ending HeapAlloc **3,798,592 / 3,461,424 / 4,553,360 bytes**. Goroutine snapshot before=4 and after=7 (includes HTTP/2 transports/test process): **NOT** evidence of a goroutine leak or of no leak, because it is not a post-idle stabilized count. Not a per-session memory figure.
+- **Scope:** CI localhost mTLS HTTP/2 multiplexing only. No proof of real route RTT/loss/retransmissions or sustained 24/7 behavior. No production service modified. M2 remains **CODE_PASS / LIVE_PENDING**. Do not transition to M3 or release v1.0.1 until controlled live gate and rollback PASS.
+
+
+
 #### M2 — controlled live acceptance preparation (2026-11-18, PREPARED ONLY)
 
 - **Documentation:** `docs/M2_LIVE_ACCEPTANCE.md` added at `986bff28de1ad7a5999ad8f9fe157444e68612ae`. It specifies a **read-only** per-node baseline (running PID/executable SHA, service health, nonsecret settings, production traffic/CPU/RSS/error/RTT sources), explicit operator authorization before production changes, agreed acceptance thresholds and checksum-pinned M1 rollback requirements.
