@@ -427,6 +427,15 @@
 **Готово, когда:** нулевая порча данных, измерены overhead и ресурсы, отсутствует деградация на коротких потоках сверх утверждённых пределов.
 
 ### M3 — Адаптивный Jitter
+
+#### M3 — implementation started on operator instruction (2026-11-18; NOT PASS)
+
+- **Branch:** `work/m3-adaptive-jitter`, branched from `work/m2-adaptive-padding`. Operator explicitly instructed: `Всё. Работаем над M3. М2 установлен и работает. Паддинг включен.` This is acceptance of **deployed M2 Padding and normal traffic**; it does not create measurement results that were not taken.
+- **Unresolved M2 exception:** Bridge monitoring previously reported broken and no PAD wire metric observation was supplied. Record `MONITORING_OPEN / DEFERRED_BY_OPERATOR_TRANSITION`, not `MONITORING_PASS`. The strict original sequential completion gate therefore has an explicit outstanding exception; do not misrepresent M2 as fully verified. This exception must be resolved before final v1.0.1 release.
+- **First M3 code package:** `prototype/jitter/policy.go` and `policy_test.go`. Opt-in independent per-direction burst classifier, no delay for small/interactive data or congestion, per-frame bound 4ms, per-second aggregate budget 20ms, cryptographic random duration selection, cancellation-aware wait, no timers when bypassed, no modification of user payloads. All values provisional pending validation; no active Bridge integration, config key, protocol change or server deployment in this package.
+- **Completion gate unchanged:** full M3 implementation, repeatable CI/race PASS, no starvation or goroutine leaks, bounded RTT and backlog behavior, controlled operator-approved deployment, documentation and confirmed live outcome. M3 currently `IN_PROGRESS / TESTS PENDING / NOT DEPLOYED`.
+
+
 **Пакет:** ограниченное управление отправкой, отмена задержек при интерактивности/перегрузке, fairness между потоками, метрики, тесты RTT/потерь/очередей.
 **Готово, когда:** доказаны границы задержки, нет starvation и зависших горутин/соединений.
 
