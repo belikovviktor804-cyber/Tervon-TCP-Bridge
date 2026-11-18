@@ -167,9 +167,16 @@ type Decoder struct {
     useful uint64
     padded uint64
     lastWasData bool
+    onPadding func(uint64)
 }
 func NewDecoder(r io.Reader)*Decoder{return &Decoder{r:r}}
 func NewPaddingDecoder(r io.Reader)*Decoder{return &Decoder{r:r,allowPadding:true}}
+// SetPaddingObserver receives the size of validated and discarded PAD payload
+// frames. Never expose raw payloads, peer identifiers or destination addresses.
+func (d *Decoder) SetPaddingObserver(onPadding func(uint64)) {
+    d.onPadding = onPadding
+}
+
 func (d *Decoder) Read(p []byte)(int,error){
     if len(p)==0{return 0,nil}
     if len(d.pending)>0{
@@ -200,6 +207,7 @@ func (d *Decoder) Read(p []byte)(int,error){
             // overhead; the default encoder imposes a stricter 5% budget.
             if d.padded>d.useful/4{return 0,ErrMalformed}
             d.lastWasData=false
+            if d.onPadding != nil { d.onPadding(uint64(len(f.Payload))) }
             continue
         case TypeFIN:
             var extra [1]byte
