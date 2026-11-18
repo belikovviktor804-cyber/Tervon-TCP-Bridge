@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3 monitoring UI package: verified previous SHA and legacy-state follow-up
+
+- **GitHub Actions PASS:** [Go prototype checks #44306152672](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306152672), exact tested SHA `669fa32e65fee712d70891ba38507c10772b444d`, completed SUCCESS. Python stats tests (including `test_update_m3_ui.py` success/forced rollback), Node.js UI tests, Go build/vet/unit/race, M1/M2/M3 regression suites and bounded fuzz passed. M3 Linux candidate [#44306153058](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306153058) completed SUCCESS (artifact only).
+- **Follow-up UI correction:** `34bb3e2` changes unknown `padding_configured` + `padding_state=OFF` from misleading «Выкл.» to «Нет активности (настройка неизвестна)»; `padding_configured=false` explicitly shows «Выключено». Directional PAD states distinguish these cases too. `0038e082` adds both regression test cases. **New full CI pending on latest SHA**; do not infer PASS from the earlier run.
+- **Deployment:** none. Homeserver continues running operator-installed M2, local Stats metrics currently linked; no systemd restart, nginx reload, binary replacement or Finserver change. UI-only guarded installer is ready in GitHub but must be invoked separately after latest CI PASS; it verifies local HTML/JS, keeps backup and rollback. External public HTTPS and real M3 rate1/jit1 verification remain OPEN.
+
+
 ## 2026-11-18 — M3: безопасная установка только UI (CODE WRITTEN, CI PENDING)
 
 - Новый `integrations/stats/update-m3-ui.py` (`93dfa95b`) обновляет **только** `bridge_panel.html` и `bridge_panel.js` существующей Stats-службы; предварительно проверяет root, чистый SSH checkout M3, существующие regular-файлы, активную Stats-службу. Поскольку `bridge_site.py` перечитывает HTML/JS при каждом запросе, перезапуск не требуется.
