@@ -15,7 +15,6 @@ type RatePolicy struct {
     ExitRateBitsPerSecond uint64
     Window time.Duration
     MaxInterSampleGap time.Duration
-    MinSamples uint64
     RatioPercent uint64
     MaxPaddingPerFrame uint64
 }
@@ -28,7 +27,6 @@ func DefaultRatePolicy() RatePolicy {
         ExitRateBitsPerSecond: 700_000,
         Window: time.Second,
         MaxInterSampleGap: time.Second,
-        MinSamples: 5,
         RatioPercent: 5,
         MaxPaddingPerFrame: 512,
     }
@@ -39,7 +37,7 @@ func (p RatePolicy) Validate() error {
         p.ExitRateBitsPerSecond >= p.MinRateBitsPerSecond ||
         p.Window < 100*time.Millisecond || p.Window > 10*time.Second ||
         p.MaxInterSampleGap <= 0 || p.MaxInterSampleGap > p.Window ||
-        p.MinSamples < 2 || p.RatioPercent == 0 || p.RatioPercent > 25 ||
+        p.RatioPercent == 0 || p.RatioPercent > 25 ||
         p.MaxPaddingPerFrame == 0 || p.MaxPaddingPerFrame > 4096 {
         return ErrRatePolicy
     }
@@ -55,7 +53,6 @@ type RateState struct {
     last time.Time
     windowStart time.Time
     windowBytes uint64
-    windowSamples uint64
     consecutive uint8
     active bool
     useful uint64
@@ -77,7 +74,6 @@ func (s *RateState) resetClassification() {
     s.active = false
     s.windowStart = time.Time{}
     s.windowBytes = 0
-    s.windowSamples = 0
     s.consecutive = 0
 }
 
@@ -118,7 +114,7 @@ func (s *RateState) Observe(at time.Time, bytes uint64) uint64 {
             keepBytes := thresholdBytes(s.p.ExitRateBitsPerSecond, s.p.Window)
             if s.active {
                 if s.windowBytes < keepBytes { s.active = false; s.consecutive = 0 }
-            } else if s.windowBytes >= startBytes && s.windowSamples >= s.p.MinSamples {
+            } else if s.windowBytes >= startBytes {
                 if s.consecutive < 2 { s.consecutive++ }
             } else {
                 s.consecutive = 0
@@ -127,10 +123,8 @@ func (s *RateState) Observe(at time.Time, bytes uint64) uint64 {
             s.windowStart = at
         }
         s.windowBytes = 0
-        s.windowSamples = 0
-    }
+        }
     s.windowBytes = saturatingAdd(s.windowBytes, bytes)
-    if s.windowSamples < math.MaxUint64 { s.windowSamples++ }
 
     if !s.active { return 0 }
     budget := fractionOf(s.useful, s.p.RatioPercent, 100)
