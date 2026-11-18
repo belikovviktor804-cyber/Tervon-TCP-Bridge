@@ -438,6 +438,12 @@
 
 
 
+#### M3 — Homeserver read-only monitoring chain diagnosis (2026-11-18; root cause identified)
+
+- Operator executed `tests/homeserver/diagnose_m3_monitoring.py` on existing Homeserver from the SSH checkout `/opt/tervon-tcp-bridge/m3/source`. Reported `bridge_service=ACTIVE`, `stats_service=ACTIVE`, `bridge_metrics_config=DISABLED_OR_INVALID`, `bridge_metrics_local=NOT_CHECKED`, `stats_api_local=PASS`, `stats_bridge_node=UNAVAILABLE`, `stats_source_env=NOT_CONFIGURED`, `public_site_external=NOT_TESTED`.
+- **Finding:** the current client config does not contain a usable private metrics listener and the Stats service has no configured metrics source. Both sides of the telemetry linkage require installation. Existing Stats local HTTP endpoint is responsive but explicitly reports `unavailable`, as expected with no source. These are actual operator observations, not simulation; no service has been changed at this checkpoint.
+- **Authorized limited recovery within M3:** after confirming a free loopback port, back up `/etc/tervon-tcp-bridge/client.json` and current Stats env state (including absence), set `metrics_listen` only on the Homeserver Bridge, set `TERVON_BRIDGE_METRICS_URL` in the Stats environment to the same loopback endpoint, restart only those two Bridge units in sequence and rollback both configs on startup or metrics/API failure. Verify active running M2 binary by SHA, keep PAD enabled, do not alter Nginx, subscriptions, Finserver or other services. Actual host fix **PENDING**. Public site check must be external.
+
 #### M3 — operator mandates monitoring completion inside M3 (2026-11-18)
 
 - **Operator decision:** `Продолжай. Мониторинг делай в М3, раз в М1 и М2 не смог.` Carry the previously unresolved Homeserver Bridge Stats / metrics issue into the **mandatory M3 scope**, not a future backlog. No claim that M1/M2 monitoring was fixed.
