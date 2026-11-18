@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-18 — M3: безопасная установка только UI (CODE WRITTEN, CI PENDING)
+
+- Новый `integrations/stats/update-m3-ui.py` (`93dfa95b`) обновляет **только** `bridge_panel.html` и `bridge_panel.js` существующей Stats-службы; предварительно проверяет root, чистый SSH checkout M3, существующие regular-файлы, активную Stats-службу. Поскольку `bridge_site.py` перечитывает HTML/JS при каждом запросе, перезапуск не требуется.
+- Перед заменой создаёт закрытую резервную копию обоих оригиналов в `/opt/tervon/bridge-stats/.ui-backups`; применяет через temp-файл и os.replace; проверяет точный ответ localhost HTML/JS, затем активность stats; при исключении восстанавливает предыдущие байты и печатает статус отката.
+- `test_update_m3_ui.py` (`b3e2e9b`) проверяет успешное обновление и backup, принудительную ошибку проверки с восстановлением обоих файлов, атомарную запись и отказ при отсутствии root/неверном SSH remote без обращения к systemd. Никаких команд на Homeserver не выполнялось; внешний HTTPS и M3 transport live PASS не заявлены.
+- **Gate:** полный CI текущего SHA; только затем операторский контролируемый UI-only update и внешний просмотр сайта. Сохранять работающий M2, Stats, nginx и Finserver.
+
+
 ## 2026-11-18 — M3: конкретное исправление неполной панели метрик (CODE WRITTEN, CI PENDING)
 
 - **Оператор:** M2 установлен, Padding включён и ранее наблюдался ACTIVE. На публичном Homeserver dashboard реальны данные сессий/трафика, но часть полей не отражает фактический режим. Повторный `activate-m2-metrics.py` не требуется: `client.json`, `bridge-stats.env`, `client.json.before-metrics` существуют; сценарий остановился на read-only preflight из-за уже существующего env. Production не менять.
