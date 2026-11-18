@@ -68,16 +68,21 @@
     setText("tb-tls", "На стороне Decapsulator");
     setText("tb-runtime", decimal(m.uptime_seconds) + " с / " +
       fmt(m.goroutines) + " / " + bytes(m.memory_alloc_bytes));
-    const paddingStatus = m.padding_configured === true &&
-      m.padding_state === "OFF" ? "Ожидает подходящий поток" :
-      state(m.padding_state);
+    // OFF is an activity state; legacy binaries may not report configuration.
+    const inactivePadding = (value) => value !== "OFF" ? state(value) :
+      m.padding_configured === true ? "Ожидает подходящий поток" :
+      m.padding_configured === false ? "Выключено" :
+      "Нет активности (настройка неизвестна)";
+    const paddingStatus = inactivePadding(m.padding_state);
     const jitterStatus = m.jitter_configured === true &&
       m.jitter_state === "OFF" ? "Ожидает поток" : state(m.jitter_state);
     setText("tb-adaptation", paddingStatus + " / " + jitterStatus);
     setText("tb-padding-bytes", bytes(m.padding_upload_bytes) + " / " +
       bytes(m.padding_download_bytes));
-    const sideState = (v) => m.padding_configured === true && v === "OFF" ?
-      "Ожидание" : state(v);
+    const sideState = (v) => v === "OFF" ?
+      (m.padding_configured === true ? "Ожидание" :
+        m.padding_configured === false ? "Выключено" : "Нет активности") :
+      state(v);
     setText("tb-padding-direction", sideState(m.padding_upload_state) +
       " / " + sideState(m.padding_download_state));
     setText("tb-padding-activity",
