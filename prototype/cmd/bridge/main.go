@@ -160,6 +160,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	metrics := telemetry.New()
     metrics.SetPaddingConfigured(c.PaddingEnabled)
+    metrics.SetPaddingRateConfigured(c.PaddingRateEnabled)
+    metrics.SetJitterConfigured(c.JitterEnabled)
 	metrics.BuildVersion = buildVersion
 	metrics.BuildCommit = buildCommit
 	if c.Mode == "server" {
