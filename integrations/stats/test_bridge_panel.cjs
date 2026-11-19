@@ -195,8 +195,8 @@ test("latency without samples is not presented as zero milliseconds", async () =
 });
 
 test("never uses HTML injection sinks or remote metrics endpoints", () => {
-  assert.doesNotMatch(source, /\\.innerHTML\\s*=|insertAdjacentHTML|eval\\s*\\(/);
-  assert.doesNotMatch(source, /https?:\\/\\//i);
+  for (const unsafe of ["innerHTML =", "insertAdjacentHTML", "eval("]) assert.ok(!source.includes(unsafe));
+  assert.ok(!source.includes("http://") && !source.includes("https://"));
 });
 
 test("Finserver renders independent delayed PAD and Jitter counters", async () => {
