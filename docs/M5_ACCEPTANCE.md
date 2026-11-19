@@ -35,6 +35,6 @@
 
 ## Текущая операция M5.1
 
-**Создан baseline:** [`M5_BASELINE.md`](M5_BASELINE.md) с инвентаризацией M4/M3/исторического v1.0.0 SHA, методикой сравнений и release-blocking критериями. **M5.1 пока НЕ PASS:** фактический GitHub Release v1.0.0 asset/tag/checksum не сверен с сохранённым бинарником, сопоставимого benchmark ещё нет, пороги регрессий RTT/CPU/RSS/throughput ещё не утверждены. Продолжаем только M5.1; без вмешательства в службы.
+**Создан baseline:** [`M5_BASELINE.md`](M5_BASELINE.md) с инвентаризацией M4/M3/исторического v1.0.0 SHA, методикой сравнений и release-blocking критериями. **M5.1 RELEASE_ASSET_IDENTITY = OPERATOR PASS:** фактический GitHub Release v1.0.0 binary asset проверен на Homeserver по размеру и SHA256, оба совпали с историческим бинарником. **M5.1 в целом пока НЕ PASS:** воспроизводимого сравнительного benchmark ещё нет, численные пороги RTT/CPU/RSS/throughput и CI доказательства требуют отдельной проверки. Продолжаем только M5.1; без вмешательства в службы.
 
-**Тестирование M5.1 начато:** `tests/m5/verify_release_baseline.py`, его offline regression cases и отдельный workflow; фактическое выполнение CI и checksum release asset ещё не подтверждены. Имеющиеся проверки M4 не повторять.
+**Тестирование M5.1 начато:** `tests/m5/verify_release_baseline.py`, его offline regression cases и отдельный workflow; фактическое выполнение offline CI ещё не подтверждено; checksum release asset **PASS по операторскому выводу 2026-11-19**. Имеющиеся проверки M4 не повторять.
