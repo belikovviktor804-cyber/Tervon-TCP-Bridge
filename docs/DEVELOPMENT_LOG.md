@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 on-demand production PAD/Jitter activation test prepared (source only)
+
+- Operator asks to actively verify PAD/Jitter because passive traffic had zero new frames. Confirmed code policies: M3 rate Padding requires two consecutive full 1-second windows >=1 Mbps for one stream/direction; Jitter requires >=2s, >=64 KiB, >=5 samples of >=512-byte eligible frames and no congestion, with opt-in negotiated `jit1`.
+- Enhanced existing read-only public two-node sampler with `--require-activation`. It explicitly distinguishes both observed (`PASS_PAD_AND_JITTER_ACTIVATED`) from neither or only one mechanism observed; activation fail returns code 3, no false PASS. Error counter growth is not marked PASS. No server-side traffic generation, configuration edits, restarts, secrets or traffic capture. Regression tests cover both active, neither active and PAD-only.
+- `docs/M3_GATE_CLOSURE.md` provides operator's single detached command and user-side valid TCP VPN download; Hysteria2, UDP and direct routes do not qualify. PAD and Jitter counters may stay 0 when demand is not a sustained >=1Mbps stream.
+- **Status: SOURCE MODIFIED; LIVE ACTIVATION NOT RUN.** Tests may prove counter activation, but not real per-frame delay, RTT or fairness, so full M3 remains open.
+
+
 ## 2026-11-19 — M3 passive public two-node telemetry: operator live PASS (19 snapshots)
 
 - Operator launched `tervon-m3-passive-live.service` on Homeserver, source `m3_passive_live_evidence.py --duration 180 --interval 10`. Detached unit ran 2026-11-19 04:51:25–04:55:00 UTC and exited successfully. **Result `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`; 19 snapshots** via Finserver public HTTPS pinned to external IPv4.
