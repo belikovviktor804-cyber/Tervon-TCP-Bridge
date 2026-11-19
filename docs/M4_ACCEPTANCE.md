@@ -100,3 +100,11 @@ Operator evidence: detached `tervon-m4-isolated-stage.service`, exact SHA `8b2f3
 **Fix in GitHub:** the guarded staging script now creates isolated per-run `HOME`, `XDG_CACHE_HOME`, `GOCACHE`, `GOMODCACHE` and `TMPDIR` inside the private `stage-XXXXXXXX` tree before invoking Go. GitHub workflow checks the presence of these variables and runs a Go environment smoke test with inherited `HOME` and `GOCACHE` removed. This only fixes the missing runtime environment; it does not modify Bridge source or live services.
 
 **Do not repeat the failed old SHA.** Use the corrected branch tip with a new exact full SHA, not a stale checkout. The existing failed stage directory may remain as evidence; do not delete it automatically. Stage PASS must still be proven on Homeserver from detached systemd journal after CI, and only then can this acceptance subgate close.
+
+## M4 Homeserver isolated staging acceptance — PASS (2026-11-19)
+
+- Operator supplied `journalctl -u tervon-m4-isolated-stage-cachefix -n 80 --no-pager` showing successful completed detached `systemd-run` (10:14:18 to 10:15:08 Homeserver journal time) using exact immutable source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`.
+- `go vet` passed. `go test -race -count=1 -timeout=180s -run '^TestM4' ./...` passed in the isolated stage; `tervon-tcp-bridge` and `cmd/bridge` ran M4 tests, other packages reported no matching tests. Static candidate produced and verified: `tervon-bridge-m4-linux-amd64: OK`.
+- `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`; stage `/opt/tervon-tcp-bridge/m4/stage-qgAtBg91`, binary SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
+- `PRODUCTION_BINARY_REPLACED=NO`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`, unit exited successfully.
+- **Isolated host staging acceptance subgate CLOSED / PASS.** Do not repeat. This is NOT the separate live M4 acceptance (real cross-host network faults, sustained resource accounting and shutdown). M4 stays IN_PROGRESS until those are evidenced. M5 remains blocked.
