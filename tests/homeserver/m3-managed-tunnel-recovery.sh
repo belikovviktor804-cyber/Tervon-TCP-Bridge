@@ -52,7 +52,22 @@ for index in $(seq 1 45); do
 done
 ((passed == 1)) || { report RESTART_NOT_CONFIRMED; exit 1; }
 report M3_TUNNEL_RESTART=PASS
-report END_TO_END_PUBLIC_API=REQUIRES_EXTERNAL_FINSERVER_CHECK
+
+# Verify independently from Finserver via public IPv4 with correct TLS SNI.
+# Do not use Homeserver hairpin NAT or pretend a new SSH PID proves forwarding.
+validated=0
+for attempt in 1 2 3; do
+  if ssh -F /root/.ssh/config -T -o BatchMode=yes \
+      -o StrictHostKeyChecking=yes -o ConnectTimeout=10 finserver \
+      "curl --noproxy '*' -fsS --max-time 10 --resolve stats.xrayvless.online:443:87.103.198.219 https://stats.xrayvless.online/bridge/api/status" |
+      python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["schema"]=="tervon.bridge.dashboard.v1"; assert all(d["nodes"][n]["status"]=="ok" for n in ("homeserver","finserver"))' ; then
+    validated=1
+    report M3_TUNNEL_RECOVERY_PUBLIC_API=PASS
+    break
+  fi
+  sleep 3
+done
+((validated == 1)) || { report M3_TUNNEL_RECOVERY_PUBLIC_API=FAIL; exit 1; }
 report BRIDGE_RESTART=NONE
 report STATS_RESTART=NONE
 report NGINX_RELOAD=NONE
