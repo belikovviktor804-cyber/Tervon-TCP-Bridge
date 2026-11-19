@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Operator accepts M3→M4 transition; M4 first reliability hardening package
+
+- Operator explicitly stated that the M3 Padding/Jitter question is closed and instructed to begin M4. Branch `work/m4-http2-reliability` created from `b97ad886258d5668f40370bef73013cbcc59d7e0` (latest documented live M3 PAD/Jitter activation). Prior confirmed M3 evidence includes 9,240 paired PAD frames, 1,781 Finserver jitter frames, zero error deltas, SSH tunnel fault/recovery PASS and public Stats PASS.
+- **Explicit scope exception:** outstanding measured RTT, per-stream fairness, 4ms/frame and 20ms fixed-window live maxima, controlled-session drain were NOT tested; carry these as **mandatory M5 release-blocking criteria**, not M3 PASS. No false claim that all original M3 technical criteria passed.
+- M4 source package 1: `prototype/bridge.go` sets bounded TLS handshake (10s), response-header wait (15s), response-header bytes (32KiB), idle connection limit (64 total, 32/host, 60s) while preserving unlimited VPN body lifetime. Checks TLS 1.3 and negotiated ALPN h2 both inbound request and outbound response. `prototype/cmd/bridge/main.go` bounds server header bytes 32KiB and idle 60s; does NOT set server body ReadTimeout/WriteTimeout that would abort long VPN traffic.
+- New isolated tests `prototype/m4_http2_limits_test.go`, `prototype/m4_tls_alpn_test.go`, `prototype/cmd/bridge/m4_http_server_test.go`. **SOURCE MODIFIED; CI PENDING, NO DEPLOYMENT**. Remaining M4: repeated failure/recovery, capacity and resource tests, controlled live evidence and full PASS before M5.
+
+
 ## 2026-11-19 — M3 PAD/Jitter actual TCP VPN activation: LIVE PASS (operator evidence)
 
 - Operator ran `tervon-m3-pad-jitter-live.service` detached (`m3_passive_live_evidence.py --duration 180 --interval 10 --require-activation`), 2026-11-19 05:08:53–05:12:28 UTC; 19 public-HTTPS samples via Finserver. Unit exited successfully with `status=PASS_PAD_AND_JITTER_ACTIVATED`, `error_delta_total=0`. Live active data-plane demand was created by operator on actual TCP VPN route, not by sampler.
