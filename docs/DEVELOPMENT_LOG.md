@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.6 GitHub tag lookup false positive fixed and CI PASS
+
+- Operator verified `gh api repos/tervon-software/Tervon-TCP-Bridge/git/ref/tags/v1.0.1` = HTTP 404, `gh release view v1.0.1` = release not found, local HEAD `4f853e644105e39979098649499a6dafc8dc9c88`. Publisher previously returned `BLOCKED_TAG_POINTS_TO_OTHER_COMMIT` because its `gh api ... || true` command substitution captured JSON error-body stdout on nonzero status. Verified binary SHA256 itself PASS.
+- Updated `install/publish-v1.0.1.sh` to branch on **API exit status**, reject non-hex success bodies and protect mismatched existing tag. Added isolated mock regression test for error-body HTTP 404, correct/mismatched tags and invalid success JSON. CI public preflight run 44536038833 SUCCESS, baseline run 44536038942 SUCCESS. Earlier failed test run repaired (mock redirection of output).
+- No tag, release, or binary upload confirmed yet; no running services modified. Next task: operator SSH git pull and publisher run with existing authenticated `gh` user `tervon-software`. M6 HOLD.
+
 ## 2026-11-19 — public Linux v1.0.1 release requested; public docs aligned, API publisher prepared
 
 - User explicitly requested official GitHub Linux v1.0.1 release, consistent public documentation, Git clone/install instructions and removal of links to AI-oriented internal documentation. On branch `work/m5-linux-release`, updated `README.md`, `SECURITY.md`, installation/configuration/diagnostics/release notes, zero-cap JSON examples. Public-facing files were also synchronized to default `main` via GitHub API, avoiding indiscriminate merging of historical internal work plans into default-branch navigation.
