@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — full 180s M5 user-load summary provided, with capacity finding
+
+- Operator supplied a complete 19-snapshot JSON summary (target 180s) distinct from previously inspected 9-sample partial artifact; no unverified association between the two source files. Live `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`, `PASS_PAD_AND_JITTER_ACTIVATED`, zero aggregate errors on both nodes; 424 sessions started and 359 completed on each side; active 32→97.
+- Finserver observed 1,070,889,614 upload / 3,037,840,839 download bytes (4,108,730,453 in sum), 102,955 Padding frames and zero Jitter frames. Homeserver 1,070,372,842 upload / 2,995,351,814 download bytes, 101,715 Padding frames, 18 upload Jitter frames with 27,875,321ns total requested delay. 204,670 padding frames across both nodes; 18 jitter frames.
+- **OPEN_CAPACITY_ISSUE:** Homeserver `sessions_rejected=313`, Finserver `sessions_rejected=0`. These connection rejections do not appear in `errors`; candidate source explanation is `max_local_connections` / admission slots; production cap not inspected, no claim of root cause or acceptable user impact. Real network RTT, fairness and wall-clock jitter max unmeasured.
+- **FULL_180S_AGGREGATE_OBSERVATION=PASS / M5.2+M5.3_FINAL=NOT_YET_PASS** pending capacity assessment and documented acceptance criteria. Release binary prep PASS, GitHub Release NOT RELEASED, services untouched, M6 HOLD.
+
 ## 2026-11-19 — Operator confirmed intentional early stop of live stress test
 
 - The YouTube + dual Speedtest observation was intentionally stopped by the operator after sample 9/18 because they considered the load sufficient. The missing summary is **expected from early termination**; do not classify as Bridge failure or proven collector defect.
