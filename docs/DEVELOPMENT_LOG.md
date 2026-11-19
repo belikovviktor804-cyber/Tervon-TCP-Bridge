@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 public two-node dashboard API PASS via external IPv4 (operator evidence)
+
+- Operator ran authenticated-TLS HTTPS GET from **Finserver** to `stats.xrayvless.online:443`, pinned via `curl --resolve` to public IPv4 `87.103.198.219`, no `-k`, no loopback substitution.
+- Schema `tervon.bridge.dashboard.v1`; `nodes.homeserver.status=ok`, `sessions_active=26`; `nodes.finserver.status=ok`, `sessions_active=26`; script asserted both nodes `ok` and returned `M3_PUBLIC_TWO_NODE_API=PASS`. Combined with previous TLS-cert verification and HTTP/2 200, **PUBLIC TWO-NODE JSON API PASS**.
+- **Still unverified:** browser visual rendering of both sections and assets, SSH systemd auto-recovery after simulated disconnect, sustained real-network latency/fairness and per-frame PAD/Jitter limits; v1.0.1 not yet released. No production services changed by this documentation update.
+
+
 ## 2026-11-19 — External HTTPS check through public IPv4: Finserver PASS / Homeserver TIMEOUT
 
 - Operator ran `curl --noproxy '*' -v --max-time 10 --resolve stats.xrayvless.online:443:87.103.198.219 https://stats.xrayvless.online/bridge/api/status` on **Homeserver** and **Finserver**, always using public IPv4 `87.103.198.219` with correct domain/SNI.
