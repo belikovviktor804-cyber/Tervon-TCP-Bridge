@@ -1,0 +1,62 @@
+name: M5 v1.0.1 installer and release package checks
+on:
+  push:
+    branches:
+      - work/m5-linux-release
+    paths:
+      - 'install/**'
+      - 'docs/INSTALL-v1.0.1.ru.md'
+      - '.github/workflows/m5-installer.yml'
+  pull_request:
+    paths:
+      - 'install/**'
+      - 'docs/INSTALL-v1.0.1.ru.md'
+      - '.github/workflows/m5-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer and packaging Bash syntax
+        run: |
+          set -Eeuo pipefail
+          bash -n install/install-bridge.sh
+          bash -n install/prepare-release-assets.sh
+      - name: SHA pinned to installed and already-proven M4 binary
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          required="5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90"
+          for path in ("install/install-bridge.sh", "install/prepare-release-assets.sh"):
+              text=pathlib.Path(path).read_text(encoding="utf-8")
+              assert required in text, path
+          installer=pathlib.Path("install/install-bridge.sh").read_text(encoding="utf-8")
+          assert 'INSTALL=EXISTING_INSTALLATION_REFUSED' in installer
+          assert 'ACTIVATE=ALREADY_RUNNING_REFUSE' in installer
+          assert 'SERVICE_NOT_STARTED=YES' in installer
+          assert 'padding_enabled' in installer and 'jitter_enabled' in installer
+          assert 'sha256sum --check --status SHA256SUMS' in installer
+          print("M5_INSTALLER_STATIC=PASS")
+          PY
+      - name: Reject mismatched offline binary without changing host
+        run: |
+          set -Eeuo pipefail
+          mkdir -p test-release
+          printf 'not an executable\n' > test-release/tervon-bridge-linux-amd64
+          printf '0000000000000000000000000000000000000000000000000000000000000000  tervon-bridge-linux-amd64\n' > test-release/SHA256SUMS
+          set +e
+          sudo bash install/install-bridge.sh install client             --asset test-release/tervon-bridge-linux-amd64             --checksums test-release/SHA256SUMS > test-result.log 2>&1
+          result=$?
+          set -e
+          cat test-result.log
+          test "$result" -eq 3
+          grep -Fq 'INSTALL=BINARY_SHA256_MISMATCH' test-result.log
+          test ! -e /opt/tervon-tcp-bridge/bridge
+          test ! -e /etc/systemd/system/tervon-bridge-client.service
+          echo 'M5_INSTALLER_BAD_ASSET=PASS_NO_INSTALL'
