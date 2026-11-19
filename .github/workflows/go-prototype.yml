@@ -10,6 +10,7 @@ on:
       - 'tests/homeserver/test_activate_m1_framing.py'
       - 'tests/homeserver/collect_m2_baseline.py'
       - 'tests/homeserver/test_collect_m2_baseline.py'
+      - 'tests/homeserver/stage-m3-candidate.sh'
       - 'tests/homeserver/diagnose_m3_monitoring.py'
       - 'tests/homeserver/test_diagnose_m3_monitoring.py'
       - '.github/workflows/go-prototype.yml'
@@ -40,6 +41,8 @@ jobs:
         run: gofmt -l .
       - name: Check isolated M1 verification script syntax
         run: bash -n ../tests/homeserver/verify-m1.sh
+      - name: Check M3 offline staging script syntax (no deployment)
+        run: bash -n ../tests/homeserver/stage-m3-candidate.sh
       - name: Check guarded deployment script syntax
         run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
       - name: Check isolated Bridge stats installer syntax (no deployment)
