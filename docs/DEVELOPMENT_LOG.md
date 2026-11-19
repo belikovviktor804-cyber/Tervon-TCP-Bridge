@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 isolated Homeserver staging with cache fix: operator PASS
+
+- Operator ran detached `tervon-m4-isolated-stage-cachefix.service` at 10:14:18–10:15:08 Homeserver journal time. Tested immutable source commit `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, SSH-only GitHub fetch and archived source in private stage `/opt/tervon-tcp-bridge/m4/stage-qgAtBg91`.
+- Corrected Go environment: `STAGE_M4_GO_CACHE=/opt/tervon-tcp-bridge/m4/stage-qgAtBg91/cache/go-build`, `STAGE_M4_GO_TMP=/opt/tervon-tcp-bridge/m4/stage-qgAtBg91/tmp`. `go vet ./...` completed with no errors; `go test -race -count=1 -timeout=180s -run '^TestM4' ./...` passed for `tervon-tcp-bridge` and `cmd/bridge` (other packages had no matching M4 tests). Static Linux/amd64 M4 candidate built with successful checksum check `tervon-bridge-m4-linux-amd64: OK`.
+- Output: **`STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`**; `SOURCE_COMMIT=8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, `BINARY_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. systemd unit exited successfully. `PRODUCTION_BINARY_REPLACED=NO`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`.
+- **M4 HOST ISOLATED STAGING SUBGATE = PASS, no repeat necessary.** This is a verified build and targeted race test on Homeserver, **not** a production cutover or end-to-end live test of M4 behavior. The earlier failed cache-less staging remains a documented failure resolved by this rerun. **M4 module still IN_PROGRESS** pending controlled live reliability/resource evidence; M5 and release remain NOT STARTED.
+
+
 ## 2026-11-19 — M4 detached Go environment repair: GitHub CI PASS, host rerun pending
 
 - Tested source + CI smoke commit `39e19270578b91c60459d115955e1288d100f5b0`. [Go prototype checks #44473045048](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44473045048) **SUCCESS**: staging script `bash -n` and prohibition on direct service commands, asserted private `HOME/GOCACHE/GOMODCACHE/TMPDIR`, Go environment smoke with inherited `HOME`, `GOCACHE`, `XDG_CACHE_HOME`, `TMPDIR` cleared, followed by build, vet, unit, race and previous M1–M4 regressions.
