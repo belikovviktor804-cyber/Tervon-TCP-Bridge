@@ -7,10 +7,10 @@
 | Пакет | Приёмка | Статус |
 |---|---|---|
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
-| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE PASS + POLICY PASS + FULL 180S LOAD OBSERVATION PASS / 313 CLIENT REJECTIONS UNDER REVIEW + RTT/FAIRNESS NOT MEASURED** |
+| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE/POLICY PASS; TWO-NODE NO-QUOTA CUTOVER PASS; POST-CUTOVER PASSIVE TCP COUNTERS PASS; RTT/FAIRNESS/LIVE JITTER MAX NOT MEASURED — CAVEAT ACCEPTED FOR REQUESTED RELEASE** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
-| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **M5 NO-QUOTA RELEASE ASSETS PREP=PASS / CI + RELEASE GATES PENDING** |
-| M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
+| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **M5 NO-QUOTA RELEASE ASSETS PREP=PASS / INSTALLER AND PUBLICATION PREFLIGHT CI=PASS** |
+| M5.6 | Единственный официальный GitHub Release `v1.0.1` | **PUBLISHER READY / ASSET UPLOAD AND PUBLIC RELEASE NOT VERIFIED** |
 
 ## Принцип объединённой проверки
 
@@ -182,3 +182,9 @@ Added `tests/m5/m5-post-cutover-readonly.py` for 30-second two-node read-only ob
 ## 2026-11-19 — post-cutover 30s live read-only observer: OPERATOR PASS
 
 Оператор выполнил `tests/m5/m5-post-cutover-readonly.py` после установки M5 SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`. `M5_POST_EXIT_CODE=0`, `M5_POST_RESULT=PASS_READ_ONLY_TWO_NODE_CHECK`; обе ноды `ready=true`, `max_sessions=0` до и после окна. За 30 секунд **согласованные счётчики** Homeserver и Finserver: `sessions_started_delta=1`, `sessions_rejected_delta=0`, `upload_bytes_delta=34507`, `download_bytes_delta=1424030`, `error_delta=0`. На завершении `sessions_active=17` на каждой стороне; Homeserver goroutines 58, Go heap 18986216 байт; Finserver goroutines 43, Go heap 2341768 байт. `M5_POST_TCP_TRAFFIC=OBSERVED_COUNTER_INCREASE` — факт передачи существующего трафика без искусственной нагрузки; `M5_POST_NETWORK_RTT_FAIRNESS=NOT_MEASURED`. Это **PASS read-only наблюдения и согласованности агрегатных счётчиков**, не побайтная проверка payload и не доказательство RTT/fairness или wall-clock максимума Jitter. Новые 313 отказы из предыдущего теста с лимитом 100 не повторились в этом 30-секундном окне, но это не обещание нулевых отказов при любой нагрузке. Повторять тот же тест без нового вопроса не требуется. M5.2+M5.3 финальный quantitative gate остаётся открытым.
+
+## Операторское решение о публикации v1.0.1 с явно указанными ограничениями
+
+2026-11-19 оператор **поручил оформить официальный Linux v1.0.1 в GitHub**, удалить публичные ссылки на документы для ИИ и обновить SSH-клонирование и первую установку. Это явное решение **о публикации проверенной сборки**, несмотря на отсутствие отдельных количественных данных RTT, per-stream fairness и wall-clock max jitter, которые не объявляются PASS. Прежняя проблема 313 отказов ограничителя устранена и подтверждена работой двух нод с `max_sessions=0`, плюс независимый 30-секундный PASS по передаче полезных счётчиков.
+
+Public Release CI: GitHub run 44532739760 PASS для документации, публикационного сценария и zero-cap примеров; installer CI run 44532252732 PASS. Подготовлен `install/publish-v1.0.1.sh`: проверяет SHA, draft assets, скачивает и сравнивает, только потом публикует. Из-за отсутствия возможности загрузить существующий бинарник с Homeserver через редактор документов GitHub итог **пока NOT_RELEASED**. Нужно фактическое выполнение script с правами GitHub API; не выдавать source commit за опубликованный asset. Новая лицензия не придумана: публичный исходный код сам по себе не объявляется открытым под определённой лицензией.
