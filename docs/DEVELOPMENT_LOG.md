@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 prepared rollback and guarded binary switch: source CI PASS (production untouched)
+
+- Read-only two-host preflight already **operator PASS**, identical active M3 SHA256 on Homeserver and Finserver `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`; known tested M4 candidate `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
+- Implemented `tests/homeserver/m4-cutover-prepare.sh`: strict role and expected hashes, validate allowed unit/real ExecStart, active pid, on-disk and running old hash, candidate SHA, preserve both original M3 and M4 under a private per-role rollout directory plus manifest. **Does not replace/restart any live service.**
+- Implemented `tests/homeserver/m4-cutover-switch.sh`: installs only exact prepared M4 into selected active Bridge binary path, explicit hash/manifest checks and process hash verification, single-unit restart, bounded verification, preserved-M3 auto restore on launch failure, explicit rollback mode. No other service operations. This is implementation, not an observed rollback PASS.
+- [Go prototype checks #44480364783](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44480364783) **SUCCESS** on `267b52b8897f5c1c9bfa65ae62a7e815df49f319`, including `bash -n` for both rollout scripts, static no-unrelated-service gates and source/unit/race/repeated regressions. **Safety script static CI PASS, actual rollback fault injection NOT RUN**.
+- `docs/M4_ACCEPTANCE.md` contains nonmutating backup-prep commands for the operator on both nodes. **CURRENT RUNTIME = M3 ON BOTH NODES; PREPARE NOT RUN / SWITCH NOT RUN / LIVE TEST NOT RUN / M4 IN_PROGRESS**.
+
+
 ## 2026-11-19 — M4 pre-cutover M3 backup and candidate preparation implemented (NOT RUN)
 
 - Both production Bridge processes passed read-only preflight: **Homeserver** active `/opt/tervon-tcp-bridge/bridge` and **Finserver** active `/opt/tervon-bridge-linux-amd64`, both disk and running SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. No services were changed.
