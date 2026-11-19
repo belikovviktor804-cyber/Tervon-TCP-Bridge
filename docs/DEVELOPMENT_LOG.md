@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Operator merges M5.2 and M5.3 into single acceptance
+
+- User approved one combined check of live M4=v1.0.1 TCP behavior and quantitative Padding/Jitter, RTT, fairness and resources. No previous-version work.
+- Updated authoritative development plan and acceptance criteria; created `tests/m5/run-m5-23-batch.sh` for isolated M4-source build/vet/integration/race/Jitter checks. The batch **has not yet been run**. It explicitly returns `BLOCKED_LIVE_MEASUREMENTS` when only offline checks are passed and live numeric metrics remain unverified; this avoids a false 100%-PASS claim.
+- **M5.2+M5.3 ACTIVE / NOT PASSED**. M4 user acceptance carried forward, services unchanged, M5.4 not started, M6 HOLD.
+
 ## 2026-11-19 — OPERATOR SCOPE CORRECTION: M4 is live v1.0.1; no previous-version comparisons
 
 - Operator explicitly clarified: M4 already delivers current Linux v1.0.1, and historical versions must not be reintroduced or used for comparative work.
