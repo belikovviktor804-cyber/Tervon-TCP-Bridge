@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Managed Stats tunnel rollback: root cause fixed in GitHub, deployment not yet PASS
+
+- Operator cutover `tervon-fin-tunnel-cutover.service` 05:56:58–05:57:24: managed SSH unit started and remained active, but 20 attempts to connect loopback TCP/8897 failed; rollback disabled and stopped unit and relaunched temporary `ssh -fN`, printing `TEMPORARY_TUNNEL_RESTORED=PASS`. Subsequent dashboard API showed `nodes.homeserver=ok, nodes.finserver=unavailable`; this **does not** establish a successful verified restoration.
+- **Root cause source bug:** `ExecStart` incorrectly used `-o ClearAllForwardings=yes` together with explicit `-L 127.0.0.1:8897:127.0.0.1:8896`. OpenSSH documents that `ClearAllForwardings=yes` cancels forwardings specified on command line as well as config. Hence SSH process could run while never listening on 8897. Corrected to `ClearAllForwardings=no`; strengthened unit regression test. New CI and operator remediation required before declaring managed tunnel PASS.
+- The temporary recovery process can bind the local port before its SSH connection is ready. Must explicitly test both listener ownership and a **successful JSON `ready=true`** read through 8897, then dashboard Finserver `ok`. Do not restart unrelated services or reuse previous cutover without verifying source patch.
+- **State:** permanent tunnel NOT VERIFIED, rollback declared command success but Finserver dashboard unavailable, M3 still IN_PROGRESS.
+
+
 ## 2026-11-19 — M3 two-node Stats on Homeserver, operator-local PASS
 
 - Operator confirmed Stats install following `install-m3-two-node.py` using local read-only API: `tervon-bridge-stats.service=active`, `tervon-bridge-client.service=active`, `tervon-bridge-server.service=active` on Finserver.
