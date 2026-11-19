@@ -271,8 +271,21 @@ type Client struct {
 	MaxLocalConnections int
 }
 
+// NewClient bounds HTTPS/2 connection setup and response headers while leaving
+// streaming request/response bodies without an absolute timeout. A blanket
+// http.Client.Timeout or transport ReadTimeout would break valid long-lived VPN
+// sessions. Cancellation is instead owned by HandleContext.
 func NewClient(tlsConfig *tls.Config, url, service string) *Client {
-	tr := &http.Transport{TLSClientConfig: tlsConfig, ForceAttemptHTTP2: true, MaxIdleConnsPerHost: 32}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		ForceAttemptHTTP2: true,
+		MaxIdleConns: 64,
+		MaxIdleConnsPerHost: 32,
+		IdleConnTimeout: 60 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+		MaxResponseHeaderBytes: 32 << 10,
+	}
 	return &Client{HTTP: &http.Client{Transport: tr}, URL: url, Service: service}
 }
 
