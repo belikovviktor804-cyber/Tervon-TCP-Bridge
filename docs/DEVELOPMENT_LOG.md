@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 remaining gate tooling and exact module sequencing (SOURCE only)
+
+- User instructed to continue and refresh documentation after approving full M4/M5/M6 progression. Checked latest `docs/DEVELOPMENT_PLAN.md` in GitHub: M3 still lacks tunnel reconnect-after-SIGTERM and live sustained RTT/fairness/4ms-per-frame/20ms-fixed-window evidence. A prior **UI PASS** cannot be recycled as full M3 acceptance.
+- Added `tests/homeserver/m3-managed-tunnel-recovery.sh`: guarded detached-only systemd failure injection targeting *only* `tervon-bridge-fin-metrics-tunnel.service` MainPID, 45-second bounded recovery observation, start-only-on-failure safety restoration and persistent evidence. No VPN, Bridge, Stats or nginx command is executed. The test is **not deployed or run on Homeserver** and cannot yet be marked PASS.
+- Added `prototype/jitter/fairness_test.go::TestM3ThirtySecondFixedWindowPerStreamBounds`: 8 independent streams and 30 seconds of synthetic clock time, with checks for 4ms/frame, 20ms/fixed-one-second-window, short traffic bypass, continued eligibility. This is a source-level regression, **not actual 30 seconds of network throughput or a sliding-window guarantee**.
+- CI workflow `.github/workflows/go-prototype.yml` syntax-checks tunnel script, without executing fault injection. `docs/M3_GATE_CLOSURE.md` supplies the safe detached operator procedure and Finserver public-IPv4 follow-up validation; live long-run test criteria remain explicit.
+- **Result: CODE+DOCS COMMITTED, CI/OPERATOR LIVE GATES PENDING.** M3 IN_PROGRESS, M4 not started, Linux v1.0.1 not released; M6 Android only after v1.0.1.
+
+
 ## 2026-11-19 — Public two-node Stats UI: visual PASS (operator screenshots)
 
 - Operator confirmed no further dashboard testing is needed, providing two screenshots of the public Bridge dashboard with both sections and genuine values visible. Homeserver: 29 active sessions, 0 errors, PAD 29/1874 frames and Jitter 1 frame / 3.08 ms. Finserver: 31 active sessions, backend dial 1035 success / 0 failure, TLS 1035 requests, measured latency p50/p95/p99 1/1/1 ms from 1035 samples, Jitter 357 frames / 407.55 ms. Both sections rendered and prior text placeholders eliminated.
