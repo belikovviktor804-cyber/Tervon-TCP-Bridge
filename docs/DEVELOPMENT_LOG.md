@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.2+M5.3 adaptive Jitter numerical policy OPERATOR PASS 6/6
+
+- Homeserver ran `tests/m5/run-m5-adaptive-batch.sh` at `2026-11-19T09:40:35Z` from `87b2f2385813c5d82b6c15dfbe6c559248e0dea4`, testing unchanged M4 policy. Six test cases across two `-race` passes PASS, exit 0; log `/opt/tervon-tcp-bridge/m5/results/m5-adaptive-6bhWTQVD/tests.log`.
+- Eligible delayed frames: 527/529; maximum single-frame delay 3,969,448/3,994,250 ns (≤4,000,000); maximum 1-second policy window delay 20,000,000 ns (=20ms cap). Interactive/backlog/idle bypass PASS; 8 independent stream states PASS.
+- **ADAPTIVE_POLICY=OPERATOR_PASS**. Network wall-clock RTT, TCP fairness and resource behavior under controlled concurrent traffic **not measured** by policy test, so overall M5.2+M5.3 remains in progress. Live services untouched. M6 HOLD.
+
 ## 2026-11-19 — M5 combined gate: isolated adaptive policy numerical batch ready
 
 - Prior passive check confirmed live M4 SHA, 7 session starts on both nodes and no new errors, but no eligible Padding/Jitter frames during minute window. Instead of repeating low-signal passive windows, added `tests/m5/m5_adaptive_policy_test.go` and `tests/m5/run-m5-adaptive-batch.sh` to exercise M4's unchanged jitter policy at virtual times under eligible, interactive/idle/backpressure and competing stream scenarios.
