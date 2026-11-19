@@ -11,6 +11,7 @@ on:
       - 'examples/*.json'
       - 'install/install-bridge.sh'
       - 'install/publish-v1.0.1.sh'
+      - 'tests/m5/test_m5_publisher_tag_lookup.py'
       - '.github/workflows/m5-public-release-preflight.yml'
   workflow_dispatch:
 permissions:
@@ -25,6 +26,8 @@ jobs:
         run: |
           bash -n install/install-bridge.sh
           bash -n install/publish-v1.0.1.sh
+      - name: Regression test GitHub 404 tag lookup and existing tag safety
+        run: python3 -m unittest discover -s tests/m5 -p 'test_m5_publisher_tag_lookup.py' -v
       - name: Check public examples, SHA, default zero quotas and link hygiene
         run: |
           python3 - <<'PY'
