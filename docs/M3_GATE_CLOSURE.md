@@ -16,7 +16,7 @@
 - До отказа убеждается, что это именно активный и включённый `tervon-bridge-fin-metrics-tunnel.service` с `Restart=always`, MainPID указывает на `/usr/bin/ssh`, checkout расположен в `/opt/tervon-tcp-bridge/m3/source`, Git remote задан только через SSH.
 - Посылает `SIGTERM` **только MainPID этого конкретного юнита**, никогда не делает `restart` или `kill` для Bridge, Stats, nginx и VPN.
 - Не дольше 45 секунд наблюдает новый SSH MainPID в active-юните. Если он не вернулся, пытается поднять **только этот туннель** через `systemctl start`; причину и результат оставляет в журнале.
-- Проверяет лишь **восстановление процесса**, не выдаёт это за восстановление передачи метрик. Публичное end-to-end доказательство делается отдельно с Finserver через внешний IPv4.
+- После восстановления процесса самостоятельно подключается по SSH к Finserver и выполняет HTTPS-запрос через **внешний IPv4 87.103.198.219** с корректными TLS SNI и проверкой сертификата. До 3 попыток проверяет реальный JSON двух узлов. Не подменяет внешний адрес локальным.
 
 ### Операторский запуск (один раз после подтверждённого GitHub CI PASS)
 
@@ -35,11 +35,11 @@ journalctl -u tervon-m3-tunnel-recovery -n 45 --no-pager
 cat /opt/tervon-tcp-bridge/m3/evidence/m3-tunnel-recovery-result.txt
 ```
 
-Критерии частичного PASS: `M3_TUNNEL_RESTART=PASS`, другой `TUNNEL_PID_AFTER`, успешное завершение unit; нет перезапусков data plane. Любой иной исход — BLOCKED, исследовать журналы и не продолжать M4.
+Критерии **полного tunnel recovery PASS**: `M3_TUNNEL_RESTART=PASS`, другой `TUNNEL_PID_AFTER`, `M3_TUNNEL_RECOVERY_PUBLIC_API=PASS`, успешное завершение unit; нет перезапусков data plane. Любой иной исход — BLOCKED, исследовать журналы и не продолжать M4.
 
-### End-to-end после восстановления
+### Дополнительная независимая проверка извне (необязательная)
 
-На **Finserver**, независимо от Homeserver и без обращения к внутреннему адресу публичного сайта:
+Основной сценарий **уже включает** внешний end-to-end API через Finserver. Если нужен отдельный независимый контроль, на Finserver и без обращения к внутреннему адресу публичного сайта:
 
 ```bash
 curl --noproxy '*' -fsS --max-time 10 \
@@ -48,7 +48,7 @@ curl --noproxy '*' -fsS --max-time 10 \
 python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["schema"]=="tervon.bridge.dashboard.v1"; assert all(d["nodes"][k]["status"]=="ok" for k in ("homeserver","finserver")); print("M3_TUNNEL_RECOVERY_PUBLIC_API=PASS")'
 ```
 
-Этот PASS **действителен для восстановления**, только если запрос выполнен *после* управляемого SIGTERM и подтверждения смены PID.
+Встроенный в сценарий внешний PASS **действителен для восстановления**, только если запрос выполнен *после* управляемого SIGTERM и подтверждения смены PID. Сам факт подготовки этого скрипта не является фактическим PASS.
 
 ## B. Сохранение границ задержки и испытания под реальной нагрузкой
 
