@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Operator confirmed intentional early stop of live stress test
+
+- The YouTube + dual Speedtest observation was intentionally stopped by the operator after sample 9/18 because they considered the load sufficient. The missing summary is **expected from early termination**; do not classify as Bridge failure or proven collector defect.
+- Existing evidence: up to 66 active sessions sampled, PAD and Jitter confirmed in real transport, zero error deltas in shown intervals (5–9) for both nodes. Report: `/opt/tervon-tcp-bridge/m5/results/m5.23-userload-Wowu3Ds3/telemetry.jsonl`. Status **OPERATOR_EARLY_STOP / PARTIAL_EVIDENCE_ACCEPTED**, not 180s PASS; no need to ask the operator to rerun the stress test.
+- Quantitative interserver RTT, wall-clock max jitter and per-stream fairness remain unmeasured by aggregates. Working services unchanged; v1.0.1 release files prepared with verified SHA; no GitHub release yet.
+
 ## 2026-11-19 — Verified v1.0.1 release assets prepared on Homeserver: OPERATOR PASS
 
 - Executed `install/prepare-release-assets.sh` via existing SSH source checkout; reported `RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, `RELEASE_PREP_EXIT_CODE=0`, `PUBLICATION_DONE=NO`. Directory `/opt/tervon-tcp-bridge/m5/release`; version v1.0.1; unchanged M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; exact binary SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
