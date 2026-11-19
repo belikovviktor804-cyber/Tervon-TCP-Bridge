@@ -15,10 +15,8 @@ class TestOrchestrator(unittest.TestCase):
         patches=[
             mock.patch.object(coordinator.os,"geteuid",return_value=0),
             mock.patch.object(coordinator.sys,"argv",["cutover.py","deploy"]),
-            mock.patch.object(coordinator.WORKER,"is_file",return_value=True),
-            mock.patch.object(coordinator.CANDIDATE,"is_file",return_value=True),
-            mock.patch.object(coordinator.WORKER,"is_symlink",return_value=False),
-            mock.patch.object(coordinator.CANDIDATE,"is_symlink",return_value=False),
+            mock.patch.object(coordinator,"WORKER",mock.Mock(is_file=lambda: True, is_symlink=lambda: False)),
+            mock.patch.object(coordinator,"CANDIDATE",mock.Mock(is_file=lambda: True, is_symlink=lambda: False)),
             mock.patch.object(coordinator,"sha256",return_value=coordinator.NEW),
             mock.patch.object(coordinator,"checked"),
             mock.patch.object(coordinator,"stage_remote"),
