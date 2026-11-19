@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 production cutover conditionally authorized; preflight tooling prepared, NO DEPLOYMENT
+
+- Operator: `Продолжаем. Если готово, можно менять М3 на М4 и проверять работу.` Prior evidence: M4 Linux candidate source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, Homeserver staging `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`, candidate SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. **No dual-host live M4 proof yet.**
+- Reviewed existing `tests/homeserver/deploy-m1-with-m0-backup.sh` and example systemd units. The prior script explicitly warns that Finserver may run `/opt/tervon-bridge-linux-amd64` while `/opt/tervon-tcp-bridge/bridge` is an inactive legacy artifact. Must not replace binaries by assumed paths.
+- Added `tests/homeserver/m4-live-preflight.sh`: read-only verification of exact Homeserver/Finserver Bridge service, unit file path, actual ExecStart binary path, MainPID, active/running SHA256 consistency. No configuration, secrets, ports or addresses printed; no systemctl mutation. Added GitHub workflow syntax and no service-modification guard. Operator instructions and conditional rollback order in `docs/M4_ACCEPTANCE.md`.
+- **Status: M4 candidate source/test/staging PASS; two-node active SHA preflight NOT RUN; production cutover NOT RUN; full M4 module still IN_PROGRESS.** Next mandatory evidence is the preflight on **both actual hosts**, then validated server-first cutover with preserved M3 rollback and real data-plane tests. No running service was touched in this stage.
+
+
 ## 2026-11-19 — M4 isolated Homeserver staging with cache fix: operator PASS
 
 - Operator ran detached `tervon-m4-isolated-stage-cachefix.service` at 10:14:18–10:15:08 Homeserver journal time. Tested immutable source commit `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, SSH-only GitHub fetch and archived source in private stage `/opt/tervon-tcp-bridge/m4/stage-qgAtBg91`.
