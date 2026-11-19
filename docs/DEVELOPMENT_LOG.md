@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — External HTTPS check through public IPv4: Finserver PASS / Homeserver TIMEOUT
+
+- Operator ran `curl --noproxy '*' -v --max-time 10 --resolve stats.xrayvless.online:443:87.103.198.219 https://stats.xrayvless.online/bridge/api/status` on **Homeserver** and **Finserver**, always using public IPv4 `87.103.198.219` with correct domain/SNI.
+- **Finserver:** connected to external `87.103.198.219:443`, Let's Encrypt certificate `CN=stats.xrayvless.online`, `SSL certificate verify ok`, HTTP/2 `200` on `/bridge/api/status`. **EXTERNAL HTTPS TRANSPORT + HTTP STATUS PASS from Finserver**; response JSON node statuses not yet asserted.
+- **Homeserver:** TCP connect to same public IP:443 timed out after 10.002 seconds. No HTTP/TLS handshake there. A hairpin NAT / router routing issue is plausible but **not confirmed**. The two outcomes are not contradictory; access differs by origin. Never substitute 127.0.0.1 for a public-access acceptance test per operator instructions.
+- Next: verify *public IPv4* API JSON `homeserver` and `finserver` statuses and UI assets **from Finserver**, and probe browser page. Do not modify nginx/Bridge or TLS certificates. M3 remaining gates: resiliency after actual SSH drop, traffic constraints and latency/fairness.
+
+
 ## 2026-11-19 — M3 managed Finserver SSH telemetry tunnel cutover-v2 PASS (operator evidence)
 
 - Operator ran isolated `systemd-run --unit=tervon-fin-tunnel-cutover-v2 --collect /bin/bash /opt/tervon-tcp-bridge/m3/evidence/switch-fin-tunnel.sh` after staging patched SSH unit (`ClearAllForwardings=no`) and confirming prior temporary tunnel PID 1465553.
