@@ -1,9 +1,12 @@
+
+> **ВНИМАНИЕ — НОВЫЙ КАНДИДАТ 2026-11-19:** прежняя процедура ниже упаковала M4 SHA `5035217a...` до решения оператора убрать фиксированные квоты. **НЕ публиковать этот прежний бинарник как финальную v1.0.1.** Исправленный M5 SOURCE TESTS + STAGING BUILD PASS, SHA256 `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, исходник `96c136702d10b6fb9a16aa2893f6b978e8b14e86`, staging `/opt/tervon-tcp-bridge/m5/unbounded/stage-qSxWhELI/dist`. Новый кандидат **НЕ проверен в live**, release uploader и прежний `install/install-bridge.sh` всё ещё привязаны к старому SHA, их нельзя применять для нового релиза без обновления и подтверждения правильного артефакта. Два production сервера без изменений; M5.2+M5.3 продолжает работу.
+
 # M5 — подготовка и публикация Linux v1.0.1 в GitHub Releases
 
 **Ветка:** `work/m5-linux-release`  
 **M4:** `CLOSED / OPERATOR PASS`  
 **M5.2+M5.3:** offline PASS, live passive PASS, адаптивный Jitter policy PASS; **полная 180-секундная сводка, samples=19, получена**: transfer/PAD/Jitter/error continuity PASS, но Homeserver отверг 313 новых подключений; capacity gate OPEN, RTT/fairness/wall-clock jitter max NOT_MEASURED  
-**M5.5 package files:** operator preparation PASS (`RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, exit 0); **M5.4/M5.5/M5.6 gate:** CI and approval pending; GitHub Release **NOT RELEASED**.  
+**M5.5 package files:** OLD M4 release assets obsolete for new no-quota build; operator preparation PASS (`RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, exit 0); **M5.4/M5.5/M5.6 gate:** CI and approval pending; GitHub Release **NOT RELEASED**.  
 **M6:** HOLD.
 
 ## Обязательные входные данные
