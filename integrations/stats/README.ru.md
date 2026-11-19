@@ -1,8 +1,42 @@
 # Локальная интеграция Tervon TCP Bridge со stats.xrayvless.online
 
-**Утверждённый объём:** только метрики Encapsulator на Homeserver.
-Finserver не участвует в сборе статистики сайта; подключение к его
-метрикам, relay, SSH-туннель или публичный listener **не требуются**.
+## M3 — подключение Finserver через существующий SSH (2026-11-19)
+
+Это новый этап внутри M3. Остальные разделы ниже описывают историческую
+односерверную конфигурацию.
+
+1. На Finserver уже подтверждён приватный listener `127.0.0.1:8896/metrics/v1`.
+   На Homeserver необходим **только локальный** SSH-forward
+   `127.0.0.1:8897 → finserver:127.0.0.1:8896` с проверенным ключом
+   `/root/.ssh/tervon_finserver_ed25519` и неизменяемым known_hosts.
+   Пример ручной проверки:
+   `ssh -o BatchMode=yes -o ExitOnForwardFailure=yes -L 127.0.0.1:8897:127.0.0.1:8896 -fN finserver`.
+   Предварительно убедиться, что порт свободен; не создавать несколько туннелей.
+2. `bridge_site.py` читает `TERVON_BRIDGE_METRICS_URL` для Homeserver и
+   необязательную `TERVON_BRIDGE_FIN_METRICS_URL=http://127.0.0.1:8897/metrics/v1`
+   для Finserver. URL проверяются существующим fail-closed адаптером;
+   прямые IP/DNS Finserver и HTTP redirects запрещены. API отдаёт лишь
+   allowlist `nodes.homeserver` / `nodes.finserver` без ключей, адресов и
+   токенов. При пропадании Finserver Homeserver не скрывается.
+3. Провести CI (Python/Node и прочие M3 проверки), проверить временный
+   SSH-forward и только затем запускать
+   `python3 integrations/stats/install-m3-two-node.py` из чистого SSH
+   checkout `work/m3-adaptive-jitter` под root. Скрипт делает backup Stats,
+   добавляет drop-in **только** `tervon-bridge-stats.service`, перезапускает
+   только Stats, проверяет API и выполняет rollback при ошибке. Bridge,
+   nginx и другие службы не изменяются.
+4. Подтвердить свежие данные обоих узлов через локальный API и внешнее
+   HTTPS на `/bridge/`. Для постоянной эксплуатации временный ssh -fN
+   заменить управляемым systemd-unit без раскрытия SSH-ключа, с
+   `ExitOnForwardFailure=yes`, `BatchMode=yes`, `StrictHostKeyChecking=yes`,
+   `ServerAliveInterval` и автоматическим restart. Не объявлять
+   эксплуатационный PASS, пока этот этап не выполнен.
+
+**Статус на момент подготовки:** SOURCE PREPARED; CI и установка
+отдельно подтверждаются фактическими результатами.
+
+
+**Текущий объём M3 (2026-11-19):** опциональные агрегаты Encapsulator на Homeserver и Decapsulator на Finserver. Старый Homeserver-only путь остаётся рабочим без подключения Finserver; публичный endpoint метрик запрещён.
 
 **Статус:** код адаптера в GitHub, эксплуатационная установка не выполнена.
 Текущий модуль разработки Bridge: M1.
