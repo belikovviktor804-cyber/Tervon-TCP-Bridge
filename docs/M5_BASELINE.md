@@ -51,7 +51,7 @@
 - **RELEASE_ASSET_IDENTITY_PASS (operator, 2026-11-19):** опубликованный GitHub Release v1.0.0 asset скачан в изолированный каталог Homeserver, совпали размер и SHA256 со старым локальным образцом. **Точная привязка tag к commit отдельно не проверялась**; воспроизводимость dirty VCS binary не утверждается.
 - **BENCHMARK_BASELINE_NOT_MEASURED:** нет сопоставимого, воспроизводимого v1.0.0↔v1.0.1 замера на идентичном тестовом пути. Нельзя называть текущий пользовательский VPN опыт сравнительным benchmark.
 - **THRESHOLD_DECISION_PENDING:** численные допустимые регрессии RTT/throughput/CPU/RSS и длительность измерительного окна не утверждены. Jitter limits 4ms/frame и 20ms/second являются исходными release-blocking требованиями.
-- **M5.1 NOT PASS:** до проверки соответствия v1.0.0 artifact и базовой методики. Следующий шаг остаётся внутри M5.1.
+- **M5.1 IN_PROGRESS:** опубликованный v1.0.0 asset и пять тестов проверки происхождения теперь подтверждены оператором как PASS. Остаются условия сопоставимого baseline и решения по порогам производительности; следующий шаг внутри M5.1.
 
 ## 6. Безопасность и отчётность
 
@@ -76,3 +76,11 @@
   - `sha256=5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2`.
 - **M5.1 RELEASE_ARTIFACT_IDENTITY=OPERATOR_PASS**: public GitHub asset is byte-identical to historical SHA. No claim of reproducible build: old binary still has `vcs.modified=true` metadata. Exact tag commit target was not separately verified by this script.
 - **M5.1 overall remains IN_PROGRESS:** offline CI result and baseline comparator conditions/RTT+throughput+resources acceptance thresholds not yet confirmed. No production unit restart; no controlled throughput/RTT tests were performed. Do not mistake artifact verification for full M5 PASS. M6 HOLD.
+
+## 9. Operator offline verifier tests — PASS (2026-11-19)
+
+- Environment: Homeserver isolated checkout `/opt/tervon-tcp-bridge/m5/source` on branch `work/m5-linux-release`, pulled by SSH fast-forward from `e9a96b3` to exact tested commit `4b0a7ac4c218755af3a18c303376faf8a740adf8`.
+- Command: `python3 -m unittest discover -s tests/m5 -p 'test_*.py' -v`.
+- Operator output: 5 named tests OK — different asset size, mismatched historical SHA, duplicate asset, malformed tag/external URL, valid asset selection. `Ran 5 tests in 0.001s`, `OK`, `M5_TEST_EXIT_CODE=0`.
+- **M5.1 OFFLINE_VERIFIER_TESTS=HOMESERVER_PASS (5/5)**, distinct from pending GitHub Actions CI result. Prior public v1.0.0 asset identity test remains `OPERATOR_PASS`. These tests do **not** measure TCP performance, Jitter limits, fairness or CPU/RSS.
+- No live Bridge, Stats, Xray or other service touched. **M5.1 overall IN_PROGRESS** pending comparability/threshold decisions; M5.2–M5.6 NOT_STARTED; M6 HOLD.
