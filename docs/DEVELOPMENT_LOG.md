@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Homeserver M4 cutover: process and SHA verification PASS; two-node M4 running
+
+- Operator launched detached `tervon-m4-homeserver-cutover.service` using the previously prepared, exact-checksum `m4-cutover-switch.sh install homeserver`. Homeserver journal Nov 19 11:24:20–11:24:24 shows `M4_INSTALL=PASS_PROCESS_AND_SHA`, `ROLE=homeserver`, `UNIT=tervon-bridge-client.service`, `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`; transient unit deactivated successfully.
+- Finserver M4 server had already passed the same install/process SHA gate with identical SHA256. **Both actual Bridge nodes now run the M4 candidate** from the previously proven source commit `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`. Preserved immutable M3 rollback copies and manifests remain on both hosts; do not remove them pending acceptance.
+- **M4 two-node installation/process SHA subgate = PASS.** User confirmed functional VPN and Stats for the earlier mixed M3→M4 stage, but **M4→M4 post-cutover VPN dataplane and telemetry confirmation is still pending**. This journal does not claim full M4 release/module PASS or automatic rollback fault-injection PASS. No repeated lengthy synthetic test required: ask operator whether the live VPN and monitoring still work after Homeserver switch. M5 NOT STARTED.
+
+
 ## 2026-11-19 — Operator confirms real mixed M3→M4 VPN traffic and monitoring; Homeserver M4 switch authorized
 
 - Operator explicitly confirmed that the VPN through the live Bridge **works normally** with Homeserver M3 client and Finserver M4 server, and that public monitoring **works, counts and displays the metrics**. This is direct operational evidence, additional synthetic or prolonged checks are not necessary solely to restate the same functioning.
