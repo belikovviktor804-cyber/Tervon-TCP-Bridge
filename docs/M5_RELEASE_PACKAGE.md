@@ -23,8 +23,18 @@ cat BUILD_INFO
 
 ## Публикация
 
-`PUBLICATION_DONE=NO` в операторском отчёте. На GitHub проверено: релизы содержат `v1.0.0`, но нет `v1.0.1` (2026-11-19). Инсталляционный workflow статически подготовлен, его CI PASS пока не проверен. Для официального релиза проверить GitHub Actions `m5-installer.yml` и другие необходимые release gates, исходную лицензию/условия распространения, а также окончательный новый пакет. После этого загрузить три assets в GitHub Release `v1.0.1` через GitHub API; не публиковать бинарник с другим SHA или закрытые конфигурации/ключи. Документировать реальный Git tag SHA отдельно от исходного коммита сборки. Публикация **не подтверждена**.
+`PUBLICATION_DONE=NO` в операторском отчёте. На GitHub проверено: релизы содержат `v1.0.0`, но нет `v1.0.1` (2026-11-19). Инсталляционный workflow успешно проверен: GitHub Actions run 44528805350 = SUCCESS (новый SHA, нулевые лимиты в шаблонах, отрицательная проверка offline asset, Bash syntax). Для официального релиза проверить GitHub Actions `m5-installer.yml` и другие необходимые release gates, исходную лицензию/условия распространения, а также окончательный новый пакет. После этого загрузить три assets в GitHub Release `v1.0.1` через GitHub API; не публиковать бинарник с другим SHA или закрытые конфигурации/ключи. Документировать реальный Git tag SHA отдельно от исходного коммита сборки. Публикация **не подтверждена**.
 
 ## Исторический статус
 
 До исправления М4 использовал жёсткую квоту 100 сессий. Пользовательский 180-секундный тест обнаружил 313 отклонённых подключений на Homeserver, несмотря на 0 ошибок транспорта. Оператор потребовал снять лимит; код исправлен, ветка протестирована (vet/unit/race/build PASS), а затем новый бинарник установлен одновременно на обоих узлах (LIVE SWITCH PASS, `max_sessions=0`). Новых post-cutover 180-секундных нагрузочных измерений пока не проводили; не приписывать старой нагрузке свойства нового экземпляра.
+
+## Проверенные и незавершённые условия выпуска (2026-11-19)
+
+- Installer CI: PASS, https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44528805350
+- Cutover offline CI: PASS, https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44524847060
+- M5 dual-node live deployment and release asset preparation: operator PASS, SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`
+- Passive post-cutover 30-second observation: tool committed, host execution pending; cannot claim post-upgrade real-user TCP throughput from staging
+- Quantitative real-network RTT / per-stream fairness and actual wallclock Jitter maxima: NOT_MEASURED; M5.2+M5.3 final gate not marked full PASS
+- LICENSE absent at repository root. No license or public redistribution permission silently invented; require operator decision
+- Official GitHub Release v1.0.1: NOT_RELEASED; existing v1.0.0 only. Do not publish until approved gates satisfied
