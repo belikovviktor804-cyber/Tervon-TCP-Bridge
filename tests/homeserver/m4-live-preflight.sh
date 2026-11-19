@@ -17,9 +17,7 @@ pid="$(systemctl show "$UNIT" -p MainPID --value)"
 [[ -f "$unit_file" && "$exec_line" =~ (^|[[:space:]])path=([^[:space:];]+) ]] || {
   echo 'M4_PREFLIGHT=UNEXPECTED_EXECSTART'; exit 2;
 }
-binary="$(systemctl show "$UNIT" -p ExecStart --value)"
-# Extract path=... from the already validated systemctl ExecStart record.
-binary="$(printf '%s\n' "$binary" | sed -n 's/.*path=\([^ ;]*\).*/\1/p')"
+binary="${BASH_REMATCH[2]}"
 case "$UNIT:$binary" in
   tervon-bridge-client.service:/opt/tervon-tcp-bridge/bridge|\
   tervon-bridge-server.service:/opt/tervon-bridge-linux-amd64|\
