@@ -7,7 +7,7 @@
 | Пакет | Приёмка | Статус |
 |---|---|---|
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
-| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS / QUANTITATIVE PENDING** |
+| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS + ADAPTIVE POLICY 6/6 PASS / REAL NETWORK PENDING** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
 | M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | NOT_STARTED |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
@@ -62,3 +62,11 @@
 ## M5.2+M5.3 — пакет численного тестирования адаптивного Jitter (ГОТОВ, НЕ ЗАПУЩЕН)
 
 `tests/m5/run-m5-adaptive-batch.sh` копирует **неизменённую M4 policy.go** в отдельный каталог и запускает дважды под `-race` три изолированных теста из `tests/m5/m5_adaptive_policy_test.go`: (1) sustained eligible traffic со строгими 4 мс/кадр и 20 мс/сек на виртуальном времени, (2) исключение коротких запросов, перегрузки и idle, (3) восемь независимых конкурентных состояний. Тесты не генерируют live VPN-трафик и не перезапускают службы. Отдельно от политики **реальные RTT и фактическая wall-clock delay по сети этим пакетом НЕ измеряются**; даже `M5_ADAPTIVE_POLICY=PASS` не является автоматическим полным PASS M5.2+M5.3. `SOURCE_COMMITTED / OPERATOR_RESULT_PENDING`.
+
+## Численная приёмка Jitter policy — OPERATOR PASS (2026-11-19)
+
+- Проверка `tests/m5/run-m5-adaptive-batch.sh`, checkout HEAD `87b2f2385813c5d82b6c15dfbe6c559248e0dea4`, ровно неизменённый M4 policy source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; запуск Homeserver `2026-11-19T09:40:35Z`.
+- Под `go test -race -count=2` завершились **6/6 PASS**, exit 0: `TestM5SustainedWindowCaps` ×2; `TestM5InteractiveBacklogAndIdleBypass` ×2; `TestM5CompetingStreamsHaveIndependentBudgets` ×2.
+- В sustained тестах по виртуальному времени `eligible_frames=527 / 529`, `max_frame_ns=3969448 / 3994250` (оба ≤4000000), `max_window_ns=20000000` (≤20000000). Интерактивный/idle/backlog обход PASS; 8 независимых jitter-состояний PASS. `M5_ADAPTIVE_POLICY=PASS`, `M5_ADAPTIVE_EXIT_CODE=0`.
+- Журнал `/opt/tervon-tcp-bridge/m5/results/m5-adaptive-6bhWTQVD/tests.log`.
+- **Подтверждены строгие численные лимиты решения policy**, но не фактические сетевые wall-clock задержки, real RTT и fairness между конкурирующими TCP-сессиями. Общий статус объединённого этапа: `OFFLINE_TCP_PASS + LIVE_PASSIVE_PASS + ADAPTIVE_POLICY_PASS / REAL_NETWORK_MEASUREMENTS_PENDING`. Изменений работающих служб нет.
