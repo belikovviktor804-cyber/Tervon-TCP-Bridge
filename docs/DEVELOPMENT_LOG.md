@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 TLS1.3/h2 before-upload downgrade prevention: CI PASS after a real regression failure
+
+- During M4 security hardening the live isolated test `TestM4OutboundTransportRefusesDowngradeBeforeHTTPHandler` revealed that `net/http.Transport` with `ForceAttemptHTTP2` and an h2-only TLS config could still use HTTP/1.1 fallback. [Go checks #44468361183](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468361183) failed **correctly**: TLS1.3+HTTP1.1-only peer unexpectedly reached test handler. The original response-only rejection happens **after** `Do` and cannot guarantee an upload was not sent via h1.
+- Production code fixed in `prototype/bridge.go`, source commit `6814c57130326f5ecbbea7280f57117074eeee0b`. `NewClient` clones caller-provided `tls.Config`, forces TLS1.3/h2, and uses standard-library `tls.Dialer.DialContext` through `http.Transport.DialTLSContext`, with explicit 10s setup timeout and **TLS1.3 + h2 ConnectionState enforcement before net/http sends any request headers or VPN body**. No home-grown TLS. Caller settings stay untouched. Backend/HTTP2 response verification remains as a second check.
+- Tests: simulated TLS1.2-only and TLS1.3 HTTP1.1-only test servers are rejected before the HTTP handler executes; nil / weak original TLS settings fail closed without mutation. Valid mTLS/HTTP2 end-to-end byte streams and previously accepted M1/M2/M3 regression suites remain covered.
+- [Go prototype checks #44468661056](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468661056) **SUCCESS** (build, vet, unit, race, all repeated/legacy tests and bounded fuzz), exact code SHA `6814c57130326f5ecbbea7280f57117074eeee0b`. [M4 Linux candidate (no deployment) #44468661092](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468661092) **SUCCESS** for the same SHA (artifact + SHA256/BUILD_INFO only).
+- **Security subgate M4 HTTPS/2 fail-closed = CI PASS.** Production Homeserver/Finserver NOT MODIFIED; staging test not yet run. M4 still IN_PROGRESS until isolated host stage and remaining fault/resource acceptance. M5 not started and Linux v1.0.1 not released.
+
+
 ## 2026-11-19 — M4 guarded Homeserver staging script: CI PASS (not executed on host)
 
 - Source `tests/homeserver/stage-m4-candidate.sh` prepares separate `/opt/tervon-tcp-bridge/m4` workspace, GitHub SSH-only clone/fetch, requires an exact 40-character expected SHA, clean M4 checkout and HEAD match, archives exact source into a private new staging directory, runs Go vet and isolated `go test -race -run '^TestM4'`, builds static Linux amd64 binary and validates SHA256/provenance. It contains no systemd, Nginx, VPN or production binary modification commands.
