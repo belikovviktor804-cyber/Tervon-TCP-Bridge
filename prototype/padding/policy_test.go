@@ -143,3 +143,42 @@ func TestSmallFramesCannotActivateOrRetainPadding(t *testing.T) {
         t.Fatal("budget exceeded")
     }
 }
+
+func TestFourMegabitSustainedUploadActivatesPadding(t *testing.T) {
+    // Deterministic 4 Mbit/s nominal upload: 32 KiB every 64 ms.
+    // A policy-only test, not a trace from an actual TCP session.
+    s, err := New(DefaultPolicy())
+    if err != nil { t.Fatal(err) }
+    start := time.Unix(10000, 0)
+    first := -1
+    var padded uint64
+    for i := 0; i < 160; i++ {
+        padded += s.Observe(start.Add(time.Duration(i)*64*time.Millisecond), 32768)
+        if s.Active() && first == -1 { first = i }
+    }
+    if first < 31 || first > 40 || padded == 0 {
+        t.Fatalf("4Mbps stream activation: first=%d PAD=%d", first, padded)
+    }
+    if s.PaddingWireBytes() > s.UsefulBytes()*DefaultPolicy().RatioPercent/100 {
+        t.Fatal("PAD wire overhead exceeded policy budget")
+    }
+}
+
+func TestFourMegabitWithSmallInterspersedFramesStaysOff(t *testing.T) {
+    // Same average useful rate, but each large frame is followed by a
+    // small frame resetting the classifier under existing M2 policy.
+    s, err := New(DefaultPolicy())
+    if err != nil { t.Fatal(err) }
+    start := time.Unix(20000, 0)
+    for i := 0; i < 160; i++ {
+        at := start.Add(time.Duration(i)*64*time.Millisecond)
+        if n := s.Observe(at, 32512); n != 0 {
+            t.Fatalf("unexpected PAD at large frame %d: %d", i, n)
+        }
+        if n := s.Observe(at.Add(time.Millisecond), 256); n != 0 {
+            t.Fatalf("unexpected PAD at small frame %d: %d", i, n)
+        }
+    }
+    if s.Active() || s.PaddingBytes() != 0 { t.Fatal("interleaved small frames unexpectedly qualify") }
+    if s.UsefulBytes() != 160*32768 { t.Fatal("useful byte accounting mismatch") }
+}

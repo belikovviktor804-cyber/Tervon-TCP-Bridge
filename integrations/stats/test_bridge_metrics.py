@@ -81,6 +81,29 @@ class BridgeMetricsTests(unittest.TestCase):
         self.assertNotIn("schema", node["metrics"])
         self.assertNotIn("client_ip", node["metrics"])
 
+    def test_m2_padding_metrics_are_allowlisted_and_validated(self):
+        Handler.payload = snapshot()
+        Handler.payload.update({
+            "padding_upload_bytes": 3072,
+            "padding_download_bytes": 2048,
+            "padding_upload_wire_overhead_percent": 2.5,
+            "padding_download_wire_overhead_percent": 3.0,
+            "padding_upload_state": "ACTIVE",
+            "padding_download_state": "OFF",
+            "secret_private_key": "do-not-export",
+        })
+        result = module.BridgeMetricsCollector(self.endpoint).collect()
+        metrics = result["nodes"]["homeserver"]["metrics"]
+        self.assertEqual(metrics["padding_upload_bytes"], 3072)
+        self.assertEqual(metrics["padding_upload_wire_overhead_percent"], 2.5)
+        self.assertEqual(metrics["padding_upload_state"], "ACTIVE")
+        self.assertNotIn("secret_private_key", metrics)
+        Handler.payload["padding_upload_bytes"] = -1
+        self.assertEqual(
+            module.BridgeMetricsCollector(self.endpoint).collect()["nodes"]["homeserver"]["status"],
+            "unavailable",
+        )
+
     def test_unavailable_does_not_raise(self):
         Handler.status = 503
         node = module.BridgeMetricsCollector(self.endpoint).collect()

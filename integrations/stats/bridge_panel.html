@@ -1,5 +1,4 @@
-<!-- Bridge uses the existing monitoring site's assets and navigation.
-     The local-only metrics adapter remains separate; this is presentation only. -->
+<!-- Bridge metrics from Homeserver and Finserver; no fake role-specific cards. -->
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/monitor-theme.css?v=20261020-1">
 <div class="container">
@@ -23,17 +22,33 @@
     <p id="tb-status" role="status" aria-live="polite">Статистика загружается…</p>
     <p class="tb-meta">Обновлено: <time id="tb-updated">—</time></p>
   </div>
+  <h2>Homeserver — Encapsulator</h2>
   <div class="stats-grid">
     <div class="stat-card"><div class="number" id="tb-sessions-active">—</div><div class="label">Активные TCP-сессии</div></div>
     <div class="stat-card"><div class="number" id="tb-sessions-counts">—</div><div class="label">Начато / завершено / отклонено</div></div>
     <div class="stat-card"><div class="number" id="tb-bytes">—</div><div class="label">Полезный трафик ↑ / ↓</div></div>
-    <div class="stat-card"><div class="number" id="tb-backend">—</div><div class="label">Backend: успешно / ошибки</div></div>
-    <div class="stat-card"><div class="number" id="tb-latency">—</div><div class="label">Соединение p50 / p95 / p99, мс</div></div>
-    <div class="stat-card"><div class="number" id="tb-tls">—</div><div class="label">TLS 1.3 + HTTP/2 + mTLS</div></div>
     <div class="stat-card"><div class="number" id="tb-runtime">—</div><div class="label">Uptime / goroutines / память</div></div>
     <div class="stat-card"><div class="number" id="tb-adaptation">—</div><div class="label">Padding / Jitter</div></div>
+    <div class="stat-card"><div class="number" id="tb-padding-bytes">—</div><div class="label">PAD ↑ / ↓ (байты)</div></div>
+    <div class="stat-card"><div class="number" id="tb-padding-overhead">—</div><div class="label">PAD wire overhead ↑ / ↓</div></div>
+    <div class="stat-card"><div class="number" id="tb-padding-direction">—</div><div class="label">Padding ↑ / ↓: состояние направлений</div></div>
+    <div class="stat-card"><div class="number" id="tb-padding-activity">—</div><div class="label">PAD ↑ / ↓: кадров и переходов</div></div>
+    <div class="stat-card"><div class="number" id="tb-jitter-delays">—</div><div class="label">Jitter ↑ / ↓: кадров и задержки, мс</div></div>
     <div class="stat-card"><div class="number" id="tb-errors">—</div><div class="label">Ошибки (суммарно)</div></div>
   </div>
-  <p class="tb-footnote">Агрегированные показатели только Encapsulator на Homeserver. Полезные байты не равны общему сетевому трафику.</p>
+  <h2>Finserver — Decapsulator</h2>
+  <div class="panel"><p id="tb-fin-status" role="status">Источник Finserver не подключён</p></div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="number" id="tb-fin-active">—</div><div class="label">Активные TCP-сессии</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-bytes">—</div><div class="label">Полезный трафик ↑ / ↓</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-pad">—</div><div class="label">PAD ↑ / ↓: кадров</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-overhead">—</div><div class="label">PAD wire overhead ↑ / ↓</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-jitter">—</div><div class="label">Jitter ↑ / ↓: кадров и задержки, мс</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-adaptation">—</div><div class="label">Padding / Jitter</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-backend">—</div><div class="label">Backend dial: успешно / ошибок</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-latency">—</div><div class="label">Время подключения p50 / p95 / p99, мс (выборка)</div></div>
+    <div class="stat-card"><div class="number" id="tb-fin-tls">—</div><div class="label">TLS 1.3 / HTTP/2 / mTLS: запросы</div></div>
+  </div>
+  <p class="tb-footnote">Агрегированные метрики обоих узлов, без адресов клиентов и конфигурации. Finserver передаёт показатели только через закрытый SSH-канал. Полезные байты не равны сетевому трафику.</p>
 </main>
 </div>

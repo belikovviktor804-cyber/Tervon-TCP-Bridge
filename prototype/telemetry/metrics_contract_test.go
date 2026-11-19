@@ -33,3 +33,25 @@ func TestLatencyConcurrent(t *testing.T) {
 		t.Fatalf("latency %+v", s)
 	}
 }
+
+func TestM3ConfiguredVersusActiveAndDelayCounters(t *testing.T) {
+    r:=New()
+    r.SetPaddingConfigured(true)
+    r.SetPaddingRateConfigured(true)
+    r.SetJitterConfigured(true)
+    before:=r.Snapshot()
+    if !before.PaddingConfigured || !before.PaddingRateConfigured ||
+        !before.JitterConfigured || before.PaddingState!="OFF" ||
+        before.JitterState!="ENABLED" {
+        t.Fatalf("configured state wrong: %+v",before)
+    }
+    r.AddJitterUpload(3*time.Millisecond)
+    r.AddJitterDownload(2*time.Millisecond)
+    r.AddJitterUpload(0)
+    after:=r.Snapshot()
+    if after.JitterUploadFrames!=1 || after.JitterDownloadFrames!=1 ||
+        after.JitterUploadDelayNs!=uint64(3*time.Millisecond) ||
+        after.JitterDownloadDelayNs!=uint64(2*time.Millisecond) {
+        t.Fatalf("bounded jitter counters wrong: %+v",after)
+    }
+}

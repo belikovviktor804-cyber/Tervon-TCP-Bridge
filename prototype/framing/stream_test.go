@@ -121,3 +121,29 @@ func FuzzStreamDecoder(f *testing.F) {
   }
  })
 }
+
+func TestM3DecoderPADObserverCountsOnlyValidatedFrames(t *testing.T) {
+    var wire bytes.Buffer
+    if err:=WriteFrame(&wire,TypeData,bytes.Repeat([]byte{5},4096));err!=nil{t.Fatal(err)}
+    if err:=WritePaddingFrame(&wire,bytes.Repeat([]byte{7},100));err!=nil{t.Fatal(err)}
+    if err:=WriteFrame(&wire,TypeFIN,nil);err!=nil{t.Fatal(err)}
+    decoder:=NewPaddingDecoder(&wire)
+    var called int
+    var amount uint64
+    decoder.SetPaddingObserver(func(n uint64){called++;amount+=n})
+    got,err:=io.ReadAll(decoder)
+    if err!=nil || len(got)!=4096 || called!=1 || amount!=100 {
+        t.Fatalf("PAD callback mismatch: length=%d callbacks=%d PAD=%d err=%v",len(got),called,amount,err)
+    }
+
+    var bad bytes.Buffer
+    if err:=WriteFrame(&bad,TypeData,bytes.Repeat([]byte{1},100));err!=nil{t.Fatal(err)}
+    if err:=WritePaddingFrame(&bad,bytes.Repeat([]byte{9},100));err!=nil{t.Fatal(err)}
+    invalid:=NewPaddingDecoder(&bad)
+    var rejectedCalled bool
+    invalid.SetPaddingObserver(func(uint64){rejectedCalled=true})
+    _,err=io.ReadAll(invalid)
+    if !errors.Is(err,ErrMalformed) || rejectedCalled {
+        t.Fatalf("malformed PAD counted: err=%v called=%v",err,rejectedCalled)
+    }
+}

@@ -68,3 +68,20 @@ func TestLoadRejectsNonCanonicalStreamURL(t *testing.T) {
 		if _, err := load(p); err == nil { t.Errorf("accepted noncanonical URL %q", remote) }
 	}
 }
+
+func TestM3FeatureFlagsRejectUnilateralEnable(t *testing.T) {
+    base := `{"mode":"client","listen":"127.0.0.1:9001","cert_file":"c","key_file":"k","ca_file":"a","max_local_connections":2,"remote_url":"https://example.com/v2/stream","service":"vpn","server_name":"example.com",%s}`
+    cases := []struct{ flags string; valid bool }{
+        {`"padding_rate_enabled":true`, false},
+        {`"jitter_enabled":true`, false},
+        {`"padding_enabled":true,"jitter_enabled":true`, false},
+        {`"padding_enabled":true,"padding_rate_enabled":true`, true},
+        {`"padding_enabled":true,"padding_rate_enabled":true,"jitter_enabled":true`, true},
+    }
+    for _, tc := range cases {
+        p := filepath.Join(t.TempDir(), "client.json")
+        if err := os.WriteFile(p, []byte(fmt.Sprintf(base, tc.flags)), 0600);err!=nil {t.Fatal(err)}
+        _,err := load(p)
+        if (err==nil)!=tc.valid {t.Errorf("flags %s valid=%v err=%v",tc.flags,tc.valid,err)}
+    }
+}

@@ -1,0 +1,79 @@
+# M3 — восстановление мониторинга Tervon TCP Bridge
+
+## M3 collector-only recovery gate (2026-11-18, code pending CI)
+
+**Факт:** публичный Stats уже подключён к M2; запрет повторной активации `metrics_listen` остаётся. Опциональные поля PAD/Jitter доступны в новом исходном `integrations/stats/bridge_metrics.py`, но старая запущенная Python-служба их не импортировала.
+
+Подготовлен отдельный `integrations/stats/update-m3-collector.py` со следующими ограничениями:
+- Только работающий Homeserver Stats, `work/m3-adaptive-jitter`, чистый SSH checkout; исходный приватный `/metrics/v1` остаётся loopback.
+- Перед любыми изменениями проверяются действующий `/bridge/api/status` и `/metrics/v1` с `ready=true`; backup существующего `bridge_metrics.py` root-only.
+- Атомарная замена **только** `/opt/tervon/bridge-stats/bridge_metrics.py`, затем restart **только** `tervon-bridge-stats.service`; ограниченное ожидание dashboard ready и проверка, что поддерживаемые приватные PAD-счётчики не потерялись в публичном allowlist. При ошибке восстановить файл, перезапустить ту же Stats-службу и проверить readiness. Активный `tervon-bridge-client.service`, Finserver, Xray, Guard, nginx, DNS и stats env не изменять.
+- Исключение: текущий локальный JSON M2 может не содержать ещё не выпущенные M3 Jitter-поля. Не выдавать их отсутствие за ошибку или нулевую активность.
+
+**Два операторских последовательных шага после полного CI PASS на точном SHA:**
+
+```bash
+REPO=/opt/tervon/bridge-m0-check/build/repo
+# Сначала read-only git и чистота checkout; ветка должна быть work/m3-adaptive-jitter.
+git -C "$REPO" remote get-url origin
+git -C "$REPO" branch --show-current
+git -C "$REPO" status --short
+# Если checkout не M3: использовать отдельный уже проверенный SSH checkout M3.
+sudo python3 "$REPO/integrations/stats/update-m3-ui.py"
+# Отдельная согласованная операция с перезапуском только Stats:
+sudo python3 "$REPO/integrations/stats/update-m3-collector.py"
+```
+
+**Не выполнять эти команды из `work/m1-framing`:** оба установщика намеренно откажутся. Не делать checkout/merge поверх действующего дерева без проверки. Полный PASS мониторинга требует независимого внешнего реального DNS/TLS запроса к `https://stats.xrayvless.online/bridge/` и подтверждения панели. Полный PASS M3 дополнительно требует двухузловых испытаний `rate1`/`jit1`, реального ≥1 Мбит/с в течение двух окон, оценки overhead/RTT/fairness и отката. `v1.0.1` не выпускается раньше M5.
+
+
+> **Состояние на 2026-11-18 (приоритет над историей ниже):** оператор восстановил существующие метрики M2 — `MONITORING_LOCAL=PASS`, публичный интерфейс показывает реальные сессии и полезный трафик. `bridge-stats.env` и `client.json` существуют; повторный `activate-m2-metrics.py` не запускать, службы Bridge/Stats не перезапускать без отдельной операции. Описанный ниже этап восстановления источника — исторический, **уже не текущая задача**. Текущая задача: расширенная визуализация и M3-метрики.
+>
+> **Два независимых ограничения:** (1) `update-m3-ui.py` на ветке `work/m3-adaptive-jitter` способен обновить `bridge_panel.html` и `bridge_panel.js` без перезапуска действующих служб, с backup и проверкой локального HTML/JS. Это **только UI**. (2) Активный Python Stats-процесс импортировал старую `bridge_metrics.py` при запуске: даже после UI hot-update новые PAD/Jitter поля могут отсутствовать в dashboard API, пока обновлённый adapter не установлен и не загружен Stats-службой. **Не выдавать UI hot-update за полный `MONITORING_PASS`.** Для замены Python-адаптера требуется отдельный согласованный, проверенный на откат шаг, который допускает перезапуск **только** `tervon-bridge-stats.service`, не Encapsulator, Finserver, nginx, Guard или Xray. До него все недоступные поля должны отображаться как «—», не как нули. Новая M3 телеметрия из бинарника `rate1/jit1` появится только после отдельного согласованного перехода транспорта на M3.
+>
+> **Проверки после UI-only обновления:** сравнить localhost `/bridge/` и `/bridge/bridge_panel.js` с файлами GitHub; проверить `/bridge/api/status` (один Homeserver, `ready=true`), зафиксировать отсутствующие optional поля и не предполагать их значения. Внешний HTTPS тест выполнять с независимого клиента с реальным DNS/SNI. Не публиковать `/metrics/v1` в интернете.
+
+
+**Статус:** подготовлена диагностика; **исправление на Homeserver ещё не применено**. Это обязательный результат M3 по решению оператора от 2026-11-18. Авторитетный статус — `docs/DEVELOPMENT_PLAN.md`.
+
+## Цепочка данных
+
+`tervon-bridge-client.service` (существующий M2, конфигурация `/etc/tervon-tcp-bridge/client.json`) → опциональный локальный `metrics_listen` → `GET /metrics/v1` → `tervon-bridge-stats.service`, `TERVON_BRIDGE_METRICS_URL` из `/etc/tervon/bridge-stats.env` → локальный сайт `127.0.0.1:8894/bridge/api/status` → существующий nginx → публичный `https://stats.xrayvless.online/bridge/`.
+
+Последнее наблюдение оператора до M3: Bridge Stats работает, но метрики на странице отсутствуют. Более ранний снимок конфигурации указывает на **отключённый** `metrics_listen`; текущее состояние на сервере ещё не считано. Нельзя считать причину доказанной до диагностики.
+
+## Этап A — read-only Homeserver
+
+Клонирование исходников только по SSH в отдельный каталог; работающий бинарник и конфигурацию **не изменять**:
+
+```bash
+git clone --branch work/m3-adaptive-jitter \
+  git@github.com:tervon-software/Tervon-TCP-Bridge.git \
+  /opt/tervon-tcp-bridge/m3/source
+
+python3 /opt/tervon-tcp-bridge/m3/source/tests/homeserver/diagnose_m3_monitoring.py
+```
+
+Если отдельный checkout уже существует, не клонировать повторно; после проверки статуса рабочей копии безопасно обновить из GitHub по SSH.
+
+Диагностический JSON выводит **только** статус двух заданных служб, факт настройки loopback `metrics_listen`, доступность личного `/metrics/v1`, признак совпадения endpoint из `/etc/tervon/bridge-stats.env` и ответ локального Bridge Stats API. Он **не** выводит адреса соединений, IP клиентов, сертификаты, содержимое конфигураций или счётчики клиента. Ничего не перезапускает, не открывает порты и не записывает.
+
+**Интерпретация:** `bridge_metrics_config=DISABLED_OR_INVALID` — источник не задан либо некорректен; `bridge_metrics_local=UNAVAILABLE` при `ENABLED_LOOPBACK` — проверить listener/журнал Bridge; `stats_source_env=NOT_CONFIGURED` или не `MATCH` — проверить URL существующей Stats-службы; `stats_bridge_node=UNAVAILABLE` при локальном `bridge_metrics_local=PASS` — проблема на стороне Stats-сборщика/его env или работающей версии приложения. Не включать новый порт без проверки конфликта.
+
+## Этап B — восстановление без переписывания инфраструктуры
+
+После подтверждения причины подготовить узкий операторский патч **только** к двум уже существующим компонентам Bridge: поле `metrics_listen` на Homeserver, если оно отключено, и `TERVON_BRIDGE_METRICS_URL` только в файле окружения Bridge Stats, если отсутствует/не совпадает. Выбирать и проверять свободный loopback-порт отдельно; не считать `8895` гарантированно свободным. Сохранять закрытые резервные копии, SHA исполняемого файла M2 и прежние JSON/окружение; откатить эти изменения при ошибке рестарта или local API. Не редактировать общую службу инфраструктуры, nginx, Xray, Guard, подписку `:2096` или Finserver.
+
+Обновить только отдельные файлы Bridge Stats из ветки M3 для отображения PAD и тестировать их отдельно. Не публиковать закрытый `/metrics/v1` в интернет. При сомнении в безопасности отката — блокировать установку и запросить минимальные фактические данные.
+
+## Этап C — подтверждение
+
+1. Homeserver: существующие Bridge/Stats units `active`, `/metrics/v1` доступен **только на выбранном loopback listener**, схема `tervon.bridge.telemetry.v1`, счётчики реальны и растут при обычной работе; Stats API `tervon.bridge.dashboard.v1`, `nodes.homeserver.status=ok`.
+2. **Внешняя сеть**, например Finserver или пользовательский ПК: запросить **фактическое** `https://stats.xrayvless.online/bridge/` и `/bridge/api/status` по DNS-имени без `--resolve`, `-k`, VPN DNS override и localhost подмены. Проверить HTTPS-сертификат, статус и отображение, по разрешённой модели доступа.
+3. Оператор подтверждает, что Bridge/VPN продолжает работать, подписки и другие службы не затронуты. Зафиксировать отдельные результаты: `MONITORING_CODE_CI_PASS`, `MONITORING_LOCAL_PASS`, `MONITORING_EXTERNAL_PASS`. Только после всех трёх — `MONITORING_PASS`.
+
+## Состояния
+
+- Подготовленная проверка и CI — не равны исправлению на Homeserver.
+- Публичный HTTPS-test — не равен закрытому loopback-test для источника метрик; оба необходимы.
+- М3 в целом не может считаться PASS до отдельно проверенных Jitter, его Fairness/RTT/очередей, мониторинга и контролируемого live результата.

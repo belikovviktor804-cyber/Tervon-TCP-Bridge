@@ -1,8 +1,8 @@
-"""Isolated read-only Homeserver Bridge dashboard ASGI app.
+"""Isolated read-only two-node Bridge dashboard ASGI app.
 
 Run on a *separate* loopback listener. The operator explicitly chose
 public read-only /bridge/ dashboard access (no Basic Auth). Only bounded,
-non-sensitive Homeserver aggregates may be returned; never expose the
+non-sensitive allowlisted aggregates may be returned; never expose the
 private /metrics/v1 endpoint. Do not mount in infrastructure monitor.
 """
 
@@ -39,9 +39,13 @@ def create_app(metrics_endpoint: str | None = None) -> FastAPI:
         BridgeMetricsCollector(metrics_endpoint)
         if metrics_endpoint else None
     )
+    # The remote listener is never accessed directly. Operator must first
+    # establish an authenticated SSH loopback forward on Homeserver.
+    fin_endpoint = os.environ.get("TERVON_BRIDGE_FIN_METRICS_URL", "")
+    fin_collector = BridgeMetricsCollector(fin_endpoint) if fin_endpoint else None
 
     app = FastAPI(
-        title="Tervon Bridge Homeserver metrics",
+        title="Tervon Bridge two-node metrics",
         docs_url=None, redoc_url=None, openapi_url=None,
     )
 
@@ -52,7 +56,7 @@ def create_app(metrics_endpoint: str | None = None) -> FastAPI:
             '<!doctype html><html lang="ru"><head>'
             '<meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>Tervon TCP Bridge — Homeserver</title>'
+            '<title>Tervon TCP Bridge — Homeserver / Finserver</title>'
             '<link rel="stylesheet" href="/bridge/bridge_panel.css">'
             '</head><body>' + fragment +
             '<script defer src="/bridge/bridge_panel.js"></script>'
@@ -69,6 +73,11 @@ def create_app(metrics_endpoint: str | None = None) -> FastAPI:
                  "status": "unavailable", "metrics": None,
              }}}
         )
+        # The original collector remains unchanged and keeps its local
+        # homeserver contract. Only an explicitly configured loopback-forwarded
+        # endpoint adds finserver. A failed tunnel cannot hide Homeserver data.
+        if fin_collector is not None:
+            result["nodes"]["finserver"] = fin_collector.collect()["nodes"]["homeserver"]
         return JSONResponse(result, headers=HEADERS)
 
     @app.get("/bridge/bridge_panel.js", include_in_schema=False)

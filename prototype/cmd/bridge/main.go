@@ -25,6 +25,7 @@ import (
 	bridge "tervon-tcp-bridge"
 	"tervon-tcp-bridge/telemetry"
 	"tervon-tcp-bridge/padding"
+    "tervon-tcp-bridge/jitter"
 )
 
 var buildVersion = "dev"
@@ -45,6 +46,8 @@ type config struct {
 	MaxLocalConnections int                         `json:"max_local_connections"`
 	MetricsListen       string                      `json:"metrics_listen"`
 	PaddingEnabled      bool                        `json:"padding_enabled"`
+    PaddingRateEnabled bool                       `json:"padding_rate_enabled"`
+    JitterEnabled bool                            `json:"jitter_enabled"`
 }
 
 func load(path string) (config, error) {
@@ -68,6 +71,14 @@ func load(path string) (config, error) {
 	}
 	if c.PaddingEnabled {
         if err := padding.DefaultPolicy().Validate(); err != nil {return c,err}
+    }
+    if c.PaddingRateEnabled {
+        if !c.PaddingEnabled {return c,fmt.Errorf("padding_rate_enabled requires padding_enabled")}
+        if err := padding.DefaultRatePolicy().Validate();err!=nil{return c,err}
+    }
+    if c.JitterEnabled {
+        if !c.PaddingRateEnabled {return c,fmt.Errorf("jitter_enabled requires padding_rate_enabled")}
+        if err := jitter.DefaultPolicy().Validate();err!=nil{return c,err}
     }
     if c.MetricsListen != "" {
 		host, _, e := net.SplitHostPort(c.MetricsListen)
@@ -149,6 +160,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	metrics := telemetry.New()
     metrics.SetPaddingConfigured(c.PaddingEnabled)
+    metrics.SetPaddingRateConfigured(c.PaddingRateEnabled)
+    metrics.SetJitterConfigured(c.JitterEnabled)
 	metrics.BuildVersion = buildVersion
 	metrics.BuildCommit = buildCommit
 	if c.Mode == "server" {
@@ -182,6 +195,8 @@ func main() {
 		cl.MaxLocalConnections = c.MaxLocalConnections
 		cl.Metrics = metrics
         if c.PaddingEnabled {p:=padding.DefaultPolicy();cl.PaddingPolicy=&p}
+        if c.PaddingRateEnabled {p:=padding.DefaultRatePolicy();cl.RatePaddingPolicy=&p}
+        if c.JitterEnabled {p:=jitter.DefaultPolicy();cl.JitterPolicy=&p}
 		if err := cl.ListenAndServe(ctx, c.Listen); err != nil {
 			log.Fatal(err)
 		}
@@ -202,6 +217,8 @@ func main() {
 	}
 	handler := &bridge.Server{Routes: c.Routes, AuthorizedServices: authorized, MaxConcurrent: c.MaxStreams, Metrics: metrics}
     if c.PaddingEnabled {p:=padding.DefaultPolicy();handler.PaddingPolicy=&p}
+    if c.PaddingRateEnabled {p:=padding.DefaultRatePolicy();handler.RatePaddingPolicy=&p}
+    if c.JitterEnabled {p:=jitter.DefaultPolicy();handler.JitterPolicy=&p}
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool, NextProtos: []string{"h2"}}
 	srv := &http.Server{Addr: c.Listen, Handler: handler, TLSConfig: tlsCfg, ReadHeaderTimeout: 10 * time.Second}
 	errs := make(chan error, 1)

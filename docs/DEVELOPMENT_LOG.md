@@ -1,5 +1,266 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 PAD/Jitter actual TCP VPN activation: LIVE PASS (operator evidence)
+
+- Operator ran `tervon-m3-pad-jitter-live.service` detached (`m3_passive_live_evidence.py --duration 180 --interval 10 --require-activation`), 2026-11-19 05:08:53–05:12:28 UTC; 19 public-HTTPS samples via Finserver. Unit exited successfully with `status=PASS_PAD_AND_JITTER_ACTIVATED`, `error_delta_total=0`. Live active data-plane demand was created by operator on actual TCP VPN route, not by sampler.
+- Finserver sent **9,240 PAD frames / 4,448,642 PAD payload bytes**, and Homeserver received exactly **9,240 PAD frames / 4,448,642 bytes**. The total 18,480 in activation output sums sender and receiver observations, NOT 18,480 unique frames. Finserver downstream Jitter: **1,781 frames** and **1,519,999,202 ns** cumulative optional delays (~0.854 ms per delayed frame); Homeserver jitter frame delta 0, consistent with direction.
+- Finserver downstream useful bytes **205,613,515**, Homeserver received **205,613,380** (snapshot timing differences possible). Both nodes: +70 started, +62 completed, +0 rejected, active 29→37; 29+70−62=37. Finserver backend dial success +70, failure +0; TLS1.3/H2/mTLS +70. All error categories remained at delta 0. Under live sampling PAD/Jitter activated from step 7 onwards.
+- Operator browser screenshot also shows Finserver Padding active/enabled, total Jitter 1,951 frames / 1,787.55 ms since process start, and aggregate working sessions; screenshot values are cumulative and must not be substituted for the per-run deltas.
+- **Accepted gate: M3 production PAD/Jitter actual activation and two-sided PAD delivery = LIVE PASS. Do not repeat solely to prove activation.** Still NOT measured: individual frame maximum 4ms, per-stream 20ms/fixed window, live RTT and fairness against competing short streams, and drain behavior of controlled test sessions. **Full M3 PASS remains pending; M4 not started; Linux v1.0.1 not released.**
+
+
+## 2026-11-19 — M3 PAD/Jitter activation gate source CI PASS (no live run)
+
+- Source commits `56f6db9b` (opt-in `--require-activation` checker), `d34d3e45` (isolated tests). Both PAD and Jitter counters must increase in one observed real-traffic window without increased error counters for `PASS_PAD_AND_JITTER_ACTIVATED`; no eligible traffic returns descriptive non-PASS and exit code 3.
+- [Go prototype checks #44462201616](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44462201616) **SUCCESS**, including unit tests for both-active/no-activity/one-sided activation, race suite, M1/M2/M3 regressions. [M3 Linux candidate #44462201682](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44462201682) **SUCCESS (artifact only)**.
+- No live activation test has been run on Homeserver yet. The sampler does NOT generate load; user must download/stream 2–5 Mbit/s for >2 sec **over actual TCP VPN route through Bridge**, while detached sampler observes both nodes. No working services changed. Real per-frame jitter ceiling, RTT and fairness remain unmeasured.
+
+
+## 2026-11-19 — M3 on-demand production PAD/Jitter activation test prepared (source only)
+
+- Operator asks to actively verify PAD/Jitter because passive traffic had zero new frames. Confirmed code policies: M3 rate Padding requires two consecutive full 1-second windows >=1 Mbps for one stream/direction; Jitter requires >=2s, >=64 KiB, >=5 samples of >=512-byte eligible frames and no congestion, with opt-in negotiated `jit1`.
+- Enhanced existing read-only public two-node sampler with `--require-activation`. It explicitly distinguishes both observed (`PASS_PAD_AND_JITTER_ACTIVATED`) from neither or only one mechanism observed; activation fail returns code 3, no false PASS. Error counter growth is not marked PASS. No server-side traffic generation, configuration edits, restarts, secrets or traffic capture. Regression tests cover both active, neither active and PAD-only.
+- `docs/M3_GATE_CLOSURE.md` provides operator's single detached command and user-side valid TCP VPN download; Hysteria2, UDP and direct routes do not qualify. PAD and Jitter counters may stay 0 when demand is not a sustained >=1Mbps stream.
+- **Status: SOURCE MODIFIED; LIVE ACTIVATION NOT RUN.** Tests may prove counter activation, but not real per-frame delay, RTT or fairness, so full M3 remains open.
+
+
+## 2026-11-19 — M3 passive public two-node telemetry: operator live PASS (19 snapshots)
+
+- Operator launched `tervon-m3-passive-live.service` on Homeserver, source `m3_passive_live_evidence.py --duration 180 --interval 10`. Detached unit ran 2026-11-19 04:51:25–04:55:00 UTC and exited successfully. **Result `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`; 19 snapshots** via Finserver public HTTPS pinned to external IPv4.
+- Both nodes: 17 active sessions initially, 27 at end; 61 sessions started, 51 completed, 0 rejected, all error deltas = 0. All 18 intermediate readings showed the SAME active session count on both nodes; observed counts ranged from 20 to 46. Session accounting balances 17 + 61 − 51 = 27, on each node.
+- Homeserver: 1,613,532 bytes upload, 86,102,084 bytes download. Finserver: 1,612,461 bytes upload, 86,792,135 bytes download; Finserver backend dial success +61, failure +0, TLS1.3/H2/mTLS requests +61.
+- **Critical limitation:** PAD frames/bytes and Jitter frames/delay delta were all 0 in this 180s passive interval on both nodes. No qualifying traffic proved in this observation; this is NOT a Padding/Jitter under-load activation test. No real RTT, per-stream fairness, individual frame delay maxima, fixed-window jitter budgets, or session cleanup after isolated controlled load measured. These remain open M3 gates.
+- **Accepted subgate:** passive public two-node counter continuity PASS, do not rerun solely to confirm availability. **M3 module still IN_PROGRESS, M4 NOT STARTED, v1.0.1 NOT RELEASED.** No production services changed.
+
+
+## 2026-11-19 — M3 passive external telemetry sampler: GitHub CI SUCCESS
+
+- Source `tests/homeserver/m3_passive_live_evidence.py` and `test_m3_passive_live_evidence.py`, workflow change through `298d90af7d6cbb46851f307ba1b4b4ae89135fc6`.
+- [Go prototype checks #44460373997](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44460373997) completed **SUCCESS**, including mocked sampler tests, Go build/unit/race and M3 jitter regressions. [M3 Linux candidate #44460374223](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44460374223) **SUCCESS** (artifact only).
+- Live 180-second collection on the operator's Homeserver remains **NOT RUN**; full M3 active end-to-end RTT/fairness acceptance remains **NOT VERIFIED**, no fabricated PASS.
+- Operator procedure and exact evidence limitations: `docs/M3_GATE_CLOSURE.md`. No production service modified.
+
+
+## 2026-11-19 — M3 real-world passive telemetry collector implemented; active flow gate still open
+
+- Branch `work/m3-adaptive-jitter`, previously confirmed HEAD `a5b4ce1b0293a0d4cd704ac272d26840df555ef6`. The live SSH metrics tunnel recovery + public API gate was independently confirmed by operator and documented in plan/log; no repeat required.
+- New `tests/homeserver/m3_passive_live_evidence.py`: standard-library bounded sampling of **Finserver external public HTTPS** (`stats.xrayvless.online` pinned to external IPv4 `87.103.198.219` by curl with SNI/TLS verification), read-only, 180s/10s defaults, two independent nodes, numeric allowlist only, monotonic counters and error checks, explicit fail closed on unavailable/stale sources. Output is sanitized JSON lines to systemd journal, remains available after SSH terminal disconnect.
+- New offline tests `test_m3_passive_live_evidence.py`: node readiness, missing/invalid counters, reset, successful summary and explicit refusal to fabricate RTT/fairness/final M3 PASS. CI workflow includes mocked tests on code changes. `docs/M3_GATE_CLOSURE.md` now supplies the detached operator command and exact evidence semantics.
+- **FACTUAL STATUS:** source committed; live passive sampler **not executed**; raw production RTT / fairness per stream and active-load conclusion **not measured**. This script alone cannot finish M3 or qualify M4. No working service or server configurations changed.
+
+
+## 2026-11-19 — M3 managed SSH metrics tunnel fault/recovery: LIVE PASS (operator evidence)
+
+- Operator executed the committed detached test `tests/homeserver/m3-managed-tunnel-recovery.sh` under `tervon-m3-tunnel-recovery.service` on Homeserver, source commit `dfa2bfc10be4c2b6e9c90eef79023c7651c58f48`.
+- Journal (2026-11-19 04:06:01–04:06:09 UTC): `INJECT=SIGTERM_MAINPID_ONLY`, tunnel SSH `TUNNEL_PID_BEFORE=1474240`, new SSH `TUNNEL_PID_AFTER=1672169` (6 seconds), `M3_TUNNEL_RESTART=PASS`. External HTTPS two-node JSON check from Finserver yielded `M3_TUNNEL_RECOVERY_PUBLIC_API=PASS` (8 seconds after injection).
+- `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`; detached systemd-run unit exited successfully. **M3 MANAGED METRICS TUNNEL RECOVERY GATE = PASS. No repeat required.**
+- **M3 not yet full PASS:** outstanding sustained real-network latency/RTT, multi-stream fairness and jitter frame/window constraints with complete evidence. M4/M5/M6 not started.
+
+
+## 2026-11-19 — M3 integrated tunnel recovery scenario: CI PASS, host run pending
+
+- Latest tunnel-only script adds automatic *external Finserver* HTTPS check of `https://stats.xrayvless.online/bridge/api/status` pinned to public IPv4 `87.103.198.219`, after observing managed SSH tunnel MainPID recovery. Both `homeserver` and `finserver` must report `ok`; otherwise no recovery PASS.
+- CI on [Go prototype checks #44455023918](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44455023918) **SUCCESS**, including `bash -n` of the recovery script, all M3 jitter race tests, Go tests/race and legacy regressions. [M3 Linux candidate #44455023901](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44455023901) **SUCCESS**, artifact only.
+- **Host fault injection NOT RUN**; no service or SSH tunnel was modified during source work. Next is operator's single detached execution documented in `docs/M3_GATE_CLOSURE.md`; do not report final M3 PASS or begin M4 until end-to-end and real-network sustained conditions are met.
+
+
+## 2026-11-19 — M3 closure source-level CI PASS, host gates remain pending
+
+- Validated CI workflow from source commit `57979a2e50210bc8fd61fd24f18a2a9365adee36`: [Go prototype checks #44454557397](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44454557397) **SUCCESS**, including tunnel recovery script `bash -n`, 30-second fixed-window eight-stream Jitter test in repeated race suite, Go build, Go unit and race regressions, M1/M2/fuzz checks. [M3 Linux candidate #44454557441](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44454557441) **SUCCESS (artifact only)**. The CI test script check does not inject host failure.
+- This CI evidence does not prove external SSH tunnel recovery or live real-network RTT/fairness. Those operator-run gates still remain `PENDING`; M4 has not started.
+- After successful CI, operator action is documented in `docs/M3_GATE_CLOSURE.md`. Not yet deployed or executed on Homeserver.
+
+
+## 2026-11-19 — M3 remaining gate tooling and exact module sequencing (SOURCE only)
+
+- User instructed to continue and refresh documentation after approving full M4/M5/M6 progression. Checked latest `docs/DEVELOPMENT_PLAN.md` in GitHub: M3 still lacks tunnel reconnect-after-SIGTERM and live sustained RTT/fairness/4ms-per-frame/20ms-fixed-window evidence. A prior **UI PASS** cannot be recycled as full M3 acceptance.
+- Added `tests/homeserver/m3-managed-tunnel-recovery.sh`: guarded detached-only systemd failure injection targeting *only* `tervon-bridge-fin-metrics-tunnel.service` MainPID, 45-second bounded recovery observation, start-only-on-failure safety restoration and persistent evidence. No VPN, Bridge, Stats or nginx command is executed. The test is **not deployed or run on Homeserver** and cannot yet be marked PASS.
+- Added `prototype/jitter/fairness_test.go::TestM3ThirtySecondFixedWindowPerStreamBounds`: 8 independent streams and 30 seconds of synthetic clock time, with checks for 4ms/frame, 20ms/fixed-one-second-window, short traffic bypass, continued eligibility. This is a source-level regression, **not actual 30 seconds of network throughput or a sliding-window guarantee**.
+- CI workflow `.github/workflows/go-prototype.yml` syntax-checks tunnel script, without executing fault injection. `docs/M3_GATE_CLOSURE.md` supplies the safe detached operator procedure and Finserver public-IPv4 follow-up validation; live long-run test criteria remain explicit.
+- **Result: CODE+DOCS COMMITTED, CI/OPERATOR LIVE GATES PENDING.** M3 IN_PROGRESS, M4 not started, Linux v1.0.1 not released; M6 Android only after v1.0.1.
+
+
+## 2026-11-19 — Public two-node Stats UI: visual PASS (operator screenshots)
+
+- Operator confirmed no further dashboard testing is needed, providing two screenshots of the public Bridge dashboard with both sections and genuine values visible. Homeserver: 29 active sessions, 0 errors, PAD 29/1874 frames and Jitter 1 frame / 3.08 ms. Finserver: 31 active sessions, backend dial 1035 success / 0 failure, TLS 1035 requests, measured latency p50/p95/p99 1/1/1 ms from 1035 samples, Jitter 357 frames / 407.55 ms. Both sections rendered and prior text placeholders eliminated.
+- **M3 STATS UI = PASS (browser acceptance).** No more UI checks, reinstallations or restarts needed. Separate M3 gates for SSH tunnel resilience and sustained data-plane limits remain pending; v1.0.1 not released.
+
+
+## 2026-11-19 — M3 public Bridge dashboard placeholder removal installed: local PASS (operator evidence)
+
+- On Homeserver, operator ran detached `systemd-run --unit=tervon-m3-ui-fix --collect` using `/opt/tervon-tcp-bridge/m3/evidence/install-ui-fix.sh`. Source checkout discovered at `/opt/tervon-tcp-bridge/m3/source`, Git SSH branch `work/m3-adaptive-jitter`, fast-forward `bb2a475 → 04c74c4`.
+- UI-only guarded update saved backup `/opt/tervon/bridge-stats/.ui-backups/m3-ui-nz5ji82x` and returned `M3_STATS_UI_LOCAL=PASS`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`, `EXTERNAL_HTTPS=NOT_VERIFIED`.
+- Detached script additionally verified installed HTML contains `tb-fin-latency` and does not contain `id=\"tb-backend\"`; `M3_UI_FIX=PASS`, exit success. Decapsulator-only metrics moved to Finserver panel; no manufactured zeros or latency when there are no samples.
+- **Accepted gate: UI code installed and local read-back PASS.** Still pending: public IPv4 browser render/asset freshness, SSH managed tunnel recovery injection, sustained M3 network limits and fairness. No v1.0.1 release.
+
+
+## 2026-11-19 — M3 dashboard placeholder elimination: real Decapsulator instrumentation (SOURCE MODIFIED)
+
+- User screenshot of live public Homeserver section had literal filler cards `На стороне Decapsulator` (Backend dial/TLS), and `Нет измерений` for Homeserver connection latency. Existing `bridge_panel.js` hardcoded first two texts, despite working two-node JSON API; Homeserver client does not measure backend-dial latency or Decapsulator TLS.
+- **Changed in M3 branch:** removed 3 non-applicable Homeserver cards (Backend dial, TLS, connection latency); retained client-side session/traffic/runtime/PAD/Jitter/error counters. Finserver already has measured `backend_dial_success/failure`, `tls13_h2_mtls_requests`; added **Finserver connect latency p50/p95/p99** with real `connect_latency_samples`, report `0 замеров` when zero, never fabricate milliseconds. `prototype/bridge.go` already calls `BackendDial`, `ObserveConnectLatency` and `ObserveTLS` for actual Decapsulator requests, so no extra data-plane instrumentation or service restart required to activate these metrics.
+- Updated JavaScript test fixture and assertions to ensure no hardcoded role-specific filler and correct Finserver latency/backends/TLS; existing UI-only guarded `integrations/stats/update-m3-ui.py` supports backup, atomic file replacement, checks, rollback without any service restarts.
+- **CURRENT STATE:** source changes committed but production UI **NOT YET UPDATED**; CI / operator browser acceptance still pending. No Bridge/Stats/nginx/SSH services changed by these commits.
+
+
+## 2026-11-19 — M3 public two-node dashboard API PASS via external IPv4 (operator evidence)
+
+- Operator ran authenticated-TLS HTTPS GET from **Finserver** to `stats.xrayvless.online:443`, pinned via `curl --resolve` to public IPv4 `87.103.198.219`, no `-k`, no loopback substitution.
+- Schema `tervon.bridge.dashboard.v1`; `nodes.homeserver.status=ok`, `sessions_active=26`; `nodes.finserver.status=ok`, `sessions_active=26`; script asserted both nodes `ok` and returned `M3_PUBLIC_TWO_NODE_API=PASS`. Combined with previous TLS-cert verification and HTTP/2 200, **PUBLIC TWO-NODE JSON API PASS**.
+- **Still unverified:** browser visual rendering of both sections and assets, SSH systemd auto-recovery after simulated disconnect, sustained real-network latency/fairness and per-frame PAD/Jitter limits; v1.0.1 not yet released. No production services changed by this documentation update.
+
+
+## 2026-11-19 — External HTTPS check through public IPv4: Finserver PASS / Homeserver TIMEOUT
+
+- Operator ran `curl --noproxy '*' -v --max-time 10 --resolve stats.xrayvless.online:443:87.103.198.219 https://stats.xrayvless.online/bridge/api/status` on **Homeserver** and **Finserver**, always using public IPv4 `87.103.198.219` with correct domain/SNI.
+- **Finserver:** connected to external `87.103.198.219:443`, Let's Encrypt certificate `CN=stats.xrayvless.online`, `SSL certificate verify ok`, HTTP/2 `200` on `/bridge/api/status`. **EXTERNAL HTTPS TRANSPORT + HTTP STATUS PASS from Finserver**; response JSON node statuses not yet asserted.
+- **Homeserver:** TCP connect to same public IP:443 timed out after 10.002 seconds. No HTTP/TLS handshake there. A hairpin NAT / router routing issue is plausible but **not confirmed**. The two outcomes are not contradictory; access differs by origin. Never substitute 127.0.0.1 for a public-access acceptance test per operator instructions.
+- Next: verify *public IPv4* API JSON `homeserver` and `finserver` statuses and UI assets **from Finserver**, and probe browser page. Do not modify nginx/Bridge or TLS certificates. M3 remaining gates: resiliency after actual SSH drop, traffic constraints and latency/fairness.
+
+
+## 2026-11-19 — M3 managed Finserver SSH telemetry tunnel cutover-v2 PASS (operator evidence)
+
+- Operator ran isolated `systemd-run --unit=tervon-fin-tunnel-cutover-v2 --collect /bin/bash /opt/tervon-tcp-bridge/m3/evidence/switch-fin-tunnel.sh` after staging patched SSH unit (`ClearAllForwardings=no`) and confirming prior temporary tunnel PID 1465553.
+- Systemd journal: cutover started **06:02:36** local host time; one initial loopback curl connection refusal at **06:02:37** while SSH listener was becoming ready; `M3_MANAGED_TUNNEL=PASS` at **06:02:38**, cutover unit exited successfully. Permanent `tervon-bridge-fin-metrics-tunnel.service` returned `active` and `enabled`.
+- Read-only dashboard `GET http://127.0.0.1:8894/bridge/api/status` subsequently reported `HOMESERVER ok`, `FINSERVER ok`. **Permanent tunnel startup + two-node local Stats PASS**. Tunnel intended to bind only 127.0.0.1:8897 and SSH-forward to Finserver loopback:8896.
+- **Not yet evidenced:** fault-injection recovery after dropping SSH connection, metrics listener socket ownership after unit start, public HTTPS latest-page rendering, sustained M3 per-stream bounds/latency/fairness. No claim of M3 full-module or v1.0.1 release PASS.
+
+
+## 2026-11-19 — Finserver temporary metrics SSH tunnel restored (operator evidence)
+
+- Previous rollback claim of restoration was not equivalent to verified access: `ss` showed no TCP/8897 listener, `curl` connection refused, and `nodes.finserver=unavailable` while Homeserver remained `ok`.
+- Operator relaunched temporary OpenSSH forward with `-o ClearAllForwardings=no`, `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ExitOnForwardFailure=yes` and `-L 127.0.0.1:8897:127.0.0.1:8896`; `ss` confirmed listener `ssh PID 1465553` and a live curl request to `/metrics/v1` succeeded. **TEMPORARY TUNNEL RESTORED PASS**, but permanent systemd service remains **NOT ACCEPTED**.
+- GitHub unit fixed and regression check added; latest observed candidate build CI success, full Go prototype checks still running. Do not replace the restored temporary tunnel until source CI is PASS and corrected unit is staged and validated. Site externally accessible HTTPS still unverified.
+
+
+## 2026-11-19 — Managed Stats tunnel rollback: root cause fixed in GitHub, deployment not yet PASS
+
+- Operator cutover `tervon-fin-tunnel-cutover.service` 05:56:58–05:57:24: managed SSH unit started and remained active, but 20 attempts to connect loopback TCP/8897 failed; rollback disabled and stopped unit and relaunched temporary `ssh -fN`, printing `TEMPORARY_TUNNEL_RESTORED=PASS`. Subsequent dashboard API showed `nodes.homeserver=ok, nodes.finserver=unavailable`; this **does not** establish a successful verified restoration.
+- **Root cause source bug:** `ExecStart` incorrectly used `-o ClearAllForwardings=yes` together with explicit `-L 127.0.0.1:8897:127.0.0.1:8896`. OpenSSH documents that `ClearAllForwardings=yes` cancels forwardings specified on command line as well as config. Hence SSH process could run while never listening on 8897. Corrected to `ClearAllForwardings=no`; strengthened unit regression test. New CI and operator remediation required before declaring managed tunnel PASS.
+- The temporary recovery process can bind the local port before its SSH connection is ready. Must explicitly test both listener ownership and a **successful JSON `ready=true`** read through 8897, then dashboard Finserver `ok`. Do not restart unrelated services or reuse previous cutover without verifying source patch.
+- **State:** permanent tunnel NOT VERIFIED, rollback declared command success but Finserver dashboard unavailable, M3 still IN_PROGRESS.
+
+
+## 2026-11-19 — M3 two-node Stats on Homeserver, operator-local PASS
+
+- Operator confirmed Stats install following `install-m3-two-node.py` using local read-only API: `tervon-bridge-stats.service=active`, `tervon-bridge-client.service=active`, `tervon-bridge-server.service=active` on Finserver.
+- `GET http://127.0.0.1:8894/bridge/api/status` schema `tervon.bridge.dashboard.v1`; `nodes.homeserver.status=ok, ready=true, sessions_active=37, padding_download_frames=1870, jitter_download_frames=0`; `nodes.finserver.status=ok, ready=true, sessions_active=37, padding_download_frames=1870, jitter_download_frames=357`. Two-node monitoring **LOCAL API PASS**; Finserver SSH forward `127.0.0.1:8897` had been verified beforehand. Home and Finserver PAD counter agreement observed.
+- Backup created: `/opt/tervon/bridge-stats/.two-node-backups/m3-ty70nt1x`. Initial console became blank/garbled during installation; subsequent independent local read-only checks establish running Stats and two-node JSON status, but **not** externally accessible fresh browser page.
+- **Not yet complete:** replace temporary `ssh -fN` with persistent controlled systemd tunnel and verify restart/recovery; independent external HTTPS UI freshness; long-run M3 stream constraints and latency/fairness. No Bridge/Guard/nginx services altered by this report. M3 **IN_PROGRESS**, v1.0.1 **NOT RELEASED**.
+
+
+## 2026-11-19 — M3 optional two-node Bridge Stats integration (SOURCE PREPARED, NO INSTALL)
+
+- Operator approved connecting Finserver to the existing /bridge/ page. GitHub branch `work/m3-adaptive-jitter`: `bridge_site.py` supports optional `TERVON_BRIDGE_FIN_METRICS_URL` only as a **literal loopback URL** (existing hardened BridgeMetricsCollector validates it). New `nodes.finserver` is sanitized through the same M3 telemetry allowlist; absent tunnel shows unavailable, Homeserver remains independent.
+- `bridge_panel.html` and `bridge_panel.js` now have separate Homeserver/Finserver sections, server PAD/Jitter/overhead/backend/TLS counters, and unavailable state; JS accesses only the same-origin `/bridge/api/status` without direct Finserver URLs. Tests updated for two-node output and failing tunnel. The old single-node collector remains unchanged.
+- New guarded installer `integrations/stats/install-m3-two-node.py` checks SSH GitHub branch/clean worktree, existing Stats health, Finserver forwarded endpoint `http://127.0.0.1:8897/metrics/v1`, then saves files under `/opt/tervon/bridge-stats/.two-node-backups/`, changes **Stats-only** files and a new systemd environment drop-in, restarts **only tervon-bridge-stats.service**, and rolls back on failed verification. Independent external HTTPS and actual installation **NOT VERIFIED**. No nginx, Bridge or Finserver unit changes by this installer.
+- Transport: separate **OpenSSH** local forward `127.0.0.1:8897` on Homeserver → `127.0.0.1:8896` on Finserver (SSH authenticated, forwarding bound to loopback); no public metrics listeners, remote IPs, or secrets in dashboard API. Verify temporary tunnel first, then migrate to a persistent systemd SSH tunnel unit with bind/key isolation before production acceptance.
+- Source tests/CI are pending at this checkpoint. M3 remains **IN_PROGRESS**, no release.
+
+
+## 2026-11-19 — M3 simultaneous two-node real traffic measurement (operator evidence)
+
+- **COLLECTOR SSH FIX / simultaneous live data:** third collection in `/opt/tervon-tcp-bridge/m3/evidence/live-metrics.jsonl` has **12/12 valid samples on both Homeserver and Finserver**, UTC 02:20:48.431539 to 02:22:55.383720. Both nodes report `ready=true`, `padding_rate_configured=true`, `jitter_configured=true`. Unlike the first two data sets, no `CalledProcessError` for the third.
+- **Homeserver download payload:** `1,474,714,022 → 1,539,682,008`, delta **64,967,986 bytes** (~61.96 MiB over 126.95 seconds, ~4.09 Mbit/s aggregate). Aggregate throughput cannot establish per-stream ≥1 Mbps qualification.
+- **Bilateral downstream PAD consistency:** both report `padding_download_frames 701 → 1870` (+1169) and `padding_download_bytes 312583 → 868347` (+555764). Finserver `padding_download_transitions 20 → 24` with active and inactive samples. Homeserver receiver `padding_state=OFF` is distinct from remote sender's activity; PAD byte/frame counters agree end-to-end.
+- **Finserver downstream actual Jitter:** `jitter_download_frames 109 → 357` (+248), `jitter_download_delay_ns 144580471 → 407551246` (+262970775 ns / 262.97 ms, 1.06 ms **average** per newly delayed frame). Homeserver encoder jitter counters remain zero for upstream. This is **LIVE JITTER APPLIED PASS** at counters level, not proof of 4ms per-frame max or 20ms/s/per-stream guardrail.
+- **PAD overhead:** final cumulative `padding_download_wire_overhead_percent` Home **0.057612350822508276%**, Fin **0.058218331940012316%**, below 5% in displayed aggregate observations; cannot substitute for stream-specific worst case test.
+- **Status:** real two-node PAD and Jitter counter activity PASS; long-run RTT/fairness, per-stream bounds, site two-node integration, and external dashboard fresh HTTPS still pending; M3 **IN_PROGRESS / NOT RELEASED**. Only user supplied read-only telemetry was evaluated; no production service changed in this documentation update.
+
+
+## 2026-11-19 — M3 live traffic counters and Finserver Jitter proof (operator evidence)
+
+- Homeserver `live-metrics.jsonl` 12 observations, 02:09:10–02:11:13 UTC. `ready=true`; `download_bytes` 90,314,955 → 154,450,323 (**+64,135,368 bytes**, roughly 4.17 Mbit/s aggregate), `sessions_active` 19 → 41; PAD downstream received `padding_download_frames=115`, `padding_download_bytes=42,216`. Last cumulative `padding_download_wire_overhead_percent=0.028077636328413504` (percentage, not fraction). Homeserver `jitter_*_frames=0` in this collection; this is not proof Jitter is inactive on the server.
+- Previous local SSH sampler returned `CalledProcessError` for Finserver on all 12 samples, so **two-node simultaneous measurement remains unproven**. Operator applied a read-only local script fix to pass remote Python via SSH stdin. Direct `ssh finserver` + loopback curl then returned `schema=tervon.bridge.telemetry.v1`, `ready=true`, `sessions_active=45`, `padding_download_frames=691`, `jitter_download_frames=109`, `jitter_download_delay_ns=144580471` (~144.58 ms cumulative; ~1.33 ms per delayed frame). **Finserver live JITTER APPLIED / PAD OBSERVED PASS** at counter level. These cumulative metrics do not establish per-frame 4ms bound, real RTT/fairness, or 5% wire overhead for each qualified stream.
+- Screenshot of Bridge Stats shows older date 2026-11-18 and `Padding / Jitter: Выкл. / Не реализовано`; does **not** verify present M3 visualization and suggests stale screenshot or older dashboard state. Finserver still not connected to dashboard. The screenshot of failing Guard/CrowdSec GitHub Actions belongs to **Tervon Federation**, separate from Bridge M3; do not mix repository gates.
+- **Remaining M3 gate:** reliable dual-node sampling under controlled same-stream sustained ≥1 Mbit/s; verify bounded jitter, PAD overhead, latency/fairness; implement/test private SSH-forwarded Finserver Stats and update read-only two-node UI; test local/external HTTPS and safe rollback; no release yet.
+
+
+## 2026-11-19 — M3 live binary rollout + bilateral opt-in and Finserver private metrics (operator evidence)
+
+- **Source candidate:** `ba8d6cedbac58fc9c1b4e81872e127075783a3b9`; SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. Both nodes checked their active `/proc/<pid>/exe` and returned the expected digest; `tervon-bridge-client.service` and `tervon-bridge-server.service` are active. This is **BINARY INSTALL PASS**, not live VPN E2E PASS.
+- **Finserver:** staged candidate transferred via the existing SSH alias, checksum PASS; production `/opt/tervon-bridge-linux-amd64` switched from M2 checksum `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`. Binary backup `/opt/tervon-tcp-bridge/backups/m0-aeGcyPKF`. Operator enabled `padding_rate_enabled` and `jitter_enabled` on server with `padding_enabled=true`: `FIN_M3_PROCESS=PASS`. Configuration backup `/opt/tervon-tcp-bridge/m3/server-before-rate1-jit1.json`.
+- **Homeserver:** running binary switched to the same verified M3 SHA; backup `/opt/tervon-tcp-bridge/backups/m0-zQjfaIo4`. Bilateral configuration opt-in `HOME_M3_RATE1=ENABLED`, `HOME_M3_JITTER=ENABLED`, `HOME_M3_PROCESS=PASS`; backup `/opt/tervon-tcp-bridge/m3/client-before-rate1-jit1.json`.
+- **Finserver local telemetry:** separate private metrics listener `127.0.0.1:8896` enabled; `FIN_M3_METRICS=PASS`, schema `tervon.bridge.telemetry.v1`, Bridge process checked, `PUBLIC_METRICS=DISABLED`. Configuration backup `/opt/tervon-tcp-bridge/m3/server-before-metrics.json`.
+- **Not yet verified:** actual VPN connectivity after activation, PAD activation threshold over real flow, Jitter frame/delay counters, RTT/fairness/overhead, and a secure multi-node Bridge Stats integration. Current Homeserver site collector reads Homeserver only; **do not assume Finserver is visible on the site**. Do not expose Finserver loopback metrics to internet. No v1.0.1 release, M3 **LIVE_MEASUREMENTS_PENDING**.
+
+
+## 2026-11-18 — M3 Stats browser screenshot: M2 PAD emitted and displayed (operator evidence)
+
+- На публичной странице Tervon TCP Bridge оператор предоставил снимок с временем обновления **18.11.2026 20:45:17**. Панель выводит `Bridge готов`, активных сессий **15**, started/completed/rejected **1572/1557/0**, полезный трафик upload/download **25.9 / 981.7 MiB**, uptime **17328.4 s**, goroutines **52**, память **12.3 MiB**, ошибки суммарно **0**.
+- На панели M3 UI с установленным M2 telemetry: PAD upload **18.3 KiB**, PAD download **0 B**; upload/download PAD frames **41/0**, transitions **12/0**; PAD wire overhead **0.07% / 0.00%**. Это подтверждает **фактическую ранее зарегистрированную отправку PAD кадров Homeserver upload** и работоспособность новой локально установленной пары Stats UI + collector. Состояние обеих PAD-направлений на момент снимка: **«Нет активности»**; это моментальное состояние, а не отсутствие PAD ранее.
+- На той же странице `padding_state=OFF` при отсутствии доступного `padding_configured` корректно отражено как **«Нет активности (настройка неизвестна)»**. Оператор отдельно ранее подтверждал `padding_enabled=true` в конфигурации. Jitter отображён как «Не реализовано» в работающем M2; на M3 binary `jit1` это не распространяется.
+- Нули и прочерки на отдельных cards: backend/TLS «На стороне Decapsulator», latency «Нет измерений», Jitter `— / —` — не доказывают неисправность TCP или отсутствие HTTPS. Отсутствуют проверка нового порога `rate1` ≥1 Мбит/с в двух окнах, измерения Jitter на реальном потоке, bilateral M3 deployment, внешний независимый DNS/TLS тест и подтверждение пользовательской производительности.
+- **Evidence:** операторский скриншот в переписке, а не секреты/сырые endpoint-потоки. Снимок не публикуется в репозиторий. **Status: M3_STATS_BROWSER_RENDER=OBSERVED, M2_PAD_EMISSION=OBSERVED, M3_DATA_PLANE=NOT_DEPLOYED, M3=IN_PROGRESS.**
+
+
+## 2026-11-18 — M3 bridge metrics UI + collector installed on Homeserver: LOCAL PASS (operator evidence)
+
+- Оператор выполнил `git fetch origin work/m3-adaptive-jitter`, fast-forward **`a315139..5015a3b`** и последовательно `python3 integrations/stats/update-m3-ui.py`, `python3 integrations/stats/update-m3-collector.py`. Текущая среда — действующий Homeserver, **не** CI.
+- **UI:** `UI_BACKUP=/opt/tervon/bridge-stats/.ui-backups/m3-ui-6th3s12p`, `M3_STATS_UI_LOCAL=PASS`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`, `EXTERNAL_HTTPS=NOT_VERIFIED`.
+- **Collector:** `COLLECTOR_BACKUP=/opt/tervon/bridge-stats/.collector-backups/m3-00et2d9c`, `M3_COLLECTOR_LOCAL=PASS`, `STATS_RESTART=YES`, `BRIDGE_RESTART=NONE`, `NGINX_RELOAD=NONE`, `EXTERNAL_HTTPS=NOT_VERIFIED`.
+- Исходный код обновлён в GitHub ранее; новая установка **не меняла бинарник Encapsulator M2, конфигурацию Bridge, nginx или Finserver**. Оба сценария прошли встроенные локальные проверки; откат не потребовался. Сохранить обе резервные копии, не запускать повторно `activate-m2-metrics.py`.
+- **Ограничения проверки:** локальные PASS означают подтверждение скриптов на Homeserver и передачи доступных исходному M2 PAD-полей, но **не** дают доказательства активности rate1/jit1 в production и **не** проверяют внешний публичный DNS/TLS. Попытка прочитать сайт через внешний retrieval недоступна; статус `MONITORING_EXTERNAL=NOT_VERIFIED`, не FAIL.
+- **Следующие gates M3:** проверка внешнего `https://stats.xrayvless.online/bridge/` с независимой сети; отдельно безопасная, checksum-pinned live установка согласованного M3 кандидата на оба узла с rollback, подтверждение ≥1 Мбит/с в 2 последовательных 1-секундных окнах, <=5% PAD wire overhead, Jitter delay/fairness, обычная связь, RTT/retransmissions/CPU и отсутствие деградации. M3 `IN_PROGRESS`, v1.0.1 `NOT_RELEASED`.
+
+
+## 2026-11-18 — M3 collector-only package CODE/CI PASS, deployment still open
+
+- **Full CI:** [Go prototype checks #44308674234](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308674234) completed **SUCCESS / 36 of 36 steps**, exact implementation SHA `1661d93000f11dfe74a12543efffd23df04084e1`. Includes Python stats/collector installer and mocked rollback, Node UI, Go build/vet/unit/race, M1/M2/M3 and bounded fuzz. Prior `681117e9` full CI [#44308302585](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44308302585) also SUCCESS. Last code delta disallows redirects when verifying local stats endpoint.
+- **Status:** CODE PASS, HOMESERVER COLLECTOR DEPLOYMENT NOT RUN, EXTERNAL NEW UI VERIFICATION NOT RUN; active M2 and existing local Stats remain unchanged. Test does not prove M3 Jitter latency/fairness/1Mbps behavior on real Homeserver/Finserver. No M4 or v1.0.1 release.
+
+
+## 2026-11-18 — M3 Stats collector update and rollback code (awaiting full CI)
+
+- Прочитан реальный `bridge_site.py`: импортирует `BridgeMetricsCollector` один раз на старте процесса, поэтому копирование нового Python-адаптера без рестарта Stats не сделает новые PAD-поля видимыми. Существующие метрики M2 уже доступны; нельзя повторно выполнять `activate-m2-metrics.py`.
+- `integrations/stats/update-m3-collector.py` коммиты `5ffebb2`, `12f49f6`, `7e5bc2a`: root/SSH/M3 clean preflight, проверка текущего локального источника/панели, закрытый backup, атомарная замена только `bridge_metrics.py`, restart только Stats, bounded wait с проверкой allowlist PAD. PAD-counters могут расти между снимками; state может меняться; тест не требует буквального совпадения таких значений. Rollback восстанавливает прежний Python-файл и проверяет готовность Stats. Другие службы и конфигурации не меняются.
+- Изолированные mocked тесты `test_update_m3_collector.py` коммиты `c69f026` и `681117e`: успех/backup, преднамеренный FAIL→rollback, проверка отсутствующих PAD-полей, монотонные counters между чтениями, root preflight. Это исходники и тесты, не доказанный CI PASS на новом пакете и не live rollout.
+- Отдельное руководство и разделение UI/adapter: `docs/M3_MONITORING_RECOVERY.md`. Следующий gate — точный CI PASS, затем операторская последовательная установка и независимое внешнее HTTPS подтверждение; далее live two-node rate1/jit1. M3 IN_PROGRESS, no release.
+
+
+## 2026-11-18 — M3 complete verification of UI hot-update package: PASS (CI only)
+
+- **Exact passing source SHA:** `ee68d50f2910d3125ce39e091d0ab3d0d3099db4`. [GitHub Actions #44306965079](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306965079) completed **SUCCESS** (36/36 job steps); stats Python/Node, UI hot-update/rollback, Go build/vet/unit/race and M1/M2/M3 regressions/fuzz. Earlier `0038e082` CI FAIL was caused by one old Node fixture's wording after correction of missing `padding_configured`, not by transport; commit `ee68d50f` adjusted the assertion to the correct `Нет активности` state.
+- **Actual status:** the UI-only install script and M3 panel source are CODE+CI PASS; **not installed on Homeserver**. Existing local M2 monitoring is working. The Python Stats collector in the running service has not been replaced/reloaded, so full PAD/Jitter optional field coverage is not yet guaranteed. No new live network performance evidence or M3 rollout occurred. Next controlled UI-only deployment with backup/rollback, then distinct collector/data-plane gates. v1.0.1 NOT RELEASED.
+
+
+
+## 2026-11-18 — M3 monitoring UI package: verified previous SHA and legacy-state follow-up
+
+- **GitHub Actions PASS:** [Go prototype checks #44306152672](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306152672), exact tested SHA `669fa32e65fee712d70891ba38507c10772b444d`, completed SUCCESS. Python stats tests (including `test_update_m3_ui.py` success/forced rollback), Node.js UI tests, Go build/vet/unit/race, M1/M2/M3 regression suites and bounded fuzz passed. M3 Linux candidate [#44306153058](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44306153058) completed SUCCESS (artifact only).
+- **Follow-up UI correction:** `34bb3e2` changes unknown `padding_configured` + `padding_state=OFF` from misleading «Выкл.» to «Нет активности (настройка неизвестна)»; `padding_configured=false` explicitly shows «Выключено». Directional PAD states distinguish these cases too. `0038e082` adds both regression test cases. **New full CI pending on latest SHA**; do not infer PASS from the earlier run.
+- **Deployment:** none. Homeserver continues running operator-installed M2, local Stats metrics currently linked; no systemd restart, nginx reload, binary replacement or Finserver change. UI-only guarded installer is ready in GitHub but must be invoked separately after latest CI PASS; it verifies local HTML/JS, keeps backup and rollback. External public HTTPS and real M3 rate1/jit1 verification remain OPEN.
+
+
+## 2026-11-18 — M3: безопасная установка только UI (CODE WRITTEN, CI PENDING)
+
+- Новый `integrations/stats/update-m3-ui.py` (`93dfa95b`) обновляет **только** `bridge_panel.html` и `bridge_panel.js` существующей Stats-службы; предварительно проверяет root, чистый SSH checkout M3, существующие regular-файлы, активную Stats-службу. Поскольку `bridge_site.py` перечитывает HTML/JS при каждом запросе, перезапуск не требуется.
+- Перед заменой создаёт закрытую резервную копию обоих оригиналов в `/opt/tervon/bridge-stats/.ui-backups`; применяет через temp-файл и os.replace; проверяет точный ответ localhost HTML/JS, затем активность stats; при исключении восстанавливает предыдущие байты и печатает статус отката.
+- `test_update_m3_ui.py` (`b3e2e9b`) проверяет успешное обновление и backup, принудительную ошибку проверки с восстановлением обоих файлов, атомарную запись и отказ при отсутствии root/неверном SSH remote без обращения к systemd. Никаких команд на Homeserver не выполнялось; внешний HTTPS и M3 transport live PASS не заявлены.
+- **Gate:** полный CI текущего SHA; только затем операторский контролируемый UI-only update и внешний просмотр сайта. Сохранять работающий M2, Stats, nginx и Finserver.
+
+
+## 2026-11-18 — M3: конкретное исправление неполной панели метрик (CODE WRITTEN, CI PENDING)
+
+- **Оператор:** M2 установлен, Padding включён и ранее наблюдался ACTIVE. На публичном Homeserver dashboard реальны данные сессий/трафика, но часть полей не отражает фактический режим. Повторный `activate-m2-metrics.py` не требуется: `client.json`, `bridge-stats.env`, `client.json.before-metrics` существуют; сценарий остановился на read-only preflight из-за уже существующего env. Production не менять.
+- **Рабочая ветка M3:** `work/m3-adaptive-jitter`. В исходниках M3 уже реализованы `rate1` (≥1 Мбит/с × два полных окна по 1 с, exit <0.7 Мбит/с, idle-reset >1 с, ≤5% wire overhead) и `jit1`; в существующей production M2 бинарной реализации действует прежний классификатор `pad1`. Новый M3 в production не устанавливался этим пакетом.
+- **Коммиты панели:** `0e4f97e` (JS), `85c2564` (HTML), `83b44ce` (Node regression). Добавлены отображение `padding_upload_state/padding_download_state`, `padding_upload_frames/padding_download_frames`, transitions; состояние OFF при `padding_configured=true` явно означает ожидание условий. Ранее реализованная в M3 Stats-адаптация уже позволяет передавать эти optional allowlist поля. Отсутствующие поля остаются `—`, а не придуманным нулём.
+- **Семантика:** на единственном публичном узле Homeserver Encapsulator `backend_dial_*` и TLS-handshake server-side counters не являются показателями проверки удалённого Decapsulator. Вместо вводящих в заблуждение `0/0` и `0` панель сообщает «На стороне Decapsulator». Latency P50/P95/P99 выводится только при `connect_latency_samples > 0`, иначе «Нет измерений». Это не сетевой тест или диагностика работоспособности mTLS.
+- **Тесты, добавленные к исходникам:** Node UI fixture включает PAD states/frames/transitions и latency sample count; проверяются ожидаемые значения и отсутствие ложного `0.0 ms`. **Результат GitHub CI этого нового пакета ещё не подтверждён; никаких production файлов, сервисов, nginx, конфигурации или бинарника не менялось.**
+- **Дальнейшая очередь внутри M3:** CI на точном SHA, затем опциональное обновление только файлов Stats UI с backup/rollback без Bridge restart, проверка реального внешнего HTTPS; отдельно согласованный реальный `rate1/jit1` E2E, RTT/fairness/CPU/overhead и rollback до M3 PASS. v1.0.1 НЕ ВЫПУЩЕН.
+
+
+## 2026-11-18 — M3: velocity-based video Padding/Jitter and monitoring (IN PROGRESS)
+
+- **Repository / branch:** `git@github.com:tervon-software/Tervon-TCP-Bridge.git`, `work/m3-adaptive-jitter`. **No change to active Homeserver/Finserver binaries after operator's M2 deployment.**
+- **Operator runtime evidence:** M2 `padding_enabled=true` and M2 binary hash verified; 4 Mbit/s real file-upload test did not activate Padding according to reported live counters. This is a measured case of no activation, not proof of packet boundaries or wrong network routing.
+- **M3 code:** optional `padding_rate_enabled` performs per-flow, per-direction 1 Mbps qualification over two complete 1s windows independent of small or large TCP writes; 0.7 Mbps exit hysteresis; 5% PAD header-inclusive wire budget. `jitter_enabled` additionally requires rate padding and bilateral `jit1` support, with cancellation, bounded delay and conservative congestion bypass. M1/M2 `tbf1-fin`/`tbf1-fin,pad1` remain valid.
+- **Test coverage added:** 1 Mbps small fragments and 125 KB once per second (video chunks), 4 Mbps fragmented upload, below-threshold and short interactive bursts, idle/hysteresis, independent sessions, 32 concurrent Jitter policy streams, byte-exact mTLS HTTP/2 both directions, supported/rejected capabilities, malformed PAD rejected before counting. Code and tests are in GitHub; results depend on exact CI commit.
+- **Monitoring:** the operator verified original M2 private metrics and Bridge Stats locally, `MONITORING_LOCAL=PASS`, backup `/opt/tervon-tcp-bridge/backups/m3-metrics-jta0z8Y3`. Additional code now tracks received PAD frames at the decoder, configured rate/jitter flags and per-direction Jitter delay counters, with public-site UI display. New files not yet installed on Homeserver.
+- **CI:** previous pre-fix unit failure from inconsistent fake timestamps corrected; [CI #44280393604](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280393604) PASS on previous integration snapshot. Latest [CI #44280950111](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280950111) still pending at document time; [M3 Linux build #44280950001](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280950001) PASS artifact only. Do not equate CI build with live deployment or release.
+- **Source-code CI checkpoint (2026-11-18):** `35f38cc82bf6fb7ef85ab6726654cf2010a461fa`; [Go prototype checks #44280950111](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280950111) **SUCCESS**, including Go build, vet, unit, race, M3 test suites, M1/M2 regression and fuzz. [M3 Linux candidate #44280950001](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44280950001) **SUCCESS** (build artifact + SHA256/provenance only). **Code CI PASS is not host/live PASS or release**.
+- **Status:** M3 `IN_PROGRESS`; genuine 1 Mbps and 4 Mbps live PAD/Jitter behavior, RTT/fairness and external Bridge Stats check require operator-controlled verification. Current M2 stays active; `v1.0.1` NOT RELEASED.
+
+
 Журнал фиксирует проверяемые факты. Источник критериев и очередности: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
 ## 2026-11-17 — M1: foundation кадрирования

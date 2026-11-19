@@ -1,0 +1,31 @@
+# M3 Finserver private telemetry forward; install ONLY on Homeserver.
+# Uses the pre-existing root SSH identity and pinned host key in /root/.ssh.
+[Unit]
+Description=Tervon TCP Bridge Finserver private metrics SSH tunnel
+Documentation=man:ssh(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/ssh -F /root/.ssh/config -N -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ClearAllForwardings=no -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:8897:127.0.0.1:8896 finserver
+Restart=always
+RestartSec=5s
+TimeoutStartSec=15s
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

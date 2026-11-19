@@ -21,7 +21,7 @@ ERROR_REASONS = (
     "backend_dial", "http_status", "timeout", "cancellation",
     "shutdown", "authorization", "tls_handshake",
 )
-STATES = frozenset({"NOT_IMPLEMENTED", "OFF", "ACTIVE", "ERROR"})
+STATES = frozenset({"NOT_IMPLEMENTED", "OFF", "ACTIVE", "ENABLED", "ERROR"})
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -71,6 +71,26 @@ def _snapshot(raw: object) -> dict:
         "memory_alloc_bytes",
     ):
         values[key] = _nonnegative_number(raw.get(key))
+    # Optional M2/M3 extension fields: older Bridge binaries do not emit
+    # them. Preserve absence rather than fabricating zero-valued traffic.
+    for key in (
+        "padding_upload_bytes", "padding_download_bytes",
+        "padding_upload_frames", "padding_download_frames",
+        "padding_upload_wire_overhead_bytes",
+        "padding_download_wire_overhead_bytes",
+        "padding_upload_overhead_percent",
+        "padding_download_overhead_percent",
+        "padding_upload_wire_overhead_percent",
+        "padding_download_wire_overhead_percent",
+        "padding_upload_transitions", "padding_download_transitions",
+    ):
+        if key in raw:
+            values[key] = _nonnegative_number(raw[key])
+    for key in ("padding_upload_state", "padding_download_state"):
+        if key in raw:
+            if raw[key] not in STATES:
+                raise ValueError("invalid directional feature state")
+            values[key] = raw[key]
     active = raw.get("sessions_active")
     if type(active) is not int or active < 0:
         raise ValueError("invalid active sessions")
@@ -86,6 +106,15 @@ def _snapshot(raw: object) -> dict:
         if state not in STATES:
             raise ValueError("invalid feature state")
         values[key] = state
+    for key in ("padding_configured", "padding_rate_configured", "jitter_configured"):
+        if key in raw:
+            if type(raw[key]) is not bool:
+                raise ValueError("invalid configured state")
+            values[key] = raw[key]
+    for key in ("jitter_upload_frames", "jitter_download_frames",
+                "jitter_upload_delay_ns", "jitter_download_delay_ns"):
+        if key in raw:
+            values[key] = _nonnegative_number(raw[key])
     values["ready"] = raw["ready"]
     return values
 

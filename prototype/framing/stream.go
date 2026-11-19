@@ -1,6 +1,7 @@
 package framing
 
 import (
+    "context"
     "crypto/rand"
     "errors"
     "io"
@@ -8,6 +9,7 @@ import (
     "time"
 
     "tervon-tcp-bridge/padding"
+    "tervon-tcp-bridge/jitter"
 )
 
 // Encoder writes opaque bytes as bounded DATA frames. PAD frames are emitted
@@ -16,10 +18,15 @@ type Encoder struct {
     w io.Writer
     closed bool
     pad *padding.State
+    ratePad *padding.RateState
     now func() time.Time
     onPadding func(uint64)
     onActivity func(bool)
     reportedActive bool
+    jitterState *jitter.State
+    jitterContext context.Context
+    onJitter func(time.Duration)
+    priorWriteCongested bool
 }
 
 func NewEncoder(w io.Writer) *Encoder { return &Encoder{w:w} }
@@ -32,9 +39,32 @@ func NewPaddingEncoder(w io.Writer, policy padding.Policy) (*Encoder,error) {
     return &Encoder{w:w,pad:state,now:time.Now},nil
 }
 
+// NewRatePaddingEncoder enables the M3 rate-based policy only for a
+// stream whose peers explicitly negotiated pad1,rate1. Existing M2 peers
+// must continue using NewPaddingEncoder.
+func NewRatePaddingEncoder(w io.Writer, policy padding.RatePolicy) (*Encoder, error) {
+    state, err := padding.NewRateState(policy)
+    if err != nil { return nil, err }
+    return &Encoder{w:w, ratePad:state, now:time.Now}, nil
+}
+
 // SetObservers installs bounded, synchronous aggregate callbacks. The callbacks
 // must not block or retain payloads. They report only emitted PAD bytes and
 // ACTIVE/OFF transitions, and are invoked by the encoder's single writer.
+// EnableJitter is an explicit local opt-in to the bounded scheduler. The
+// Bridge must negotiate jit1 with its peer before calling this method.
+// It is not enabled by existing M1/M2 constructors or configurations.
+func (e *Encoder) EnableJitter(ctx context.Context, policy jitter.Policy, onDelay func(time.Duration)) error {
+    if e.closed || ctx == nil { return jitter.ErrPolicy }
+    state, err := jitter.New(policy)
+    if err != nil { return err }
+    e.jitterState = state
+    e.jitterContext = ctx
+    e.onJitter = onDelay
+    if e.now == nil { e.now = time.Now }
+    return nil
+}
+
 func (e *Encoder) SetObservers(onPadding func(uint64), onActivity func(bool)) {
     e.onPadding=onPadding
     e.onActivity=onActivity
@@ -55,17 +85,48 @@ func (e *Encoder) Write(p []byte) (int,error) {
     for len(p)>0 {
         n:=len(p)
         if n>MaxPayload {n=MaxPayload}
+        // Rate classification uses the timestamp when DATA arrives at
+        // the encoder. Reuse it for Jitter: any artificial send delay
+        // must not make the original stream appear slower.
+        var frameAt time.Time
+        if e.ratePad != nil { frameAt = e.now() }
+        // Jitter is always before DATA and bounded by the opt-in
+        // scheduler. A previously blocked downstream writer disables
+        // the next delay to avoid adding latency under backpressure.
+        if e.jitterState != nil {
+            backlog := e.priorWriteCongested ||
+                (e.ratePad != nil && !e.ratePad.Active())
+            jitterAt := frameAt
+            if jitterAt.IsZero() { jitterAt = e.now() }
+            d, err := e.jitterState.Observe(jitterAt, uint64(n), backlog)
+            if err != nil { e.fail(); return total, err }
+            if err := jitter.Wait(e.jitterContext, d); err != nil {
+                e.fail()
+                return total, err
+            }
+            if d > 0 && e.onJitter != nil { e.onJitter(d) }
+        }
+        var writeStarted time.Time
+        if e.jitterState != nil { writeStarted = time.Now() }
         if err:=WriteFrame(e.w,TypeData,p[:n]);err!=nil{
             e.fail()
             return total,err
         }
+        if e.jitterState != nil {
+            e.priorWriteCongested = time.Since(writeStarted) > 10*time.Millisecond
+        }
         total+=n
-        if e.pad!=nil{
+        if e.pad!=nil || e.ratePad!=nil {
             var count uint64
-            if !e.pad.ObserveSmallFrame(uint64(n)) {
-                count = e.pad.Observe(e.now(),uint64(n))
+            if e.ratePad!=nil {
+                count=e.ratePad.Observe(frameAt,uint64(n))
+                e.updateActive(e.ratePad.Active())
+            } else {
+                if !e.pad.ObserveSmallFrame(uint64(n)) {
+                    count=e.pad.Observe(e.now(),uint64(n))
+                }
+                e.updateActive(e.pad.Active())
             }
-            e.updateActive(e.pad.Active())
             if count>0{
                 // Only emit padding after DATA, never by delaying a DATA frame.
                 pad:=make([]byte,int(count))
@@ -91,6 +152,7 @@ func (e *Encoder) CloseWrite() error {
     return WriteFrame(e.w,TypeFIN,nil)
 }
 func (e *Encoder) PaddingBytes() uint64 {
+    if e.ratePad!=nil {return e.ratePad.PaddingBytes()}
     if e.pad==nil {return 0}
     return e.pad.PaddingBytes()
 }
@@ -105,9 +167,16 @@ type Decoder struct {
     useful uint64
     padded uint64
     lastWasData bool
+    onPadding func(uint64)
 }
 func NewDecoder(r io.Reader)*Decoder{return &Decoder{r:r}}
 func NewPaddingDecoder(r io.Reader)*Decoder{return &Decoder{r:r,allowPadding:true}}
+// SetPaddingObserver receives the size of validated and discarded PAD payload
+// frames. Never expose raw payloads, peer identifiers or destination addresses.
+func (d *Decoder) SetPaddingObserver(onPadding func(uint64)) {
+    d.onPadding = onPadding
+}
+
 func (d *Decoder) Read(p []byte)(int,error){
     if len(p)==0{return 0,nil}
     if len(d.pending)>0{
@@ -138,6 +207,7 @@ func (d *Decoder) Read(p []byte)(int,error){
             // overhead; the default encoder imposes a stricter 5% budget.
             if d.padded>d.useful/4{return 0,ErrMalformed}
             d.lastWasData=false
+            if d.onPadding != nil { d.onPadding(uint64(len(f.Payload))) }
             continue
         case TypeFIN:
             var extra [1]byte
