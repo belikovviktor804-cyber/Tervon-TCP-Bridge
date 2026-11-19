@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 optional two-node Bridge Stats integration (SOURCE PREPARED, NO INSTALL)
+
+- Operator approved connecting Finserver to the existing /bridge/ page. GitHub branch `work/m3-adaptive-jitter`: `bridge_site.py` supports optional `TERVON_BRIDGE_FIN_METRICS_URL` only as a **literal loopback URL** (existing hardened BridgeMetricsCollector validates it). New `nodes.finserver` is sanitized through the same M3 telemetry allowlist; absent tunnel shows unavailable, Homeserver remains independent.
+- `bridge_panel.html` and `bridge_panel.js` now have separate Homeserver/Finserver sections, server PAD/Jitter/overhead/backend/TLS counters, and unavailable state; JS accesses only the same-origin `/bridge/api/status` without direct Finserver URLs. Tests updated for two-node output and failing tunnel. The old single-node collector remains unchanged.
+- New guarded installer `integrations/stats/install-m3-two-node.py` checks SSH GitHub branch/clean worktree, existing Stats health, Finserver forwarded endpoint `http://127.0.0.1:8897/metrics/v1`, then saves files under `/opt/tervon/bridge-stats/.two-node-backups/`, changes **Stats-only** files and a new systemd environment drop-in, restarts **only tervon-bridge-stats.service**, and rolls back on failed verification. Independent external HTTPS and actual installation **NOT VERIFIED**. No nginx, Bridge or Finserver unit changes by this installer.
+- Transport: separate **OpenSSH** local forward `127.0.0.1:8897` on Homeserver → `127.0.0.1:8896` on Finserver (SSH authenticated, forwarding bound to loopback); no public metrics listeners, remote IPs, or secrets in dashboard API. Verify temporary tunnel first, then migrate to a persistent systemd SSH tunnel unit with bind/key isolation before production acceptance.
+- Source tests/CI are pending at this checkpoint. M3 remains **IN_PROGRESS**, no release.
+
+
 ## 2026-11-19 — M3 simultaneous two-node real traffic measurement (operator evidence)
 
 - **COLLECTOR SSH FIX / simultaneous live data:** third collection in `/opt/tervon-tcp-bridge/m3/evidence/live-metrics.jsonl` has **12/12 valid samples on both Homeserver and Finserver**, UTC 02:20:48.431539 to 02:22:55.383720. Both nodes report `ready=true`, `padding_rate_configured=true`, `jitter_configured=true`. Unlike the first two data sets, no `CalledProcessError` for the third.
