@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 batch provenance and static baseline: operator PASS
+
+- Operator updated isolated SSH checkout to exact HEAD `0909812d09dd149f872b0eee9e8e48bd85374530` and ran `bash tests/m5/run-m5-1-batch.sh` on Homeserver at `2026-11-19T09:13:58Z`.
+- Confirmed: `M5_1_ARTIFACT_SHA=PASS`, `M5_1_M4_SOURCE_OBJECT=PASS`, `M5_1_BASELINE_DOC=PASS`, `M5_1_ACCEPTANCE_DOC=PASS`, `M5_1_RELEASE_TAG_REF=PASS`, `M5_1_JSON_EXAMPLES=PASS`; `M5_1_BATCH=PASS_PROVENANCE_AND_STATIC_BASELINE`, `M5_BATCH_EXIT_CODE=0`.
+- Tag ref `v1.0.0` points to `1f104008437ba9699a54404c6da1af4acb81f651` as observed by `git ls-remote`; whether lightweight or annotated and peeled target commit not inferred. v1.0.0 artifact build metadata: Go `go1.25.5`, module `tervon-tcp-bridge`, path `tervon-tcp-bridge/cmd/bridge`.
+- Operator report: `/opt/tervon-tcp-bridge/m5/results/m5.1-2EO4eslf/report.log`. Verified old artifact checksum, not clean rebuild or benchmark. **PROVENANCE_BATCH=OPERATOR_PASS; M5.1 remains IN_PROGRESS** pending comparable performance protocol and acceptance threshold resolution; M5.2+ untouched, M6 HOLD. No live services modified.
+
 ## 2026-11-19 — M5.1 one-shot batch prepared (not yet executed)
 
 - Committed `tests/m5/run-m5-1-batch.sh` on `work/m5-linux-release`: isolated, read-only provenance checks for old release binary SHA, M4 Git object, tag, sample JSON and documented baseline, with one log/result. No service restart, configuration reads or synthetic network load.
