@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 both-node production read-only preflight: operator PASS
+
+- Operator ran `tests/homeserver/m4-live-preflight.sh` on Homeserver and over SSH `finserver`. **Both returned `M4_PREFLIGHT=PASS_READ_ONLY`**, both active, disk SHA equals running process SHA, no restart, no config/secret access.
+- Homeserver: `tervon-bridge-client.service`, unit `/etc/systemd/system/tervon-bridge-client.service`, actual executable `/opt/tervon-tcp-bridge/bridge`, PID **1298132**; disk and running SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`.
+- Finserver: `tervon-bridge-server.service`, unit `/etc/systemd/system/tervon-bridge-server.service`, actual executable **`/opt/tervon-bridge-linux-amd64`**, PID **53800**; disk and running SHA256 the same `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`.
+- Preflight confirms running binaries are identical on both nodes and known paths for an exact binary-only cutover. Previously staged M4 candidate `8d0aa3777c209d2825a1c11dfbae9487893cb7f5` has SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
+- **TWO-NODE READ-ONLY PREFLIGHT = PASS. Production M3 remains active on both nodes; no upgrade, M4 live dataplane or rollback test has been executed.** Next: preserve immutable old binaries on both nodes, validate candidate at destination, prepare verified rollback, then Finserver-first controlled switch with explicit operator-side tests.
+
+
 ## 2026-11-19 — M4 read-only production cutover preflight CI PASS, operator host outputs still required
 
 - New source `tests/homeserver/m4-live-preflight.sh` inspects ONLY the known `tervon-bridge-client.service` on Homeserver or `tervon-bridge-server.service` on Finserver and obtains the real selected `ExecStart` executable, `MainPID`, active state and SHA256 of both disk and `/proc/PID/exe`. Rejects unexpected binary paths and disk/running mismatches, does not read configs or expose secrets, and never restarts services.
