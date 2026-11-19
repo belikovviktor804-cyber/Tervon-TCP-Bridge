@@ -125,7 +125,13 @@ def main():
     output("PREPARE=PASS_BOTH_VERIFIED_OLD_VERSIONS_AND_BACKUPS")
     output("PARALLEL_SWITCH=START")
     results = both("switch")
-    if all(results.values()) and confirm_both_no_quota():
+    telemetry_ok = False
+    if all(results.values()):
+        try:
+            telemetry_ok = confirm_both_no_quota()
+        except (Exception, SystemExit):
+            telemetry_ok = False
+    if all(results.values()) and telemetry_ok:
         output("PARALLEL_SWITCH=PASS_BOTH_RUNNING_NEW_SHA_WITH_ZERO_QUOTA")
         output("POST_SWITCH_PUBLIC_TELEMETRY=PASS_BOTH_MAX_SESSIONS_ZERO")
         output("RESULT=PASS_TWO_NODE_CUTOVER")
