@@ -43,10 +43,10 @@ def summarize(raw: object) -> list[str]:
                 raise ValueError(field + "_" + role)
             result.append(tag + "_" + label + "=" + str(value))
         cap, active = metrics["max_sessions"], metrics["sessions_active"]
-        if cap <= 0:
-            raise ValueError("nonpositive_cap_" + role)
-        result.append(tag + "_HEADROOM_NOW=" + str(max(0, cap - active)))
-        result.append(tag + "_SATURATED_NOW=" + str(active >= cap).upper())
+        if cap < 0:
+            raise ValueError("negative_cap_" + role)
+        result.append(tag + "_HEADROOM_NOW=" + (str(max(0, cap - active)) if cap else "NO_FIXED_QUOTA"))
+        result.append(tag + "_SATURATED_NOW=" + str(active >= cap if cap else False).upper())
     result += [
         "M5_CAPACITY_LOAD_HOMESERVER_REJECTS_180S=313",
         "M5_CAPACITY_LOAD_FINSERVER_REJECTS_180S=0",
