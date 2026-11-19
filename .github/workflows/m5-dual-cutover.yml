@@ -1,0 +1,26 @@
+name: M5 coordinated cutover scripts (offline only)
+on:
+  push:
+    branches: [work/m5-linux-release]
+    paths:
+      - 'tests/m5/m5-dual-cutover*.py'
+      - 'tests/m5/test_m5_dual_cutover.py'
+      - '.github/workflows/m5-dual-cutover.yml'
+  pull_request:
+    paths:
+      - 'tests/m5/m5-dual-cutover*.py'
+      - 'tests/m5/test_m5_dual_cutover.py'
+      - '.github/workflows/m5-dual-cutover.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safe-offline-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate syntax
+        run: python3 -m py_compile tests/m5/m5-dual-cutover-worker.py tests/m5/m5-dual-cutover.py tests/m5/test_m5_dual_cutover.py
+      - name: Test backup, commit, rollback and corrupted backup (mocked)
+        run: python3 -m unittest discover -s tests/m5 -p 'test_m5_dual_cutover.py' -v
