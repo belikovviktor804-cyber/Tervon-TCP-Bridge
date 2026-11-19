@@ -193,3 +193,19 @@ systemd-run --unit=tervon-m4-mixed-live --collect \\
 While the sampler is running, operator should browse/download normally over an *existing actual TCP VPN connection routed through Bridge*, not Hysteria2/UDP or a direct foreign exit. It does not create traffic. Read `journalctl -u tervon-m4-mixed-live -n 40 --no-pager`. A summary `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY` with zero error deltas and positive new sessions/transfer on **both** nodes is evidence of healthy mixed-version traffic, but the sampler cannot attribute one user's exact connection and cannot prove delay/RTT/fairness by itself. Report the entire summary (numeric-only). Any increase in errors, mismatch, broken client traffic or missing metrics means **do not upgrade Homeserver**. Confirm live Finserver M4 SHA and Homeserver M3 SHA separately (read-only preflight has the old SHA pinned as informational, but will PASS if process/disk matches). If the route is broken, explicit rollback on Finserver remains available from its verified prepared M3 backup.
 
 **Full M4 module not PASS; mixed-route live result not yet received.**
+
+## Mixed M3/M4 public sampler failed — differential diagnosis required (2026-11-19)
+
+The operator's passive `tervon-m4-mixed-live.service` emitted `M3_PASSIVE_EVIDENCE_FAIL` with `failure_type=ValueError` after ~13 seconds, before the planned 120-second observation finished. The old M3 sampler intentionally suppressed the error string, so **the journal alone cannot show whether the issue was a public HTTPS fetch, node readiness, schema/metric mismatch or a counter reset**. This is **NOT** evidence of successful mixed-version traffic, nor enough to conclude that the M4 bridge itself failed. Preserve the mixed M3-client/M4-server runtime for nonmutating diagnosis; **do not upgrade Homeserver**.
+
+New `tests/homeserver/m4_mixed_diagnose.py` uses the same public stats fetch but makes two reads 10 seconds apart and emits an allowlisted JSON error code with node and metric field when applicable. No VPN connections, configs or services are touched, and no raw stats body, URL, exception text or secrets are printed.
+
+After source CI PASS and GitHub SSH `pull --ff-only`, run on Homeserver (single short invocation; no new systemd service needed):
+
+```bash
+REPO=/opt/tervon-tcp-bridge/m4/source
+git -C "$REPO" pull --ff-only origin work/m4-http2-reliability
+python3 "$REPO/tests/homeserver/m4_mixed_diagnose.py"
+```
+
+This reports `status/reason/role/field` or a numerical delta. It does not claim end-to-end VPN success without actual client use; any nonzero `error_delta` or absent new sessions requires further investigation. **No repeat of the prior full M3 PAD/Jitter activation test.** Finserver rollback remains available separately if the actual VPN traffic is faulty.
