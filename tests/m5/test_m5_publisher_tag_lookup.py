@@ -31,7 +31,7 @@ gh() {
       esac
       ;;
     "api --method")
-      printf 'CREATED_TAG\\n'
+      printf 'CREATED_TAG\\n' >&2
       return 0 ;;
   esac
   printf 'UNEXPECTED_GH_CALL\\n' >&2
@@ -44,25 +44,25 @@ class PublisherTagLookup(unittest.TestCase):
     def test_http_404_body_is_not_misread_as_tag(self):
         r=check("missing")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("CREATED_TAG",r.stdout)
+        self.assertIn("CREATED_TAG",r.stderr)
         self.assertNotIn("BLOCKED_TAG_POINTS_TO_OTHER_COMMIT",r.stdout)
 
     def test_matching_tag_reused_without_post(self):
         r=check("current")
         self.assertEqual(r.returncode,0,r.stderr)
-        self.assertNotIn("CREATED_TAG",r.stdout)
+        self.assertNotIn("CREATED_TAG",r.stderr)
 
     def test_different_tag_is_not_overwritten(self):
         r=check("other")
         self.assertEqual(r.returncode,3,r.stderr)
         self.assertIn("BLOCKED_TAG_POINTS_TO_OTHER_COMMIT",r.stdout)
-        self.assertNotIn("CREATED_TAG",r.stdout)
+        self.assertNotIn("CREATED_TAG",r.stderr)
 
     def test_malformed_success_response_fails_closed(self):
         r=check("malformed")
         self.assertEqual(r.returncode,3,r.stderr)
         self.assertIn("BLOCKED_UNEXPECTED_TAG_RESPONSE",r.stdout)
-        self.assertNotIn("CREATED_TAG",r.stdout)
+        self.assertNotIn("CREATED_TAG",r.stderr)
 
 if __name__=="__main__":
     unittest.main()
