@@ -9,7 +9,7 @@
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
 | **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE PASS + POLICY PASS + FULL 180S LOAD OBSERVATION PASS / 313 CLIENT REJECTIONS UNDER REVIEW + RTT/FAIRNESS NOT MEASURED** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
-| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **HOST RELEASE ASSETS PREP=PASS / CI + RELEASE GATES PENDING** |
+| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **M5 NO-QUOTA RELEASE ASSETS PREP=PASS / CI + RELEASE GATES PENDING** |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
 
 ## Принцип объединённой проверки
@@ -168,3 +168,7 @@ Read-only текущего production: `max_sessions=100` на Homeserver и Fin
 ## Двухузловое переключение — операторский LIVE PASS (2026-11-19 15:37:56)
 
 Из `journalctl -u tervon-m5-dual-cutover -n 100 --no-pager` оператор предъявил полный PASS: `M5_DUAL_PREPARE=PASS_BOTH_VERIFIED_OLD_VERSIONS_AND_BACKUPS`, `M5_CUTOVER_HOMESERVER_SWITCH=PASS_RUNNING_NEW_SHA_AND_ZERO_CONFIG`, `M5_CUTOVER_FINSERVER_SWITCH=PASS_RUNNING_NEW_SHA_AND_ZERO_CONFIG`, `M5_DUAL_POST_SWITCH_PUBLIC_TELEMETRY=PASS_BOTH_MAX_SESSIONS_ZERO`, `M5_DUAL_RESULT=PASS_TWO_NODE_CUTOVER`. Начиная с 15:37:56 (время журнала) обе службы используют новый кандидат SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, `max_sessions=0`. Резервные копии успешно подготовлены; откат не потребовался. **TWO_NODE_CUTOVER=PASS / LIVE_PROCESS_AND_ZERO_QUOTA=PASS**. Это не отдельная демонстрация успешного пользовательского VPN-трафика после миграции; network RTT/fairness и max wall-clock jitter не измерены. Ранее зарегистрированные 313 отказов были на старом бинарнике с лимитом 100, не доказательство отказов после обновления. GitHub Release не создан, M6 HOLD.
+
+## Новый исправленный v1.0.1: operator release asset prep PASS (2026-11-19)
+
+`RELEASE_PREP=PASS_VERIFIED_DEPLOYED_M5`, exit `0`, SHA256 `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, source `96c136702d10b6fb9a16aa2893f6b978e8b14e86`, artifacts `/opt/tervon-tcp-bridge/m5/release-no-quota`, `PUBLICATION_DONE=NO`. Пакет собран из уже работающего на двух узлах исправленного M5-бинарника, не из прежнего M4. Установщик теперь проверяет новый SHA и предоставляет JSON-примеры `max_local_connections=0`, `max_streams=0`. **PASS только локальной упаковки**; прямой результат CI workflow не получен, GitHub Release v1.0.1 ещё не опубликован. Не повторять `prepare-release-assets.sh` для уже существующего каталога; скрипт ожидаемо запрещает перезапись. М6 HOLD.
