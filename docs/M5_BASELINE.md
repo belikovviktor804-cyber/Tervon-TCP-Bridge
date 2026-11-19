@@ -3,7 +3,7 @@
 **Дата:** 2026-11-19  
 **Ветка:** `work/m5-linux-release`  
 **Начало M5:** M4 closure `eb4fde88d6477defb58f8237fd0526c292e93cfe`  
-**Статус:** `IN_PROGRESS / BASELINE_INVENTORY`; никаких новых benchmark PASS этот документ не заявляет.  
+**Статус:** `IN_PROGRESS / RELEASE_ARTIFACT_IDENTITY_PASS`; никаких новых benchmark PASS этот документ не заявляет.  
 **Порядок:** `docs/DEVELOPMENT_PLAN.md` → `docs/M5_ACCEPTANCE.md` → этот baseline.
 
 ## 1. Подтверждённые исходные артефакты
@@ -16,7 +16,7 @@
 | Действующий Linux M4 candidate на двух узлах | исходники `8d0aa3777c209d2825a1c11dfbae9487893cb7f5` | `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90` | stage + install/process SHA PASS, операторский VPN/Stats PASS, **не** performance benchmark |
 | M5 branch base | завершённый M4 | `eb4fde88d6477defb58f8237fd0526c292e93cfe` | GitHub provenance |
 
-**Важное различие:** известная ссылка на [GitHub Release v1.0.0](https://github.com/tervon-software/Tervon-TCP-Bridge/releases/tag/v1.0.0) присутствует в README, но содержимое assets, tag target и checksum скачанного release asset **не проверены этим пакетом**. Исторический хеш старого бинарника нельзя автоматически приравнять к asset релиза. Сравнение со старой версией допускается только после сверки точных входных артефактов и их режима запуска.
+**Важное различие:** известная ссылка на [GitHub Release v1.0.0](https://github.com/tervon-software/Tervon-TCP-Bridge/releases/tag/v1.0.0) присутствует в README, и **содержимое бинарного asset теперь проверено оператором по SHA256/размеру** (см. раздел 8); target commit тега отдельно не установлен. Сравнение со старой версией допускается только после сверки точных входных артефактов и их режима запуска.
 
 ## 2. Подтверждённый тракт / границы
 
@@ -48,7 +48,7 @@
 
 ## 5. Незакрытые вопросы M5.1
 
-- **RELEASE_ASSET_UNVERIFIED:** фактические tag target / assets GitHub v1.0.0 и контрольная сумма конкретного asset ещё не получены в текущем пакете; исторический локальный SHA известен.
+- **RELEASE_ASSET_IDENTITY_PASS (operator, 2026-11-19):** опубликованный GitHub Release v1.0.0 asset скачан в изолированный каталог Homeserver, совпали размер и SHA256 со старым локальным образцом. **Точная привязка tag к commit отдельно не проверялась**; воспроизводимость dirty VCS binary не утверждается.
 - **BENCHMARK_BASELINE_NOT_MEASURED:** нет сопоставимого, воспроизводимого v1.0.0↔v1.0.1 замера на идентичном тестовом пути. Нельзя называть текущий пользовательский VPN опыт сравнительным benchmark.
 - **THRESHOLD_DECISION_PENDING:** численные допустимые регрессии RTT/throughput/CPU/RSS и длительность измерительного окна не утверждены. Jitter limits 4ms/frame и 20ms/second являются исходными release-blocking требованиями.
 - **M5.1 NOT PASS:** до проверки соответствия v1.0.0 artifact и базовой методики. Следующий шаг остаётся внутри M5.1.
@@ -64,3 +64,15 @@
 - Добавлены `tests/m5/test_verify_release_baseline.py` с синтетическими отрицательными cases (неверный tag, чужой asset URL, дублирующий asset, неверные размер/хеш), и `.github/workflows/m5-baseline.yml` для синтаксиса и offline unittest в Actions.
 - **SOURCE COMMITTED / CI RESULT NOT YET VERIFIED / REAL RELEASE ASSET NOT YET CHECKED.** Ни один synthetic test не объявлять PASS до просмотра результатов CI. Это только M5.1; **M5.2 и M5.3 не начаты**.
 - Верификация реального опубликованного артефакта: загрузить release binary в отдельный каталог (не использовать live binary), далее `python3 tests/m5/verify_release_baseline.py --artifact /path/to/tervon-bridge-linux-amd64`; файл release metadata загружается read-only из GitHub API. Если исторический SHA не совпадает, вывод `ARTIFACT_DIFFERS_FROM_HISTORICAL` означает разные артефакты и требует уточнения baseline, **не** доказательство поломки VPN.
+
+## 8. Operator Homeserver v1.0.0 release-artifact verification — PASS (2026-11-19)
+
+- Operator cloned `work/m5-linux-release` using `git@github.com:tervon-software/Tervon-TCP-Bridge.git` into isolated `/opt/tervon-tcp-bridge/m5/source`; Git remote reported complete clone.
+- Downloaded `https://github.com/tervon-software/Tervon-TCP-Bridge/releases/download/v1.0.0/tervon-bridge-linux-amd64` into isolated `/opt/tervon-tcp-bridge/m5/artifacts/` with successful curl transfer (~6.44 MiB).
+- Ran `python3 tests/m5/verify_release_baseline.py --artifact /opt/tervon-tcp-bridge/m5/artifacts/tervon-bridge-linux-amd64` using public release metadata and isolated artifact; operator supplied JSON:
+  - `status=PASS_ARTIFACT_MATCHES_HISTORICAL`
+  - `release_tag=v1.0.0`, `asset_name=tervon-bridge-linux-amd64`
+  - `asset_size_matches=true`, `historical_sha_matches=true`
+  - `sha256=5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2`.
+- **M5.1 RELEASE_ARTIFACT_IDENTITY=OPERATOR_PASS**: public GitHub asset is byte-identical to historical SHA. No claim of reproducible build: old binary still has `vcs.modified=true` metadata. Exact tag commit target was not separately verified by this script.
+- **M5.1 overall remains IN_PROGRESS:** offline CI result and baseline comparator conditions/RTT+throughput+resources acceptance thresholds not yet confirmed. No production unit restart; no controlled throughput/RTT tests were performed. Do not mistake artifact verification for full M5 PASS. M6 HOLD.
