@@ -6,12 +6,16 @@ on:
       - 'tests/m5/m5-dual-cutover*.py'
       - 'tests/m5/test_m5_dual_cutover.py'
       - 'tests/m5/test_m5_dual_orchestration.py'
+      - 'tests/m5/m5-post-cutover-readonly.py'
+      - 'tests/m5/test_m5_post_cutover.py'
       - '.github/workflows/m5-dual-cutover.yml'
   pull_request:
     paths:
       - 'tests/m5/m5-dual-cutover*.py'
       - 'tests/m5/test_m5_dual_cutover.py'
       - 'tests/m5/test_m5_dual_orchestration.py'
+      - 'tests/m5/m5-post-cutover-readonly.py'
+      - 'tests/m5/test_m5_post_cutover.py'
       - '.github/workflows/m5-dual-cutover.yml'
   workflow_dispatch:
 permissions:
@@ -23,8 +27,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate syntax
-        run: python3 -m py_compile tests/m5/m5-dual-cutover-worker.py tests/m5/m5-dual-cutover.py tests/m5/test_m5_dual_cutover.py tests/m5/test_m5_dual_orchestration.py
+        run: python3 -m py_compile tests/m5/m5-dual-cutover-worker.py tests/m5/m5-dual-cutover.py tests/m5/test_m5_dual_cutover.py tests/m5/test_m5_dual_orchestration.py tests/m5/m5-post-cutover-readonly.py tests/m5/test_m5_post_cutover.py
       - name: Test backup, commit, rollback and corrupted backup (mocked)
         run: python3 -m unittest discover -s tests/m5 -p 'test_m5_dual_cutover.py' -v
       - name: Test coordinator parallel switch and two-node rollback (mocked)
         run: python3 -m unittest discover -s tests/m5 -p 'test_m5_dual_orchestration.py' -v
+      - name: Test read-only post-cutover observer with synthetic samples
+        run: python3 -m unittest discover -s tests/m5 -p 'test_m5_post_cutover.py' -v
