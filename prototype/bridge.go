@@ -278,8 +278,16 @@ type Client struct {
 // http.Client.Timeout or transport ReadTimeout would break valid long-lived VPN
 // sessions. Cancellation is instead owned by HandleContext.
 func NewClient(tlsConfig *tls.Config, url, service string) *Client {
+	// Fail before sending any VPN payload, not just after reading response
+	// headers. Clone to avoid silently rewriting the caller's TLS settings.
+	secureTLS := &tls.Config{}
+	if tlsConfig != nil {
+		secureTLS = tlsConfig.Clone()
+	}
+	secureTLS.MinVersion = tls.VersionTLS13
+	secureTLS.NextProtos = []string{"h2"}
 	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
+		TLSClientConfig: secureTLS,
 		ForceAttemptHTTP2: true,
 		MaxIdleConns: 64,
 		MaxIdleConnsPerHost: 32,
