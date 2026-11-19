@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Mixed M3 Homeserver → M4 Finserver: short public telemetry continuity PASS (operator)
+
+- Operator ran `tests/homeserver/m4_mixed_diagnose.py` after GitHub SSH pull to `bf3e8f9489c46d8cbcf6306db33f93203b27b82c`. The 10-second two-sample read-only diagnostic returned **`PASS_DIAGNOSTIC_COUNTER_CONTINUITY`**, `m4_module_pass=false`, `vpn_dataplane_proven=false`.
+- Finserver (M4) deltas: `sessions_started=+2`, `upload_bytes=+66849`, `download_bytes=+41328`, `error_delta=0`, `sessions_active=23`, `padding_download_frames=0`, `jitter_download_frames=0`.
+- Homeserver (M3) deltas: `sessions_started=+3`, `upload_bytes=+68643`, `download_bytes=+46192`, `error_delta=0`, `sessions_active=23`, `padding_download_frames=0`, `jitter_download_frames=0`.
+- This demonstrates **two-node public stats health and forward counter continuity** with simultaneous activity and no reported error-counter increases over the diagnostic interval. It does **not** attribute a specific client request, confirm exactly paired new sessions, byte-exact payload forwarding, or activate downstream Padding/Jitter. No new evidence that M4 caused the earlier `ValueError`; original 120s sampler failure remains historical/inconclusive.
+- **Telemetry subgate PASS; mixed-version real user TCP VPN path NOT YET VERIFIED.** Continue with a specifically chosen TCP VPN connection and normal browser/download activity, read-only counters before/after, then decide on Homeserver cutover. **M4 still IN_PROGRESS; M5 not started.**
+
+
 ## 2026-11-19 — M4 mixed-route safe 10-second diagnostic: CI PASS, host evidence pending
 
 - Safe diagnostic source commit `bf440fea4d6ca175ae971daa434972eac5e874a7` passed [Go prototype checks #44485259000](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44485259000) **SUCCESS**. This includes isolated tests of specific reasons for missing/not-ready node, missing/noninteger numeric metric, decreasing counter, fetch failure and secret-safe output; existing build/vet/race/M1–M4 regressions also passed.
