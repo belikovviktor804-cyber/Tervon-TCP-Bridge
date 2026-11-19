@@ -7,7 +7,7 @@
 | Пакет | Приёмка | Статус |
 |---|---|---|
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
-| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS + JITTER POLICY 6/6 PASS + USER-STOPPED LOAD OBSERVATION (9/18) / NETWORK QUANTITATIVE PENDING** |
+| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE PASS + POLICY PASS + FULL 180S LOAD OBSERVATION PASS / 313 CLIENT REJECTIONS UNDER REVIEW + RTT/FAIRNESS NOT MEASURED** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
 | M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **HOST RELEASE ASSETS PREP=PASS / CI + RELEASE GATES PENDING** |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
@@ -98,3 +98,31 @@ First run 4×128-frame loopback flows and 24 short probes completed successfully
 ## Нагрузочный прогон YouTube + два Speedtest — уточнение оператора (2026-11-19)
 
 Оператор подтвердил: тест был **сознательно остановлен им после 9 из 18 запланированных интервалов**, потому что счёл уже полученные показатели достаточными. Отсутствие `summary` — следствие досрочной остановки, **не признак падения Bridge и не установленный дефект сборщика**. Сохранённый журнал `/opt/tervon-tcp-bridge/m5/results/m5.23-userload-Wowu3Ds3/telemetry.jsonl` содержит 9 последовательных 10-секундных снимков; пик наблюдавшихся активных TCP-сессий 66, PAD и Jitter фактически срабатывали на действующих Homeserver/Finserver. В интервалах 5–9 `error_delta=0` на обоих узлах; не следует автоматически распространять этот вывод на не предъявленные части журнала. Статус: `OPERATOR_EARLY_STOP / PARTIAL_LIVE_LOAD_EVIDENCE_ACCEPTED`, **не** `FULL_180S_PASS`. По решению оператора повторный пользовательский стресс-тест не запрашивается. Реальные RTT, wall-clock максимум Jitter и per-stream fairness агрегатными счётчиками не измерены. Успешная эксплуатация v1.0.1 и asset prep PASS остаются подтверждёнными.
+
+## Полный трёхминутный live load report — 19 snapshots (2026-11-19)
+
+Оператор предоставил самостоятельную итоговую JSON `summary` (`schema=tervon.m3.passive-evidence.v1`, `samples=19`, `duration_seconds_target=180`, `status=PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`, `activation.status=PASS_PAD_AND_JITTER_ACTIVATED`). **Она полная и заменяет прежнее утверждение, что итоговых данных нет.** Ранее предоставленный частичный журнал на 9 интервалов с ранней остановкой сохраняется как отдельное историческое свидетельство; соответствие или происхождение двух журналов без оригинального полного пути не предполагать.
+
+| Метрика, прирост за 180 с | Homeserver | Finserver |
+|---|---:|---:|
+| sessions_started | 424 | 424 |
+| sessions_completed | 359 | 359 |
+| sessions_active, начало → конец | 32 → 97 | 32 → 97 |
+| sessions_rejected | **313** | 0 |
+| upload_bytes | 1 070 372 842 | 1 070 889 614 |
+| download_bytes | 2 995 351 814 | 3 037 840 839 |
+| padding_upload_frames | 29 068 | 29 081 |
+| padding_download_frames | 72 647 | 73 874 |
+| jitter_upload_frames | 18 | 0 |
+| jitter_download_frames | 0 | 0 |
+| jitter_upload_delay_ns | 27 875 321 | 0 |
+| суммарный прирост errors | **0** | **0** |
+| backend_dial_success | не измерялось (0 на клиенте) | 424 |
+| tls13_h2_mtls_requests | не измерялось (0 на клиенте) | 424 |
+
+Сумма всех Padding кадров двух узлов = **204 670**, Jitter кадров = **18**; `error_delta_total=0`. По Finserver полный полезный трафик `download_bytes+upload_bytes=4 108 730 453` байта (≈3.83 GiB), **не суммировать повторно две ноды как независимый трафик**. Все 424 новых сессии приняты Finserver, HTTP/2/mTLS Requests=424; backend dial failures=0. `sessions_active` согласуется с `32+424−359=97`.
+
+**Важное ограничение:** `sessions_rejected=313` на Homeserver — реальные недопущенные соединения. Это не увеличивает агрегат `errors`, но препятствует объявлению полного PASS по capacity/fairness без объяснения configured `max_local_connections` и влияния отказов. По исходнику `Client.ListenAndServe` отбрасывает новые TCP соединения при заполнении слотов; это вероятное объяснение, **не доказанная причина конкретного production события**, пока не сверен фактический предел. На Finserver `sessions_rejected=0`. Различия PAD/jitter по направлениям не означают дефект сами по себе.
+
+**Итог:** `COMPLETE_180S_TWO_NODE_LOAD_OBSERVATION=PASS` (контр. непрерывность, передача, PAD/Jitter, ошибки=0), `CAPACITY_GATE=INVESTIGATE_313_REJECTS`, `NETWORK_RTT_AND_PER_STREAM_FAIRNESS=NOT_MEASURED`, `JITTER_WALLCLOCK_MAX=NOT_MEASURED`; объединённый M5.2+M5.3 ещё не объявлен финальным PASS. Производственные бинарники и службы не менялись.
+
