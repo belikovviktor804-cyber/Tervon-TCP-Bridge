@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 integrated tunnel recovery scenario: CI PASS, host run pending
+
+- Latest tunnel-only script adds automatic *external Finserver* HTTPS check of `https://stats.xrayvless.online/bridge/api/status` pinned to public IPv4 `87.103.198.219`, after observing managed SSH tunnel MainPID recovery. Both `homeserver` and `finserver` must report `ok`; otherwise no recovery PASS.
+- CI on [Go prototype checks #44455023918](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44455023918) **SUCCESS**, including `bash -n` of the recovery script, all M3 jitter race tests, Go tests/race and legacy regressions. [M3 Linux candidate #44455023901](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44455023901) **SUCCESS**, artifact only.
+- **Host fault injection NOT RUN**; no service or SSH tunnel was modified during source work. Next is operator's single detached execution documented in `docs/M3_GATE_CLOSURE.md`; do not report final M3 PASS or begin M4 until end-to-end and real-network sustained conditions are met.
+
+
 ## 2026-11-19 — M3 closure source-level CI PASS, host gates remain pending
 
 - Validated CI workflow from source commit `57979a2e50210bc8fd61fd24f18a2a9365adee36`: [Go prototype checks #44454557397](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44454557397) **SUCCESS**, including tunnel recovery script `bash -n`, 30-second fixed-window eight-stream Jitter test in repeated race suite, Go build, Go unit and race regressions, M1/M2/fuzz checks. [M3 Linux candidate #44454557441](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44454557441) **SUCCESS (artifact only)**. The CI test script check does not inject host failure.
