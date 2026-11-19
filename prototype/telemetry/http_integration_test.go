@@ -28,7 +28,7 @@ func TestLocalServerLiveEndpointAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK || s.Schema != "tervon.bridge.telemetry.v1" || s.PaddingState != "NOT_IMPLEMENTED" || s.JitterState != "NOT_IMPLEMENTED" {
+	if resp.StatusCode != http.StatusOK || s.Schema != "tervon.bridge.telemetry.v1" || s.PaddingState != "OFF" || s.JitterState != "NOT_IMPLEMENTED" {
 		t.Fatalf("unexpected metrics: status=%d snapshot=%+v", resp.StatusCode, s)
 	}
 	req, _ := http.NewRequest(http.MethodPost, base+"/metrics/v1", nil)

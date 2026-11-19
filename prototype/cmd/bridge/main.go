@@ -24,6 +24,7 @@ import (
 
 	bridge "tervon-tcp-bridge"
 	"tervon-tcp-bridge/telemetry"
+	"tervon-tcp-bridge/padding"
 )
 
 var buildVersion = "dev"
@@ -43,6 +44,7 @@ type config struct {
 	MaxStreams          int                         `json:"max_streams"`
 	MaxLocalConnections int                         `json:"max_local_connections"`
 	MetricsListen       string                      `json:"metrics_listen"`
+	PaddingEnabled      bool                        `json:"padding_enabled"`
 }
 
 func load(path string) (config, error) {
@@ -64,7 +66,10 @@ func load(path string) (config, error) {
 		}
 		return c, err
 	}
-	if c.MetricsListen != "" {
+	if c.PaddingEnabled {
+        if err := padding.DefaultPolicy().Validate(); err != nil {return c,err}
+    }
+    if c.MetricsListen != "" {
 		host, _, e := net.SplitHostPort(c.MetricsListen)
 		if e != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
 			return c, fmt.Errorf("metrics_listen must be a literal loopback IP:port")
@@ -112,6 +117,7 @@ func load(path string) (config, error) {
 		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || (u.Path != "/v1/stream" && u.Path != "/v2/stream") || u.RawPath != "" || u.Opaque != "" {
 			return c, fmt.Errorf("remote_url must be an HTTPS /v1/stream or /v2/stream endpoint")
 		}
+        if c.PaddingEnabled && u.Path != "/v2/stream" { return c,fmt.Errorf("padding_enabled requires /v2/stream") }
 	} else {
 		return c, fmt.Errorf("mode must be server or client")
 	}
@@ -142,6 +148,7 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	metrics := telemetry.New()
+    metrics.SetPaddingConfigured(c.PaddingEnabled)
 	metrics.BuildVersion = buildVersion
 	metrics.BuildCommit = buildCommit
 	if c.Mode == "server" {
@@ -174,6 +181,7 @@ func main() {
 		cl := bridge.NewClient(tlsCfg, c.RemoteURL, c.Service)
 		cl.MaxLocalConnections = c.MaxLocalConnections
 		cl.Metrics = metrics
+        if c.PaddingEnabled {p:=padding.DefaultPolicy();cl.PaddingPolicy=&p}
 		if err := cl.ListenAndServe(ctx, c.Listen); err != nil {
 			log.Fatal(err)
 		}
@@ -193,6 +201,7 @@ func main() {
 		}
 	}
 	handler := &bridge.Server{Routes: c.Routes, AuthorizedServices: authorized, MaxConcurrent: c.MaxStreams, Metrics: metrics}
+    if c.PaddingEnabled {p:=padding.DefaultPolicy();handler.PaddingPolicy=&p}
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool, NextProtos: []string{"h2"}}
 	srv := &http.Server{Addr: c.Listen, Handler: handler, TLSConfig: tlsCfg, ReadHeaderTimeout: 10 * time.Second}
 	errs := make(chan error, 1)

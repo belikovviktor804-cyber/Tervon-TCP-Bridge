@@ -41,7 +41,7 @@ func TestLocalMetricsEndpoint(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Schema != "tervon.bridge.telemetry.v1" || got.PaddingState != "NOT_IMPLEMENTED" {
+	if got.Schema != "tervon.bridge.telemetry.v1" || got.PaddingState != "OFF" {
 		t.Fatalf("unexpected snapshot %+v", got)
 	}
 	req, err := http.NewRequest(http.MethodPost, "http://"+ln.Addr().String()+"/metrics/v1", nil)

@@ -8,6 +8,8 @@ on:
       - 'tests/homeserver/deploy-m1-with-m0-backup.sh'
       - 'tests/homeserver/activate-m1-framing.py'
       - 'tests/homeserver/test_activate_m1_framing.py'
+      - 'tests/homeserver/collect_m2_baseline.py'
+      - 'tests/homeserver/test_collect_m2_baseline.py'
       - '.github/workflows/go-prototype.yml'
   pull_request:
     paths:
@@ -22,7 +24,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: prototype
@@ -42,6 +44,8 @@ jobs:
         run: bash -n ../integrations/stats/install-site-service.sh
       - name: Test guarded v2 activation helper (no systemd)
         run: python3 -m unittest discover -s ../tests/homeserver -p 'test_activate_m1_framing.py' -v
+      - name: Test M2 read-only production baseline collector (mocked)
+        run: python3 -m unittest discover -s ../tests/homeserver -p 'test_collect_m2_baseline.py' -v
       - name: Install FastAPI for isolated dashboard route tests
         run: python3 -m pip install 'fastapi>=0.115,<1'
       - name: Test isolated stats collector (no production services)
@@ -60,6 +64,28 @@ jobs:
         run: go test -race -count=1 -timeout=120s ./...
       - name: M1 repeated framing, cancellation and legacy regression
         run: go test -race -count=3 -timeout=180s -run 'TestFramed|TestLegacy|TestStream' ./...
+      - name: M2 bounded padding policy regression
+        run: go test -race -count=3 -timeout=60s ./padding
+      - name: M2 repeated HTTP2 negotiation and byte-exact regression
+        run: go test -race -count=3 -timeout=180s -run '^TestM2' .
+      - name: M2 unmodified default-policy idle/resume repeated race regression
+        run: go test -race -count=3 -v -timeout=180s -run '^TestM2DefaultPolicyIdleResume$' .
+      - name: M2 repeated PAD session lifecycle and accounting (race)
+        run: go test -race -count=3 -v -timeout=150s -run '^TestM2RepeatedSessionWaves$' .
+      - name: M2 canceled-stream isolation repeated race regression
+        run: go test -race -count=3 -v -timeout=120s -run '^TestM2CancelOneHTTP2StreamPreservesOtherSessions$' .
+      - name: M2 concurrent HTTP2 PAD streams repeated race and resource diagnostics
+        run: go test -race -count=3 -v -timeout=120s -run '^TestM2ConcurrentPaddingSessions$' .
+      - name: M2 encrypted HTTP2/TLS byte accounting (diagnostic)
+        run: go test -count=1 -v -run '^TestM2EncryptedHTTP2Accounting$' .
+      - name: M2 HTTP2 latency and heap diagnostics (CI only)
+        run: go test -count=1 -v -timeout=90s -run '^TestM2HTTP2LatencyAllocationDiagnostics$' .
+      - name: M2 policy CPU/alloc benchmark (diagnostic, no pass threshold yet)
+        run: go test -run '^$' -bench '^BenchmarkPaddingObserve$' -benchmem -benchtime=200ms ./padding
+      - name: M2 comparative short and sustained encoding benchmarks
+        run: go test -run '^$' -bench '^(BenchmarkShortFlowEncoding|BenchmarkSustainedFlowEncoding)$' -benchmem -benchtime=200ms ./framing
+      - name: M2 fuzz padding decoder (bounded)
+        run: go test -run '^$' -fuzz '^FuzzPaddingDecoder$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
       - name: M1 fuzz frame parser (bounded)
         run: go test -run '^$' -fuzz '^FuzzReadFrame$' -fuzztime=15s -parallel=2 -timeout=90s ./framing
       - name: M1 fuzz stream decoder (bounded)
