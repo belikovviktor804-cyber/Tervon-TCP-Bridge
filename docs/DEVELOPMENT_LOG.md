@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Post-cutover two-node read-only observation: OPERATOR PASS
+
+- Operator ran `tests/m5/m5-post-cutover-readonly.py`, `M5_POST_RESULT=PASS_READ_ONLY_TWO_NODE_CHECK`, exit 0. Both updated Bridge nodes `ready`, `max_sessions=0`, active_end=17. Each observed one new session, zero rejects, +34,507 upload bytes, +1,424,030 download bytes and zero error delta over 30s. Homeserver goroutines 58 / Go heap 18,986,216 bytes, Finserver goroutines 43 / Go heap 2,341,768 bytes. `TCP_TRAFFIC=OBSERVED_COUNTER_INCREASE` confirms existing traffic moved across both nodes without generated test traffic.
+- This is read-only aggregate evidence and **not** byte-exact correctness, network RTT, per-stream fairness or live wall-clock Jitter maxima. No reason to repeat the same passive test. M5.2+M5.3 quantitative gate still open, Github Release v1.0.1 not yet published, M6 HOLD.
+
 ## 2026-11-19 — post-cutover observer offline CI PASS
 
 - GitHub Actions cutover/observer offline workflow run [44529048327](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44529048327) completed **SUCCESS** on commit `cb7e7cafcc7778cb24faeec12834728c74ad9267`. It validates the new post-cutover Python observer with synthetic two-node metrics alongside previous coordinator rollback tests. The observer has **NOT** yet been run on active Homeserver/Finserver; this is source-only CI PASS.
