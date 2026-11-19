@@ -56,3 +56,11 @@
 ## 6. Безопасность и отчётность
 
 Источник: GitHub API и уже записанные операторские результаты M3/M4. Команды на Homeserver/Finserver **не выполнялись**, работающие Bridge/Stats/VPN/nginx службы **не изменялись**. Фиксировать результаты каждый раз как `SOURCE`, `CI`, `ISOLATED_HOST`, `LIVE_OPERATOR` или `RELEASE`, а не объединять в недоказанный общий PASS. M6 — `HOLD / DISCUSSION_REQUIRED`.
+
+## 7. Начало фактических испытаний M5.1 — 2026-11-19
+
+- GitHub ref `v1.0.0` **существует**: прочитан `README.md` с этого ref. Это подтверждает наличие Git ref, но **не** выпуск/содержимое assets и не их checksum.
+- Создан read-only `tests/m5/verify_release_baseline.py`: проверяет public release JSON tag/name/size/path и хеш **локально скачанного** бинарника, сопоставляет с историческим SHA. Источник JSON — публичный GitHub API или сохранённый JSON, ни ключей, ни production конфигураций не требуется. Проверка **не** выполняет сетевые/серверные mutation.
+- Добавлены `tests/m5/test_verify_release_baseline.py` с синтетическими отрицательными cases (неверный tag, чужой asset URL, дублирующий asset, неверные размер/хеш), и `.github/workflows/m5-baseline.yml` для синтаксиса и offline unittest в Actions.
+- **SOURCE COMMITTED / CI RESULT NOT YET VERIFIED / REAL RELEASE ASSET NOT YET CHECKED.** Ни один synthetic test не объявлять PASS до просмотра результатов CI. Это только M5.1; **M5.2 и M5.3 не начаты**.
+- Верификация реального опубликованного артефакта: загрузить release binary в отдельный каталог (не использовать live binary), далее `python3 tests/m5/verify_release_baseline.py --artifact /path/to/tervon-bridge-linux-amd64`; файл release metadata загружается read-only из GitHub API. Если исторический SHA не совпадает, вывод `ARTIFACT_DIFFERS_FROM_HISTORICAL` означает разные артефакты и требует уточнения baseline, **не** доказательство поломки VPN.
