@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 provenance and comparison baseline recorded (docs only)
+
+- Resumed from branch `work/m5-linux-release`, last preceding HEAD `0bcb1091400e329fa40cd7dfdd72b75539212e25`. Read authoritative plan and M5 acceptance before writing.
+- Created `docs/M5_BASELINE.md`: preserved M4 source and binary SHA, two M3 rollback SHA copies, historical old v1.0.0 binary SHA and VCS dirty metadata; comparison method, scenarios, instrumentation boundaries and release-blocking gate separation.
+- Historical old binary SHA is **NOT** proof that the published `v1.0.0` Release asset is identical, nor that the binary can be rebuilt from its dirty VCS commit. Release asset/tag, reproducible paired benchmark and acceptable RTT/resource regressions remain **UNVERIFIED**.
+- Status **M5.1 IN_PROGRESS / NOT PASS**; M5.2–M5.6 NOT_STARTED, v1.0.1 NOT_RELEASED. M6 HOLD. **GitHub documentation only; no Homeserver/Finserver service or binary touched.**
+
 ## 2026-11-19 — M5 started as new branch after confirmed M4 closure; M6 held for discussion
 
 - Operator explicitly confirmed `М4 готов. Работает. Можно закрывать. М5 сейчас создаём. М6 пока не делаем. По нему нужно ещё решить некоторые моменты обсуждением.`
