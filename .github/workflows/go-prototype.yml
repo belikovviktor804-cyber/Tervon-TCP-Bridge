@@ -51,6 +51,22 @@ jobs:
         run: |
           bash -n ../tests/homeserver/stage-m4-candidate.sh
           ! grep -Eq '^[[:space:]]*(systemctl|service|nginx)([[:space:]]|$)' ../tests/homeserver/stage-m4-candidate.sh
+          # Detached systemd-run does not guarantee HOME or a Go build cache.
+          grep -Fq 'export HOME="$STAGE/home"' ../tests/homeserver/stage-m4-candidate.sh
+          grep -Fq 'export GOCACHE="$STAGE/cache/go-build"' ../tests/homeserver/stage-m4-candidate.sh
+          grep -Fq 'export GOMODCACHE="$STAGE/cache/go-mod"' ../tests/homeserver/stage-m4-candidate.sh
+          grep -Fq 'export TMPDIR="$STAGE/tmp"' ../tests/homeserver/stage-m4-candidate.sh
+          # Confirm Go respects explicit cache with inherited HOME removed.
+          env -u HOME -u GOCACHE -u XDG_CACHE_HOME -u TMPDIR bash -eu -c '
+            stage=$(mktemp -d)
+            trap '\''rm -rf "$stage"'\'' EXIT
+            export HOME="$stage/home" XDG_CACHE_HOME="$stage/cache"
+            export GOCACHE="$stage/cache/go-build" GOMODCACHE="$stage/cache/go-mod"
+            export TMPDIR="$stage/tmp"
+            mkdir -p "$HOME" "$GOCACHE" "$GOMODCACHE" "$TMPDIR"
+            test "$(go env GOCACHE)" = "$GOCACHE"
+            go env GOVERSION >/dev/null
+          '
       - name: Check M3 tunnel-only recovery script syntax (no host action)
         run: bash -n ../tests/homeserver/m3-managed-tunnel-recovery.sh
       - name: Check guarded deployment script syntax
