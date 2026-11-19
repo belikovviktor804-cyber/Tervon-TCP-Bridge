@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 real-world passive telemetry collector implemented; active flow gate still open
+
+- Branch `work/m3-adaptive-jitter`, previously confirmed HEAD `a5b4ce1b0293a0d4cd704ac272d26840df555ef6`. The live SSH metrics tunnel recovery + public API gate was independently confirmed by operator and documented in plan/log; no repeat required.
+- New `tests/homeserver/m3_passive_live_evidence.py`: standard-library bounded sampling of **Finserver external public HTTPS** (`stats.xrayvless.online` pinned to external IPv4 `87.103.198.219` by curl with SNI/TLS verification), read-only, 180s/10s defaults, two independent nodes, numeric allowlist only, monotonic counters and error checks, explicit fail closed on unavailable/stale sources. Output is sanitized JSON lines to systemd journal, remains available after SSH terminal disconnect.
+- New offline tests `test_m3_passive_live_evidence.py`: node readiness, missing/invalid counters, reset, successful summary and explicit refusal to fabricate RTT/fairness/final M3 PASS. CI workflow includes mocked tests on code changes. `docs/M3_GATE_CLOSURE.md` now supplies the detached operator command and exact evidence semantics.
+- **FACTUAL STATUS:** source committed; live passive sampler **not executed**; raw production RTT / fairness per stream and active-load conclusion **not measured**. This script alone cannot finish M3 or qualify M4. No working service or server configurations changed.
+
+
 ## 2026-11-19 — M3 managed SSH metrics tunnel fault/recovery: LIVE PASS (operator evidence)
 
 - Operator executed the committed detached test `tests/homeserver/m3-managed-tunnel-recovery.sh` under `tervon-m3-tunnel-recovery.service` on Homeserver, source commit `dfa2bfc10be4c2b6e9c90eef79023c7651c58f48`.
