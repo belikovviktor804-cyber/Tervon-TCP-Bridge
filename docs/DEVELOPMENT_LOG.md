@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 dashboard placeholder elimination: real Decapsulator instrumentation (SOURCE MODIFIED)
+
+- User screenshot of live public Homeserver section had literal filler cards `На стороне Decapsulator` (Backend dial/TLS), and `Нет измерений` for Homeserver connection latency. Existing `bridge_panel.js` hardcoded first two texts, despite working two-node JSON API; Homeserver client does not measure backend-dial latency or Decapsulator TLS.
+- **Changed in M3 branch:** removed 3 non-applicable Homeserver cards (Backend dial, TLS, connection latency); retained client-side session/traffic/runtime/PAD/Jitter/error counters. Finserver already has measured `backend_dial_success/failure`, `tls13_h2_mtls_requests`; added **Finserver connect latency p50/p95/p99** with real `connect_latency_samples`, report `0 замеров` when zero, never fabricate milliseconds. `prototype/bridge.go` already calls `BackendDial`, `ObserveConnectLatency` and `ObserveTLS` for actual Decapsulator requests, so no extra data-plane instrumentation or service restart required to activate these metrics.
+- Updated JavaScript test fixture and assertions to ensure no hardcoded role-specific filler and correct Finserver latency/backends/TLS; existing UI-only guarded `integrations/stats/update-m3-ui.py` supports backup, atomic file replacement, checks, rollback without any service restarts.
+- **CURRENT STATE:** source changes committed but production UI **NOT YET UPDATED**; CI / operator browser acceptance still pending. No Bridge/Stats/nginx/SSH services changed by these commits.
+
+
 ## 2026-11-19 — M3 public two-node dashboard API PASS via external IPv4 (operator evidence)
 
 - Operator ran authenticated-TLS HTTPS GET from **Finserver** to `stats.xrayvless.online:443`, pinned via `curl --resolve` to public IPv4 `87.103.198.219`, no `-k`, no loopback substitution.
