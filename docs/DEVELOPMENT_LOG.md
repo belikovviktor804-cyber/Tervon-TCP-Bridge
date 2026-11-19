@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5 no-quota release packaging operator PASS
+
+- Homeserver operator executed `install/prepare-release-assets.sh` after SSH Git pull through `a0f33953a72d5cdd8afc9dcfb661c112a5388d7d`: `RELEASE_PREP=PASS_VERIFIED_DEPLOYED_M5`, `RELEASE_PREP_EXIT_CODE=0`, `RELEASE_VERSION=v1.0.1`, `RELEASE_SHA256=4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, `RELEASE_SOURCE_COMMIT=96c136702d10b6fb9a16aa2893f6b978e8b14e86`, `RELEASE_DIR=/opt/tervon-tcp-bridge/m5/release-no-quota`, `PUBLICATION_DONE=NO`.
+- Package is SHA-verified live-deployed M5 binary without 100-session cap. No rebuild, no service mutation. Installer SHA and default examples already updated to zero. Official GitHub v1.0.1 release not present; v1.0.0 only. Installer CI PASS not confirmed; licensing and final gates remain. M6 HOLD.
+
 ## 2026-11-19 15:37:36–15:37:56 — M5 two-node cutover operator PASS
 
 - Operator supplied systemd journal. Both snapshots/backups and verified old instances PASS by 15:37:47; parallel switching started 15:37:47. Homeserver new SHA and zero config PASS at 15:37:48; Finserver new SHA and zero config PASS at 15:37:54; public stats both `max_sessions=0` PASS by 15:37:56; final `M5_DUAL_RESULT=PASS_TWO_NODE_CUTOVER`, unit deactivated successfully.
