@@ -103,7 +103,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "jitter unavailable", http.StatusUpgradeRequired)
         return
     }
-	if r.ProtoMajor != 2 || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
+	if r.ProtoMajor != 2 || r.TLS == nil || r.TLS.Version != tls.VersionTLS13 ||
+		r.TLS.NegotiatedProtocol != "h2" ||
+		len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
 		http.Error(w, "authenticated HTTP/2 required", http.StatusUnauthorized)
 		return
 	}
@@ -401,6 +403,16 @@ func (cl *Client) HandleContext(parent context.Context, c net.Conn) (result erro
 		return err
 	}
 	defer resp.Body.Close()
+	// Even if a proxy or misconfigured endpoint answers with HTTP 200,
+	// never forward opaque VPN bytes over downgraded TLS/HTTP/1.1.
+	if resp.ProtoMajor != 2 || resp.TLS == nil ||
+		resp.TLS.Version != tls.VersionTLS13 ||
+		resp.TLS.NegotiatedProtocol != "h2" {
+		_ = reader.Close()
+		_ = writer.Close()
+		if cl.Metrics != nil { cl.Metrics.Error(telemetry.ReasonTLS) }
+		return fmt.Errorf("authenticated TLS 1.3 HTTP/2 response required")
+	}
 	if resp.StatusCode != http.StatusOK {
 		_ = reader.Close()
 		_ = writer.Close()
