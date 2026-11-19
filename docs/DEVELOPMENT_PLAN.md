@@ -2,6 +2,9 @@
 
 **Статус:** утверждённый порядок работы, актуализировано 2026-11-19. **Единственный рабочий план для следующих изменений.**
 
+> **M4 STAGING GO ENVIRONMENT FIX — CI SUCCESS / HOST RERUN PENDING:** исправление приватных `HOME`, `GOCACHE`, `XDG_CACHE_HOME`, `GOMODCACHE`, `TMPDIR` подтверждено [GitHub Go prototype checks #44473045048](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44473045048) **SUCCESS** (source/workflow SHA `39e19270578b91c60459d115955e1288d100f5b0`): `bash -n`, проверка отсутствия управляющих командами сервисов, smoke Go cache с очищенной HOME, сборка, vet/unit/race и legacy regressions. **Успешный CI не делает предыдущий staging `8b2f3d72` успешным:** операторский systemd-run завершился FAILURE до `go vet` из-за отсутствия кэша, и на Homeserver требуется **НОВАЯ изолированная проверка точного HEAD**. Live Bridge, Stats, nginx, VPN не тронуты. **M4 IN_PROGRESS, M5 NOT STARTED.**
+
+
 > **M4 HOMESERVER DETACHED STAGING — ENVIRONMENT FAILURE / FIX IN SOURCE (2026-11-19):** оператор запустил `tervon-m4-isolated-stage.service` с SHA `8b2f3d723469ae4bf8211adf2b7a0280138c0014`; GitHub SSH fetch выполнен, но `go vet` немедленно отказал: `GOCACHE is not defined and neither XDG_CACHE_HOME nor HOME are defined`. `status=1/FAILURE`, staging **НЕ PASS**, Go-тесты/бинарник не проверены. Причина — у `systemd-run` отсутствует стандартная среда Go. Исправлено в `tests/homeserver/stage-m4-candidate.sh` (источник `346c9491b48e6cf86cf72f62b13595e7f41563ac`): отдельные `HOME`, `XDG_CACHE_HOME`, `GOCACHE`, `GOMODCACHE`, `TMPDIR` внутри индивидуальной staging-директории; рабочие бинарники и сервисы не трогаются. GitHub workflow дополнен проверкой отсутствующего HOME/GOCACHE; **полный CI и повторный Homeserver staging — отдельные обязательные этапы; не считать PASS по одному исправлению кода.** `docs/M4_ACCEPTANCE.md` содержит сценарий. **Активный модуль M4; M5 НЕ НАЧАТ.**
 
 
