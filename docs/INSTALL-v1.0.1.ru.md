@@ -29,14 +29,14 @@
 
 Для проверки исходного кода установщика рекомендуется клонировать официальный тег **через SSH**:
 
-\`\`\`bash
+```bash
 git clone git@github.com:tervon-software/Tervon-TCP-Bridge.git
 cd Tervon-TCP-Bridge
 git fetch --tags origin
 git checkout --detach v1.0.1
 bash -n install/install-bridge.sh
 less install/install-bridge.sh
-\`\`\`
+```
 
 Не запускайте удалённые скрипты напрямую через `curl | bash`. Git tag указывает на исходники релиза, а исходный commit проверенного бинарника отдельно указан в [заметках к выпуску](RELEASE_NOTES_v1.0.1.ru.md). Не следует считать тег криптографически подписанным без проверки подписи.
 
