@@ -1,4 +1,4 @@
-/* Homeserver-only Bridge panel; uses public read-only same-origin API.
+/* Two-node Bridge panel; uses public read-only same-origin API.
  * Include only after bridge_panel.html; no credentials or private addresses.
  */
 (() => {
@@ -108,6 +108,43 @@
     setText("tb-updated", at && !Number.isNaN(at.getTime()) ?
       at.toLocaleString("ru-RU") : "—");
   };
+  // Finserver is optional. Never interpret a missing/stale tunnel as zero
+  // traffic, and never render untrusted HTML or expose remote endpoint URLs.
+  const finIds = ["tb-fin-active", "tb-fin-bytes", "tb-fin-pad",
+    "tb-fin-overhead", "tb-fin-jitter", "tb-fin-adaptation",
+    "tb-fin-backend", "tb-fin-tls"];
+  const renderFin = (data) => {
+    const node = data && data.schema === "tervon.bridge.dashboard.v1" &&
+      data.nodes && data.nodes.finserver;
+    if (!node || node.status !== "ok" || !node.metrics) {
+      finIds.forEach((id) => setText(id, "—"));
+      setText("tb-fin-status", node ? "Finserver: метрики недоступны" :
+        "Finserver: источник не подключён");
+      return;
+    }
+    const m = node.metrics;
+    setText("tb-fin-status", m.ready === true ?
+      "Finserver готов" : "Finserver не готов");
+    setText("tb-fin-active", fmt(m.sessions_active));
+    setText("tb-fin-bytes", bytes(m.upload_bytes) + " / " + bytes(m.download_bytes));
+    setText("tb-fin-pad", fmt(m.padding_upload_frames) + " / " +
+      fmt(m.padding_download_frames));
+    setText("tb-fin-overhead", [
+      m.padding_upload_wire_overhead_percent,
+      m.padding_download_wire_overhead_percent,
+    ].map((v) => number(v) ? v.toFixed(2) + "%" : "—").join(" / "));
+    const delayed = (frames, ns) => integer(frames) && number(ns) ?
+      fmt(frames) + " / " + (ns / 1e6).toFixed(2) + " мс" : "—";
+    setText("tb-fin-jitter",
+      delayed(m.jitter_upload_frames, m.jitter_upload_delay_ns) +
+      " / " + delayed(m.jitter_download_frames, m.jitter_download_delay_ns));
+    const padding = m.padding_state === "OFF" &&
+      m.padding_configured === true ? "Ожидание" : state(m.padding_state);
+    setText("tb-fin-adaptation", padding + " / " + state(m.jitter_state));
+    setText("tb-fin-backend",
+      fmt(m.backend_dial_success) + " / " + fmt(m.backend_dial_failure));
+    setText("tb-fin-tls", fmt(m.tls13_h2_mtls_requests));
+  };
   const refresh = async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
@@ -118,9 +155,12 @@
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error("unavailable");
-      render(await response.json());
+      const result = await response.json();
+      render(result);
+      renderFin(result);
     } catch (_) {
       render(null);
+      renderFin(null);
     } finally {
       clearTimeout(timeout);
     }
