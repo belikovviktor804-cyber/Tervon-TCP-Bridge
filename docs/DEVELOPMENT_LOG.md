@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 one-shot batch prepared (not yet executed)
+
+- Committed `tests/m5/run-m5-1-batch.sh` on `work/m5-linux-release`: isolated, read-only provenance checks for old release binary SHA, M4 Git object, tag, sample JSON and documented baseline, with one log/result. No service restart, configuration reads or synthetic network load.
+- **SOURCE_ONLY / HOST_BATCH_NOT_RUN / M5.1 IN_PROGRESS.** Prior operator 5/5 offline PASS and v1.0.0 asset identity PASS retained, M6 HOLD.
+
 ## 2026-11-19 — M5.1 offline verifier: operator 5/5 PASS on Homeserver
 
 - Operator `git pull --ff-only origin work/m5-linux-release` advanced checkout `e9a96b3..4b0a7ac`. Command `python3 -m unittest discover -s tests/m5 -p 'test_*.py' -v` returned five `ok` cases, `Ran 5 tests in 0.001s`, `OK`, `M5_TEST_EXIT_CODE=0`.
