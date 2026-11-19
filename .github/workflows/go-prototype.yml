@@ -11,6 +11,7 @@ on:
       - 'tests/homeserver/collect_m2_baseline.py'
       - 'tests/homeserver/test_collect_m2_baseline.py'
       - 'tests/homeserver/stage-m3-candidate.sh'
+      - 'tests/homeserver/m3-managed-tunnel-recovery.sh'
       - 'tests/homeserver/diagnose_m3_monitoring.py'
       - 'tests/homeserver/test_diagnose_m3_monitoring.py'
       - '.github/workflows/go-prototype.yml'
@@ -43,6 +44,8 @@ jobs:
         run: bash -n ../tests/homeserver/verify-m1.sh
       - name: Check M3 offline staging script syntax (no deployment)
         run: bash -n ../tests/homeserver/stage-m3-candidate.sh
+      - name: Check M3 tunnel-only recovery script syntax (no host action)
+        run: bash -n ../tests/homeserver/m3-managed-tunnel-recovery.sh
       - name: Check guarded deployment script syntax
         run: bash -n ../tests/homeserver/deploy-m1-with-m0-backup.sh
       - name: Check isolated Bridge stats installer syntax (no deployment)
