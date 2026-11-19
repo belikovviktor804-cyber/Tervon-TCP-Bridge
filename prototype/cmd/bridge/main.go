@@ -220,7 +220,7 @@ func main() {
     if c.PaddingRateEnabled {p:=padding.DefaultRatePolicy();handler.RatePaddingPolicy=&p}
     if c.JitterEnabled {p:=jitter.DefaultPolicy();handler.JitterPolicy=&p}
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{cert}, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool, NextProtos: []string{"h2"}}
-	srv := &http.Server{Addr: c.Listen, Handler: handler, TLSConfig: tlsCfg, ReadHeaderTimeout: 10 * time.Second}
+	srv := newBridgeHTTPServer(c.Listen, handler, tlsCfg)
 	errs := make(chan error, 1)
 	ln, err := net.Listen("tcp", c.Listen)
 	if err != nil {
@@ -242,5 +242,20 @@ func main() {
 			_ = srv.Close()
 			log.Fatalf("server graceful shutdown incomplete: %v", err)
 		}
+	}
+}
+
+
+// newBridgeHTTPServer limits header parsing and idle HTTPS/2 resources.
+// Do not set ReadTimeout/WriteTimeout on a TCP bridge: VPN byte streams are
+// intentionally long-lived and use request contexts for cancellation.
+func newBridgeHTTPServer(addr string, handler http.Handler, tlsCfg *tls.Config) *http.Server {
+	return &http.Server{
+		Addr: addr,
+		Handler: handler,
+		TLSConfig: tlsCfg,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout: 60 * time.Second,
+		MaxHeaderBytes: 32 << 10,
 	}
 }
