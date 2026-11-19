@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 first Homeserver isolated staging attempt blocked by missing Go cache environment; corrected in source
+
+- Operator attempted `systemd-run --unit=tervon-m4-isolated-stage --collect` with immutable SHA `8b2f3d723469ae4bf8211adf2b7a0280138c0014` at Homeserver 2026-11-19 09:30:46–09:30:49 local service journal time. GitHub SSH fetch succeeded and script entered `===== M4 GO VET =====`, then exited `status=1/FAILURE`: `build cache is required, but could not be located: GOCACHE is not defined and neither $XDG_CACHE_HOME nor $HOME are defined`. No `STAGE_M4=PASS`, no Go vet/race/build result; **this is a preflight environment failure, not a tested M4 failure or production outage.**
+- Cause: detached `systemd-run` does not inherit usable `HOME` or Go cache. Source fix `tests/homeserver/stage-m4-candidate.sh` commit `346c9491b48e6cf86cf72f62b13595e7f41563ac` exports private `HOME`, `XDG_CACHE_HOME`, `GOCACHE`, `GOMODCACHE`, `TMPDIR` under the freshly allocated M4 staging directory before all Go commands. No caches or temporary files are placed in live Bridge directories, and production services are never modified.
+- Workflow commit `39e19270578b91c60459d115955e1288d100f5b0` adds static assertions for the isolation variables and a smoke check that Go resolves `GOCACHE` with inherited `HOME` cleared. The check is not a substitute for a successful staging run on Homeserver; CI outcome documented separately.
+- **M4 isolated staging remains BLOCKED / NOT PASS until a fresh exact-commit detached run emits `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS` and checksum evidence.** Do not repeat the *old* immutable SHA; operator must fetch latest branch and run corrected script. No running Bridge/Stats/nginx or VPN service was affected.
+
+
 ## 2026-11-19 — M4 TLS1.3/h2 before-upload downgrade prevention: CI PASS after a real regression failure
 
 - During M4 security hardening the live isolated test `TestM4OutboundTransportRefusesDowngradeBeforeHTTPHandler` revealed that `net/http.Transport` with `ForceAttemptHTTP2` and an h2-only TLS config could still use HTTP/1.1 fallback. [Go checks #44468361183](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468361183) failed **correctly**: TLS1.3+HTTP1.1-only peer unexpectedly reached test handler. The original response-only rejection happens **after** `Do` and cannot guarantee an upload was not sent via h1.
