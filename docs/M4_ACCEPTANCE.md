@@ -37,3 +37,13 @@ Added test-only, isolated regression cases; no production service or server conf
 - `prototype/m4_long_lived_stream_test.go`: after valid h2 headers, an established byte-exact TCP echo session must survive an idle gap longer than the response-header timeout and terminate cleanly after the local peer closes. This guards against mistakenly substituting `http.Client.Timeout` or server body deadlines for setup-only bounds.
 
 **Gate:** exact branch commit must pass full `Go prototype checks` (unit, vet, race, M1/M2/M3 regressions); no manual host run and no M4 release PASS until then. Existing tests cover backend refusal/cancellation, capacity and goroutine churn but those pass results must be checked against current SHA, not historical commits.
+
+## M4 batch 3 — authenticated HTTP/2 resource churn: CI PASS
+
+- Added `prototype/m4_churn_test.go`: three waves of eight simultaneous authenticated mTLS/HTTP/2 echo streams under negotiated M3 rate Padding/Jitter (isolated test certs/backend). Each stream verifies byte exactness. After each wave, active session counters at both sides must drain to zero before the next wave; totals must equal 24 started and 24 completed. After transport idle connection cleanup, goroutine count must settle near baseline within the bounded test threshold.
+- [Go prototype checks #44466925122](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44466925122) **SUCCESS**, exact source commit `9ce54ac557856e6596e04cf1f5141a0b020fe566`. `go test -race` and M1/M2/M3 regression suites passed. This is a meaningful **source/CI resource subgate PASS**, not production-load or packet-path acceptance.
+- New dedicated [M4 Linux candidate (no deployment) #44467184331](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44467184331) **SUCCESS** on `2867553a2512145d3864d3c3bf78178bc9ac006c`; publishes an isolated Linux amd64 candidate with `BUILD_INFO` and `SHA256SUMS`, **not released/deployed**.
+
+### Outstanding
+
+M4 remains IN_PROGRESS: examine any remaining failure-mode gaps, and obtain independent staged host reliability evidence without changing production services. Only a confirmed module-level PASS allows transition to M5. Existing M3 live measurements and unverified M5 release constraints remain unchanged.
