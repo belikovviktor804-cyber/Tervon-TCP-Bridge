@@ -176,3 +176,20 @@ Once both preparations PASS, copy `m4-cutover-switch.sh` to Finserver via **scp 
 **Before Homeserver switch:** verify Finserver really runs M4 and the still-M3 Homeserver client can access it over authenticated TLS1.3/h2; confirm public Stats and actual TCP VPN data-plane behavior and errors. This requires separate operator evidence. If Finserver M4 process is healthy but traffic fails, explicitly run `m4-cutover-switch.sh rollback finserver` on the same node (detached, with journal verification); do not proceed to Homeserver. A one-node M4 process/hash PASS is *not* proof of end-to-end compatibility.
 
 Both M3 backups remain protected; current status **M4 live install NOT RUN, M4 module IN_PROGRESS, M5 NOT STARTED**.
+
+## M4 first live cutover: Finserver M4 process SHA PASS, mixed-route observation pending
+
+Operator supplied transient Finserver `tervon-m4-finserver-cutover.service` journal (Nov 19 07:49:52–07:50:01 Finserver timestamp): `M4_INSTALL=PASS_PROCESS_AND_SHA`, `ROLE=finserver`, `UNIT=tervon-bridge-server.service`, `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`; unit exited successfully. **Finserver installation accepted, no Homeserver cutover yet.**
+
+Next independently observe existing live M3→M4 pairing without altering any services. On Homeserver root SSH checkout:
+
+```bash
+REPO=/opt/tervon-tcp-bridge/m4/source
+systemd-run --unit=tervon-m4-mixed-live --collect \\
+  /usr/bin/python3 "$REPO/tests/homeserver/m3_passive_live_evidence.py" \\
+  --duration 120 --interval 10
+```
+
+While the sampler is running, operator should browse/download normally over an *existing actual TCP VPN connection routed through Bridge*, not Hysteria2/UDP or a direct foreign exit. It does not create traffic. Read `journalctl -u tervon-m4-mixed-live -n 40 --no-pager`. A summary `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY` with zero error deltas and positive new sessions/transfer on **both** nodes is evidence of healthy mixed-version traffic, but the sampler cannot attribute one user's exact connection and cannot prove delay/RTT/fairness by itself. Report the entire summary (numeric-only). Any increase in errors, mismatch, broken client traffic or missing metrics means **do not upgrade Homeserver**. Confirm live Finserver M4 SHA and Homeserver M3 SHA separately (read-only preflight has the old SHA pinned as informational, but will PASS if process/disk matches). If the route is broken, explicit rollback on Finserver remains available from its verified prepared M3 backup.
+
+**Full M4 module not PASS; mixed-route live result not yet received.**
