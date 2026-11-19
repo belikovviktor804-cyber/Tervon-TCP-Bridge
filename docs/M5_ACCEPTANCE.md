@@ -3,7 +3,7 @@
 **Дата открытия:** 2026-11-19  
 **Активная ветка:** `work/m5-linux-release`  
 **Базовый коммит M4 closure:** `eb4fde88d6477defb58f8237fd0526c292e93cfe`  
-**Текущий статус:** `M5_IN_PROGRESS / M5.1_BASELINE_INVENTORY`  
+**Текущий статус:** `M5_IN_PROGRESS / M5.1_PROVENANCE_BATCH_PASS`  
 **M6:** `HOLD / DISCUSSION_REQUIRED / NOT_STARTED`
 
 ## Переданные доказательства и ограничения
@@ -44,3 +44,5 @@
 - `tests/m5/run-m5-1-batch.sh`: одна read-only команда на Homeserver, проверяет SSH Git origin, чистую ветку/точный commit, исторический SHA v1.0.0, доступность исходного commit M4, документы, публичный Git tag и JSON-примеры; сообщает build metadata старого бинарника.
 - Хранит отчет в `/opt/tervon-tcp-bridge/m5/results/m5.1-*/report.log`; никакого обновления или перезапуска Bridge/Stats/Xray, никаких приватных конфигураций.
 - **SOURCE_COMMITTED / HOST_BATCH_NOT_RUN**. Ранее пройденные 5/5 unit и реальный SHA-PASS не отменяются. `M5.1` остаётся IN_PROGRESS до нового отчёта; результаты performance отдельно в последующих пакетах.
+
+**Пакетная проверка Homeserver 2026-11-19:** `tests/m5/run-m5-1-batch.sh` на `0909812d09dd149f872b0eee9e8e48bd85374530` завершилась `PASS_PROVENANCE_AND_STATIC_BASELINE`, exit 0; шесть проверок PASS (SHA, M4 object, две документации, Git ref, JSON). Отчёт `/opt/tervon-tcp-bridge/m5/results/m5.1-2EO4eslf/report.log`. Исторический артефакт Go 1.25.5. **Не измеряет производительность/RTT/Jitter; M5.1 не закрыт целиком.**
