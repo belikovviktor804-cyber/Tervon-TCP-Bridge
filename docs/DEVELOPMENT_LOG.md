@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 final operator PASS; transition to M5, M6 on hold
+
+- Operator explicitly confirmed after the M4 upgrades on both hosts: **«М4 готов. Работает. Можно закрывать.»** Homeserver and Finserver both reported `M4_INSTALL=PASS_PROCESS_AND_SHA` against identical SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. M4 HTTPS2 reliability CI and isolated staging passed earlier; operational VPN functionality accepted by operator. **M4 MODULE=CLOSED/PASS**; no redundant extended telemetry test.
+- M3 deferred **quantitative** Jitter per-frame and 1-second limit, RTT/fairness/resource/load and Linux release comparison remain **NOT_MEASURED/RELEASE-BLOCKING FOR M5**; this is not a retroactive quantitative PASS.
+- The operator authorized **starting M5** and explicitly prohibited starting **M6** pending discussion of architectural issues. M5 branch must be based on the verified M4 closure commit; M6 remains `HOLD/DISCUSSION_REQUIRED`. No services, running binaries or Android APK modified in this documentation step.
+
+
 ## 2026-11-19 — M5/M6 roadmap formalized in GitHub (documentation only)
 
 - Operator asked to update documentation and show M5/M6 planned scope. Reopened mandatory `docs/DEVELOPMENT_PLAN.md` on `work/m4-http2-reliability` and read original M5 and M6 definitions in order.
