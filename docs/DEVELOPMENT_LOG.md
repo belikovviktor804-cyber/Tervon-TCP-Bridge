@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 PAD/Jitter activation gate source CI PASS (no live run)
+
+- Source commits `56f6db9b` (opt-in `--require-activation` checker), `d34d3e45` (isolated tests). Both PAD and Jitter counters must increase in one observed real-traffic window without increased error counters for `PASS_PAD_AND_JITTER_ACTIVATED`; no eligible traffic returns descriptive non-PASS and exit code 3.
+- [Go prototype checks #44462201616](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44462201616) **SUCCESS**, including unit tests for both-active/no-activity/one-sided activation, race suite, M1/M2/M3 regressions. [M3 Linux candidate #44462201682](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44462201682) **SUCCESS (artifact only)**.
+- No live activation test has been run on Homeserver yet. The sampler does NOT generate load; user must download/stream 2–5 Mbit/s for >2 sec **over actual TCP VPN route through Bridge**, while detached sampler observes both nodes. No working services changed. Real per-frame jitter ceiling, RTT and fairness remain unmeasured.
+
+
 ## 2026-11-19 — M3 on-demand production PAD/Jitter activation test prepared (source only)
 
 - Operator asks to actively verify PAD/Jitter because passive traffic had zero new frames. Confirmed code policies: M3 rate Padding requires two consecutive full 1-second windows >=1 Mbps for one stream/direction; Jitter requires >=2s, >=64 KiB, >=5 samples of >=512-byte eligible frames and no congestion, with opt-in negotiated `jit1`.
