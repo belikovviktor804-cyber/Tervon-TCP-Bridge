@@ -127,3 +127,31 @@ Stop and report discrepancies if a unit is inactive, the running SHA differs fro
 **Switching policy once preflight is confirmed:** retain current M3 files and SHA256 on each host; verify matching M4 binary SHA256 after staging independently on each host; assess the effective service configuration's `/v2/stream` and capability compatibility *locally without emitting sensitive values*; first upgrade the Finserver decapsulator, confirm mTLS/HTTP2 listener and public two-node metrics, then upgrade Homeserver encapsulator and confirm actual TCP VPN client traffic, session counters, PAD/Jitter deltas, controlled peer failures and no persistent sessions. On any failure, rollback the **affected unit to its exact pre-upgrade binary**, restart only that Bridge unit, verify the running SHA and VPN recovery. Do not restart nginx, Stats, x-ui or unrelated services. A restart of Bridge can momentarily interrupt active TCP VPN connections — schedule a controlled cutover and preserve old binaries until accepted.
 
 **Current stage:** two-node preflight and cutover are **NOT RUN**, M4 runtime on both hosts is **NOT DEPLOYED**. No claim of production M4 PASS, M5 remains blocked.
+
+## M4 live cutover: two-node preflight accepted and backup preparation
+
+**Operator evidence, 2026-11-19:** `M4_PREFLIGHT=PASS_READ_ONLY` on **both** hosts; no restarts or config access. Homeserver `tervon-bridge-client.service`, actual binary `/opt/tervon-tcp-bridge/bridge`, PID 1298132; Finserver `tervon-bridge-server.service`, actual binary `/opt/tervon-bridge-linux-amd64`, PID 53800. Both disk and running SHA256 match **`df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`**. M4 candidate built on Homeserver under `/opt/tervon-tcp-bridge/m4/stage-qgAtBg91/dist/tervon-bridge-m4-linux-amd64` has verified SHA256 **`5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`**. M3 still serving on both hosts at time of preflight.
+
+**Next step is deliberately nonmutating preparation**, *not* a restart. `tests/homeserver/m4-cutover-prepare.sh` requires exact expected old/new hashes; verifies the actual allowed live ExecStart, PID, disk and running SHA, checks candidate and saves immutable M3 and M4 copies with a checksum manifest under `/opt/tervon-tcp-bridge/m4/cutover-ROLE/`. It never changes the running binary, systemd, Nginx, Stats or VPN. It refuses to overwrite an existing backup. Both sides must report `M4_PREPARE=PASS` before any production cutover.
+
+Operator sequence from Homeserver root shell (only SSH for remote file transfer):
+
+```bash
+set -euo pipefail
+ROOT=/opt/tervon-tcp-bridge/m4/source
+CANDIDATE=/opt/tervon-tcp-bridge/m4/stage-qgAtBg91/dist/tervon-bridge-m4-linux-amd64
+OLD=df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499
+NEW=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90
+git -C "$ROOT" pull --ff-only origin work/m4-http2-reliability
+test "$(sha256sum "$CANDIDATE" | awk '{print $1}')" = "$NEW"
+bash "$ROOT/tests/homeserver/m4-cutover-prepare.sh" homeserver "$CANDIDATE" "$OLD" "$NEW"
+ssh -T -o BatchMode=yes finserver 'install -d -m 0700 /opt/tervon-tcp-bridge/m4/incoming'
+scp -q "$CANDIDATE" finserver:/opt/tervon-tcp-bridge/m4/incoming/tervon-bridge-m4-linux-amd64
+ssh -T -o BatchMode=yes finserver \
+  "bash -s -- finserver /opt/tervon-tcp-bridge/m4/incoming/tervon-bridge-m4-linux-amd64 $OLD $NEW" \
+  < "$ROOT/tests/homeserver/m4-cutover-prepare.sh"
+```
+
+**Stop conditions:** any SHA mismatch, unknown active binary, unexpected existing backup, error or missing candidate. Do not manually remove existing backup files in an automated retry. No production cutover until both prep manifests are confirmed and a verified rollback/install mechanism is ready. Expected downtime for a future real cutover: restarting the relevant Bridge service breaks its currently active TCP VPN sessions.
+
+**As of this documentation:** active M3 on both hosts; read-only preflight **PASS**; backup/candidate preparation **NOT RUN**; M4 live cutover **NOT RUN**, so M4 module remains IN_PROGRESS.
