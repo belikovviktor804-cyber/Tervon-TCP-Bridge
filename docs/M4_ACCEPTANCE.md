@@ -47,3 +47,30 @@ Added test-only, isolated regression cases; no production service or server conf
 ### Outstanding
 
 M4 remains IN_PROGRESS: examine any remaining failure-mode gaps, and obtain independent staged host reliability evidence without changing production services. Only a confirmed module-level PASS allows transition to M5. Existing M3 live measurements and unverified M5 release constraints remain unchanged.
+
+## M4 isolated Homeserver staging (prepared; NOT RUN)
+
+A new guarded script `tests/homeserver/stage-m4-candidate.sh` can test one **exact immutable 40-character commit** on Homeserver, in `/opt/tervon-tcp-bridge/m4/stage-XXXXXXXX`. It requires root, a clean `work/m4-http2-reliability` checkout with the exact SSH Git remote, fetches the branch and refuses to run if its latest SHA differs from the expected commit. Source is archived into a private staging directory; Go vet, targeted `go test -race -run '^TestM4' ./...`, and static Linux amd64 build run there, with `SHA256SUMS` and `BUILD_INFO` saved. **No systemd unit, Nginx, Bridge binary, VPN listener or Stats service is modified.** On failure it exits nonzero and retains the stage for diagnosis; do not label it PASS.
+
+A one-time **SSH-only source checkout** is needed before running the script (skip the clone if already present):
+
+```bash
+mkdir -p /opt/tervon-tcp-bridge/m4
+if [ -d /opt/tervon-tcp-bridge/m4/source/.git ]; then
+  git -C /opt/tervon-tcp-bridge/m4/source pull --ff-only origin work/m4-http2-reliability
+else
+  git clone --single-branch --branch work/m4-http2-reliability \
+    git@github.com:tervon-software/Tervon-TCP-Bridge.git \
+    /opt/tervon-tcp-bridge/m4/source
+fi
+```
+
+After confirmed final GitHub CI PASS for the **exact** current commit, start independent of interactive SSH:
+
+```bash
+systemd-run --unit=tervon-m4-isolated-stage --collect \
+  /bin/bash /opt/tervon-tcp-bridge/m4/source/tests/homeserver/stage-m4-candidate.sh \
+  EXPECTED_FULL_GITHUB_SHA
+```
+
+Evidence: `journalctl -u tervon-m4-isolated-stage -n 80 --no-pager`. Accept only `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`, binary checksum verification, exact expected `SOURCE_COMMIT`, and `BRIDGE_RESTART=NONE` / `STATS_RESTART=NONE` / `NGINX_RELOAD=NONE`. This remains a staging build and isolated test, **not real data-plane acceptance**, so no M4 module PASS until the rest of the matrix is confirmed.
