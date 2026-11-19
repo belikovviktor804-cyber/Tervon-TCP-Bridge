@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.2+M5.3 operator batch OFFLINE PASS 6/6; live numeric gate pending
+
+- Operator read back saved log `/opt/tervon-tcp-bridge/m5/results/m5.23-8xLZEb4p/summary.log`; M5 checkout HEAD `3a6e1c5d0ce9be96fd5a2f7069c2256e65caf52f`, verified M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, Go 1.25.5 linux/amd64, timestamp `2026-11-19T09:27:17Z`.
+- Six explicit `PASS`: VET, BUILD, INTEGRATION, RACE, JITTER_REPEAT, FRAMING_REPEAT. `M5_23_OFFLINE=PASS`. Existing M4 operator live TCP/VPN PASS retained.
+- `M5_23_FINAL=BLOCKED_LIVE_MEASUREMENTS` is deliberately returned by script with exit 3; it is not an observed Bridge failure. True live numerical RTT/fairness/resources/Jitter maxima were **not measured** by offline batch. No rerun required.
+- **COMBINED M5.2+M5.3: OFFLINE_PASS / LIVE_EVIDENCE_PENDING; full module NOT PASS.** No production service modified, M5.4 not started, M6 HOLD.
+
 ## 2026-11-19 — Operator merges M5.2 and M5.3 into single acceptance
 
 - User approved one combined check of live M4=v1.0.1 TCP behavior and quantitative Padding/Jitter, RTT, fairness and resources. No previous-version work.
