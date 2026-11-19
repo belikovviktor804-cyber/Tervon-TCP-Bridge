@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 isolated source test + benchmark batch prepared
+
+- New `tests/m5/run-m5-1-source-batch.sh`: single-command private Go cache, source build, `go vet`, unit/race suites and bounded existing microbenchmarks; no service commands and no production config access.
+- **SOURCE_COMMITTED; BATCH_NOT_RUN; M5.1 IN_PROGRESS.** Benchmark results are source-local diagnostics only, not v1.0.0 comparative performance or production RTT. M6 HOLD.
+
 ## 2026-11-19 — M5.1 batch provenance and static baseline: operator PASS
 
 - Operator updated isolated SSH checkout to exact HEAD `0909812d09dd149f872b0eee9e8e48bd85374530` and ran `bash tests/m5/run-m5-1-batch.sh` on Homeserver at `2026-11-19T09:13:58Z`.
