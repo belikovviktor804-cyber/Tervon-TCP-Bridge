@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 13:43:47Z — Official Linux v1.0.1 RELEASED / PASS
+
+- Operator published with `install/publish-v1.0.1.sh`: local SHA check `tervon-bridge-linux-amd64: OK`, `M5_PUBLISH_TAG_SHA=c77cf2685623e71705ae38f57125986fb9531fd8`, downloaded and compared all three uploaded assets, `M5_PUBLISH_DRAFT_REMOTE_VERIFY=PASS`, `M5_PUBLISH=PASS_PUBLIC_RELEASE`, exit 0.
+- Independently fetched GitHub API release by tag: [v1.0.1](https://github.com/tervon-software/Tervon-TCP-Bridge/releases/tag/v1.0.1) `draft=false`, `prerelease=false`, published_at `2026-11-19T13:43:47Z`. Git tag `refs/tags/v1.0.1` has commit SHA `c77cf2685623e71705ae38f57125986fb9531fd8`. Assets: `tervon-bridge-linux-amd64` (6,869,176 B), `SHA256SUMS` (92 B), `BUILD_INFO` (256 B). Binary SHA256 `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, build-source commit `96c136702d10b6fb9a16aa2893f6b978e8b14e86` (distinct from release documentation tag).
+- Release package M5.5 PASS and official publication M5.6 RELEASED/PASS. User-visible installation docs synced to main and AI/development-plan links absent from public README. Production Bridge services untouched during publishing. No fake performance claim: measured network RTT, per-stream fairness and live wall-clock jitter maxima are still missing; M5.4 separate reliability stage has not been marked completed. M6 HOLD / DISCUSSION_REQUIRED.
+
 ## 2026-11-19 — M5.6 GitHub tag lookup false positive fixed and CI PASS
 
 - Operator verified `gh api repos/tervon-software/Tervon-TCP-Bridge/git/ref/tags/v1.0.1` = HTTP 404, `gh release view v1.0.1` = release not found, local HEAD `4f853e644105e39979098649499a6dafc8dc9c88`. Publisher previously returned `BLOCKED_TAG_POINTS_TO_OTHER_COMMIT` because its `gh api ... || true` command substitution captured JSON error-body stdout on nonzero status. Verified binary SHA256 itself PASS.
