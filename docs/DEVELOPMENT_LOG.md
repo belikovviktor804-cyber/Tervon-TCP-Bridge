@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 live binary rollout + bilateral opt-in and Finserver private metrics (operator evidence)
+
+- **Source candidate:** `ba8d6cedbac58fc9c1b4e81872e127075783a3b9`; SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. Both nodes checked their active `/proc/<pid>/exe` and returned the expected digest; `tervon-bridge-client.service` and `tervon-bridge-server.service` are active. This is **BINARY INSTALL PASS**, not live VPN E2E PASS.
+- **Finserver:** staged candidate transferred via the existing SSH alias, checksum PASS; production `/opt/tervon-bridge-linux-amd64` switched from M2 checksum `64c3a7161d7d03b74ec70ea6ae2ceb97992e86d2dfa65e8662193ffc0bc7d42c`. Binary backup `/opt/tervon-tcp-bridge/backups/m0-aeGcyPKF`. Operator enabled `padding_rate_enabled` and `jitter_enabled` on server with `padding_enabled=true`: `FIN_M3_PROCESS=PASS`. Configuration backup `/opt/tervon-tcp-bridge/m3/server-before-rate1-jit1.json`.
+- **Homeserver:** running binary switched to the same verified M3 SHA; backup `/opt/tervon-tcp-bridge/backups/m0-zQjfaIo4`. Bilateral configuration opt-in `HOME_M3_RATE1=ENABLED`, `HOME_M3_JITTER=ENABLED`, `HOME_M3_PROCESS=PASS`; backup `/opt/tervon-tcp-bridge/m3/client-before-rate1-jit1.json`.
+- **Finserver local telemetry:** separate private metrics listener `127.0.0.1:8896` enabled; `FIN_M3_METRICS=PASS`, schema `tervon.bridge.telemetry.v1`, Bridge process checked, `PUBLIC_METRICS=DISABLED`. Configuration backup `/opt/tervon-tcp-bridge/m3/server-before-metrics.json`.
+- **Not yet verified:** actual VPN connectivity after activation, PAD activation threshold over real flow, Jitter frame/delay counters, RTT/fairness/overhead, and a secure multi-node Bridge Stats integration. Current Homeserver site collector reads Homeserver only; **do not assume Finserver is visible on the site**. Do not expose Finserver loopback metrics to internet. No v1.0.1 release, M3 **LIVE_MEASUREMENTS_PENDING**.
+
+
 ## 2026-11-18 — M3 Stats browser screenshot: M2 PAD emitted and displayed (operator evidence)
 
 - На публичной странице Tervon TCP Bridge оператор предоставил снимок с временем обновления **18.11.2026 20:45:17**. Панель выводит `Bridge готов`, активных сессий **15**, started/completed/rejected **1572/1557/0**, полезный трафик upload/download **25.9 / 981.7 MiB**, uptime **17328.4 s**, goroutines **52**, память **12.3 MiB**, ошибки суммарно **0**.
