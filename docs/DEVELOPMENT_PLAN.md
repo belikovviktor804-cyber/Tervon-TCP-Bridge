@@ -448,6 +448,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — resumed after interrupted session (2026-11-19)
+
+- Re-read current `docs/DEVELOPMENT_PLAN.md` and `docs/DEVELOPMENT_LOG.md` on `work/m3-adaptive-jitter`, rather than relying on chat memory. **Previously pending** CI [#44281963459](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44281963459) (Go/race/integration) and [#44281958023](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44281958023) (M3 Linux build candidate) both completed **SUCCESS**. No production installation is implied.
+- Latest external operator evidence already in the GitHub log: M3 Stats UI+collector **HOMESERVER LOCAL PASS** at `5015a3b6f5eff704aa0cd317ecb69228f49b4c80`, with separate backup paths and **no Bridge restart**; screenshot shows real M2 PAD upload emitted (18.3 KiB/41 frames) and video/inactive status. Do **not** rerun the already-completed Stats installers or assert M3 data plane deployed.
+- Added deterministic `prototype/framing/m3_competing_flow_test.go` to simulate a single-direction 1 Mbps video stream alongside 128-byte short interactive writes with independent encoder states: assert PAD+Jitter activates for qualified video only, **zero** PAD/Jitter for interactive stream, and byte-exact decoded output. The test runs ~7 simulated seconds to cover the rate and Jitter qualification windows. No real traffic, server changes or user data involved.
+- Current new CI: [Go #44434798348](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44434798348) **RUNNING at checkpoint** for source `e76a4d2b4062892b8fb7bbde39fe3251677bd765`; [M3 Linux candidate #44434798307](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44434798307) **RUNNING at checkpoint**. Do not claim PASS before checking conclusion. Remaining gate is real two-node M3 rate1/jit1 testing with rollback, timing and fairness, then independent external Stats HTTPS verification. **M3 IN_PROGRESS, v1.0.1 NOT RELEASED.**
+
+
+
 #### M3 — rate1+jit1 batch validation checkpoint (2026-11-18; ACTIVE SOURCE, NO DEPLOYMENT)
 
 - **Latest module checkpoint:** `rate1`/bilateral `jit1`, decoded PAD monitoring and all current CI checks are **CODE PASS** on `35f38cc82bf6fb7ef85ab6726654cf2010a461fa`. M3 **NOT COMPLETE**: Homeserver/Finserver opt-in rollout, real ≥1Mbps stream behavior/overhead, long-running RTT/fairness and public monitoring route still **NOT VERIFIED**. No deployed file or service changed in this source batch.
