@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 detached Go environment repair: GitHub CI PASS, host rerun pending
+
+- Tested source + CI smoke commit `39e19270578b91c60459d115955e1288d100f5b0`. [Go prototype checks #44473045048](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44473045048) **SUCCESS**: staging script `bash -n` and prohibition on direct service commands, asserted private `HOME/GOCACHE/GOMODCACHE/TMPDIR`, Go environment smoke with inherited `HOME`, `GOCACHE`, `XDG_CACHE_HOME`, `TMPDIR` cleared, followed by build, vet, unit, race and previous M1–M4 regressions.
+- This closes the **source/CI environment-fix subgate only**. The failed Homeserver attempt `8b2f3d72` remains `STAGE_M4=FAIL`, no M4 host build/test result. Next: operator pulls corrected `work/m4-http2-reliability` over GitHub SSH and executes a **new exact-commit** isolated stage via detached `systemd-run`; only journal `STAGE_M4=PASS` may close the host staging gate.
+- No running Bridge, VPN, Stats, nginx or other service has been modified.
+
+
 ## 2026-11-19 — M4 first Homeserver isolated staging attempt blocked by missing Go cache environment; corrected in source
 
 - Operator attempted `systemd-run --unit=tervon-m4-isolated-stage --collect` with immutable SHA `8b2f3d723469ae4bf8211adf2b7a0280138c0014` at Homeserver 2026-11-19 09:30:46–09:30:49 local service journal time. GitHub SSH fetch succeeded and script entered `===== M4 GO VET =====`, then exited `status=1/FAILURE`: `build cache is required, but could not be located: GOCACHE is not defined and neither $XDG_CACHE_HOME nor $HOME are defined`. No `STAGE_M4=PASS`, no Go vet/race/build result; **this is a preflight environment failure, not a tested M4 failure or production outage.**
