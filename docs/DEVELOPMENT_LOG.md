@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 operator verifies v1.0.0 published binary asset: PASS
+
+- Operator completed SSH GitHub clone into isolated M5 source, downloaded published `v1.0.0/tervon-bridge-linux-amd64` into isolated artifacts, and ran `tests/m5/verify_release_baseline.py` successfully.
+- Verified output: `PASS_ARTIFACT_MATCHES_HISTORICAL`; `asset_size_matches=true`; `historical_sha_matches=true`; SHA256 `5c813bae9cb0c68e3d5ac1e9afb0556f13cb270b369a86ae8ffc0d20adb086e2`.
+- **RELEASE_ASSET_IDENTITY=OPERATOR_PASS**. This does not prove reproducible v1.0.0 source build, benchmark comparison, runtime performance or full M5.1 acceptance. Offline CI verification and numeric acceptance threshold decisions remain open. **No production service changed. M6 HOLD.**
+
 ## 2026-11-19 — M5.1 release baseline testing harness committed; execution evidence pending
 
 - Read authoritative development plan, M5 acceptance, baseline and source jitter policy in M5 branch. Default jitter limits in source: 4ms per frame / 20ms per 1s window, but no claim of on-wire maximum measurement.
