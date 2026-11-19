@@ -2,7 +2,7 @@
 
 **Ветка:** `work/m5-linux-release`  
 **M4:** `CLOSED / OPERATOR PASS`  
-**M5.2+M5.3:** offline PASS, live passive PASS, адаптивный Jitter policy PASS; стресс-тест **умышленно остановлен оператором после 9/18 интервалов**, частичные результаты приняты оператором; полная 180-секундная сводка отсутствует  
+**M5.2+M5.3:** offline PASS, live passive PASS, адаптивный Jitter policy PASS; **полная 180-секундная сводка, samples=19, получена**: transfer/PAD/Jitter/error continuity PASS, но Homeserver отверг 313 новых подключений; capacity gate OPEN, RTT/fairness/wall-clock jitter max NOT_MEASURED  
 **M5.5 package files:** operator preparation PASS (`RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, exit 0); **M5.4/M5.5/M5.6 gate:** CI and approval pending; GitHub Release **NOT RELEASED**.  
 **M6:** HOLD.
 
@@ -88,3 +88,7 @@ gh release create v1.0.1 \
 ## Причина неполного стресс-отчёта установлена
 
 Оператор самостоятельно остановил нагрузочный сбор после 9/18 интервалов: оценил наблюдавшиеся нагрузки и работу приложения достаточными. Отсутствие summary не является сбоем Bridge/установщика. Не требуется запускать повторный стресс-тест только ради 180 секунд. Опубликованные release notes должны описывать этот факт, не утверждая полный 180s PASS; количественные RTT и per-stream fairness остаются без прямых измерений.
+
+## Получена полная 180-секундная сводка — ранее описанный недостающий отчёт больше не блокер
+
+По переданному оператором JSON: `samples=19`, `duration_seconds_target=180`, `PASS_PAD_AND_JITTER_ACTIVATED`, нулевые transport errors, 424 стартовавших сессии на обеих нодах, 204 670 Padding frames и 18 Jitter frames. **Однако** `homeserver.sessions_rejected=313`; влияние на клиентов и текущий configured admission cap не установлены. **Не объявлять M5.2+M5.3 полностью завершённым**, пока не рассмотрены отказы и выбранное release acceptance. Прежний текст о частичном 9-сэмпловом прогоне относится к отдельно предъявленному журналу; это не причина игнорировать новую полную сводку. Бинарный пакет уже подготовлен PASS; повторный prepare не нужен.
