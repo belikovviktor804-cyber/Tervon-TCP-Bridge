@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 two-node Stats on Homeserver, operator-local PASS
+
+- Operator confirmed Stats install following `install-m3-two-node.py` using local read-only API: `tervon-bridge-stats.service=active`, `tervon-bridge-client.service=active`, `tervon-bridge-server.service=active` on Finserver.
+- `GET http://127.0.0.1:8894/bridge/api/status` schema `tervon.bridge.dashboard.v1`; `nodes.homeserver.status=ok, ready=true, sessions_active=37, padding_download_frames=1870, jitter_download_frames=0`; `nodes.finserver.status=ok, ready=true, sessions_active=37, padding_download_frames=1870, jitter_download_frames=357`. Two-node monitoring **LOCAL API PASS**; Finserver SSH forward `127.0.0.1:8897` had been verified beforehand. Home and Finserver PAD counter agreement observed.
+- Backup created: `/opt/tervon/bridge-stats/.two-node-backups/m3-ty70nt1x`. Initial console became blank/garbled during installation; subsequent independent local read-only checks establish running Stats and two-node JSON status, but **not** externally accessible fresh browser page.
+- **Not yet complete:** replace temporary `ssh -fN` with persistent controlled systemd tunnel and verify restart/recovery; independent external HTTPS UI freshness; long-run M3 stream constraints and latency/fairness. No Bridge/Guard/nginx services altered by this report. M3 **IN_PROGRESS**, v1.0.1 **NOT RELEASED**.
+
+
 ## 2026-11-19 — M3 optional two-node Bridge Stats integration (SOURCE PREPARED, NO INSTALL)
 
 - Operator approved connecting Finserver to the existing /bridge/ page. GitHub branch `work/m3-adaptive-jitter`: `bridge_site.py` supports optional `TERVON_BRIDGE_FIN_METRICS_URL` only as a **literal loopback URL** (existing hardened BridgeMetricsCollector validates it). New `nodes.finserver` is sanitized through the same M3 telemetry allowlist; absent tunnel shows unavailable, Homeserver remains independent.
