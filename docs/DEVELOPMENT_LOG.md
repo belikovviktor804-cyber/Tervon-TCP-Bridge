@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 authenticated HTTP/2 resource churn: full CI PASS; isolated M4 candidate PASS
+
+- `prototype/m4_churn_test.go` at commit `9ce54ac557856e6596e04cf1f5141a0b020fe566`: 3 waves × 8 authenticated mTLS/HTTP2 sessions, existing M3 negotiated rate padding and jitter enabled; byte-exact loopback backend, each wave drains both clients' and server's active session counts to 0, verifies 24 started/completed on both and bounded residual Go goroutines after closing transport idle connections. No production services touched.
+- [Go prototype checks #44466925122](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44466925122) **SUCCESS**, full build/unit/vet/race and M1/M2/M3 regressions plus churn. **M4 CHURN SOURCE/CI=PASS** — evidence from isolated GitHub runner, not Homeserver.
+- New dedicated `.github/workflows/build-m4-candidate.yml` built static Linux amd64 M4 test candidate, `BUILD_INFO` with exact commit and `SHA256SUMS`. [M4 Linux candidate #44467184331](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44467184331) **SUCCESS**, build-artifact only, *not deployed and not Linux v1.0.1 release*.
+- Current M4: isolated TLS stall/header stall/oversize rejection/long-lived stream and resource-churn CI PASS. Remaining: full fault/lifecycle/resource coverage review; controlled host isolation/evidence and acceptance. M5 NOT STARTED.
+
+
 ## 2026-11-19 — M4 failure modes and streaming continuity: CI PASS; churn regression pending
 
 - **Source commit `c2e44c058158324dcb900f066270739969f9fdc1`**, [GitHub Go prototype checks #44466460566](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44466460566) **SUCCESS**, including Go build, vet, complete unit tests, race detector, M1/M2/M3 and bounded fuzz regressions.
