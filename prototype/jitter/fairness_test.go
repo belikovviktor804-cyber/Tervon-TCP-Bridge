@@ -52,9 +52,9 @@ func TestM3BackpressureCancelsOptionalDelay(t *testing.T) {
 }
 
  
-// TestM3RollingThirtySecondPerStreamBounds is a deterministic-clock
-// multi-window regression: it validates a policy cap, not a real-network RTT.
-func TestM3RollingThirtySecondPerStreamBounds(t *testing.T) {
+// TestM3ThirtySecondFixedWindowPerStreamBounds is a deterministic-clock
+// fixed-window regression: it validates a policy cap, not a sliding-window cap or real-network RTT.
+func TestM3ThirtySecondFixedWindowPerStreamBounds(t *testing.T) {
     policy := DefaultPolicy()
     const streams = 8
     const seconds = 30
