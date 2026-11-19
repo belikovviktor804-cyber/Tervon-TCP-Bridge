@@ -448,6 +448,15 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — operator-confirmed Homeserver candidate STAGING PASS (2026-11-19)
+
+- Operator executed `tests/homeserver/stage-m3-candidate.sh` on **Homeserver**, with exact GitHub SSH branch `work/m3-adaptive-jitter` and source `ba8d6cedbac58fc9c1b4e81872e127075783a3b9`. **Actual result:** `STAGE_M3=PASS`, `STAGING_COMMAND_EXIT_CODE=0`, `tervon-bridge-m3-linux-amd64: OK`, `SERVICES_RESTARTED=NONE`, `PRODUCTION_BINARY_REPLACED=NO`.
+- Immutable candidate path: `/opt/tervon-tcp-bridge/m3/stage-qG1sStTg/dist/tervon-bridge-m3-linux-amd64`; binary SHA-256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. Preserve `SHA256SUMS` and `BUILD_INFO` in the staging directory for later provenance verification; do not copy over the active Bridge yet.
+- **Scope of PASS:** reproducible build/staging on Homeserver only, not runtime testing or M3 release. Running Homeserver and Finserver Bridge production binaries are still M2 as far as this operator evidence establishes; no current Finserver M3 artifact or validated installation path was provided.
+- **Next gate before modifying live systems:** confirm both nodes' intended unit `ExecStart`, actual active binary SHA, config path/mode, stable rollback directory and M2 backup, staged M3 SHA, corresponding bilateral `padding_enabled`, `padding_rate_enabled`, `jitter_enabled` flags, and readiness/metrics. Prepare a two-node dry-run/rollback plan, avoid unrelated services, then run controlled operator-authorized tests for 1-Mbps PAD and bounded Jitter and mark PASS only on measured evidence. **Status: M3 STAGING HOMESERVER PASS; TWO-NODE LIVE NOT EXECUTED.**
+
+
+
 #### M3 — isolated candidate staging prepared (2026-11-19; NO HOST ACTION)
 
 - Full previous M3 concurrency tests [#44434798348](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44434798348) **SUCCESS**, Linux M3 candidate [#44434798307](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44434798307) **SUCCESS** on precise test commit `e76a4d2b4062892b8fb7bbde39fe3251677bd765`. Confirms independent qualified 1-Mbps video versus 128B interactive traffic behavior in mocked-time encode/decode tests, **not live RTT or deployment**.
