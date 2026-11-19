@@ -93,8 +93,8 @@ func load(path string) (config, error) {
 		return c, fmt.Errorf("listen, cert_file, key_file and ca_file are required")
 	}
 	if c.Mode == "server" {
-		if c.MaxStreams <= 0 || len(c.Routes) == 0 || len(c.Authorized) == 0 {
-			return c, fmt.Errorf("server requires positive max_streams, routes and authorized fingerprints")
+		if c.MaxStreams < 0 || len(c.Routes) == 0 || len(c.Authorized) == 0 {
+			return c, fmt.Errorf("server requires nonnegative max_streams (0 means no session quota), routes and authorized fingerprints")
 		}
 		for service, backends := range c.Routes {
 			if service == "" || len(backends) == 0 {
@@ -121,8 +121,8 @@ func load(path string) (config, error) {
 			}
 		}
 	} else if c.Mode == "client" {
-		if c.MaxLocalConnections <= 0 || c.RemoteURL == "" || c.Service == "" || c.ServerName == "" {
-			return c, fmt.Errorf("client requires max_local_connections, remote_url, service and server_name")
+		if c.MaxLocalConnections < 0 || c.RemoteURL == "" || c.Service == "" || c.ServerName == "" {
+			return c, fmt.Errorf("client requires nonnegative max_local_connections (0 means no session quota), remote_url, service and server_name")
 		}
 		u, err := url.Parse(c.RemoteURL)
 		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || (u.Path != "/v1/stream" && u.Path != "/v2/stream") || u.RawPath != "" || u.Opaque != "" {
