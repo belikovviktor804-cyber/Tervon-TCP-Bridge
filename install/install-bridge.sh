@@ -20,7 +20,7 @@ if [[ "$MODE" != install && "$MODE" != activate ]] || [[ "$ROLE" != client && "$
 fi
 (( EUID == 0 )) || { echo "INSTALL=ROOT_REQUIRED";exit 2; }
 [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || { echo "INSTALL=LINUX_AMD64_REQUIRED";exit 2; }
-for dep in sha256sum install systemctl mktemp id awk grep runuser useradd; do
+for dep in sha256sum install systemctl mktemp id awk grep runuser useradd python3 ls; do
   command -v "$dep" >/dev/null || { echo "INSTALL=MISSING_DEPENDENCY:$dep";exit 2; }
 done
 UNIT="tervon-bridge-$ROLE.service"
@@ -165,6 +165,46 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 EOF
 chmod 0644 "$UNITFILE"
+if [[ "$ROLE" == client ]]; then
+  cat > "$CONFIG/client.json.example" <<'EOF'
+{
+  "mode": "client",
+  "listen": "127.0.0.1:19001",
+  "cert_file": "/etc/tervon-tcp-bridge/pki/client.crt",
+  "key_file": "/etc/tervon-tcp-bridge/pki/client.key",
+  "ca_file": "/etc/tervon-tcp-bridge/pki/server-ca.crt",
+  "server_name": "bridge.example.org",
+  "remote_url": "https://bridge.example.org:18443/v2/stream",
+  "service": "vpn",
+  "max_local_connections": 64,
+  "padding_enabled": true,
+  "padding_rate_enabled": true,
+  "jitter_enabled": true
+}
+EOF
+  chmod 0640 "$CONFIG/client.json.example"
+else
+  cat > "$CONFIG/server.json.example" <<'EOF'
+{
+  "mode": "server",
+  "listen": "127.0.0.1:18443",
+  "cert_file": "/etc/tervon-tcp-bridge/pki/server.crt",
+  "key_file": "/etc/tervon-tcp-bridge/pki/server.key",
+  "ca_file": "/etc/tervon-tcp-bridge/pki/client-ca.crt",
+  "max_streams": 64,
+  "padding_enabled": true,
+  "padding_rate_enabled": true,
+  "jitter_enabled": true,
+  "routes": {
+    "vpn": [{"Name": "trusted-backend", "Address": "127.0.0.1:19000"}]
+  },
+  "authorized": {
+    "REPLACE_WITH_CLIENT_CERT_SHA256_HEX": ["vpn"]
+  }
+}
+EOF
+  chmod 0640 "$CONFIG/server.json.example"
+fi
 echo "INSTALL=PASS_FILES_ONLY"
 echo "VERSION=$VERSION"
 echo "BINARY_SHA256=$SHA"
