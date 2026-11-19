@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 managed Finserver SSH telemetry tunnel cutover-v2 PASS (operator evidence)
+
+- Operator ran isolated `systemd-run --unit=tervon-fin-tunnel-cutover-v2 --collect /bin/bash /opt/tervon-tcp-bridge/m3/evidence/switch-fin-tunnel.sh` after staging patched SSH unit (`ClearAllForwardings=no`) and confirming prior temporary tunnel PID 1465553.
+- Systemd journal: cutover started **06:02:36** local host time; one initial loopback curl connection refusal at **06:02:37** while SSH listener was becoming ready; `M3_MANAGED_TUNNEL=PASS` at **06:02:38**, cutover unit exited successfully. Permanent `tervon-bridge-fin-metrics-tunnel.service` returned `active` and `enabled`.
+- Read-only dashboard `GET http://127.0.0.1:8894/bridge/api/status` subsequently reported `HOMESERVER ok`, `FINSERVER ok`. **Permanent tunnel startup + two-node local Stats PASS**. Tunnel intended to bind only 127.0.0.1:8897 and SSH-forward to Finserver loopback:8896.
+- **Not yet evidenced:** fault-injection recovery after dropping SSH connection, metrics listener socket ownership after unit start, public HTTPS latest-page rendering, sustained M3 per-stream bounds/latency/fairness. No claim of M3 full-module or v1.0.1 release PASS.
+
+
 ## 2026-11-19 — Finserver temporary metrics SSH tunnel restored (operator evidence)
 
 - Previous rollback claim of restoration was not equivalent to verified access: `ss` showed no TCP/8897 listener, `curl` connection refused, and `nodes.finserver=unavailable` while Homeserver remained `ok`.
