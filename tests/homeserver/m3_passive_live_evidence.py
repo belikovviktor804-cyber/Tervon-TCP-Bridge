@@ -112,7 +112,8 @@ def calculate(before: dict[str, dict], after: dict[str, dict]) -> dict:
 def collect(duration: int, interval: int,
             fetcher: Callable[[], dict[str, Any]] = remote_public_fetch,
             sleep: Callable[[float], None] = time.sleep,
-            emit: Callable[[dict], None] | None = None) -> dict:
+            emit: Callable[[dict], None] | None = None,
+            require_activation: bool = False) -> dict:
     if not 60 <= duration <= 600 or not 5 <= interval <= 60 or duration % interval:
         raise ValueError("duration=60..600, interval=5..60, divisible")
     if emit is None:
@@ -120,7 +121,6 @@ def collect(duration: int, interval: int,
     first = parse(fetcher())
     prev = first
     sample_count = 1
-    total_deltas = {r: {} for r in ROLES}
     started_utc = dt.datetime.now(dt.timezone.utc).isoformat()
     emit({"kind": "start", "started_utc": started_utc,
           "duration_seconds": duration, "interval_seconds": interval,
@@ -131,10 +131,6 @@ def collect(duration: int, interval: int,
         change = calculate(prev, current)
         # Each sample must be monotonic; do not conceal temporary failures,
         # counter resets, or missing remote telemetry.
-        for role in ROLES:
-            d = change[role]
-            for key, val in d["counter_deltas"].items():
-                total_deltas[role][key] = total_deltas[role].get(key, 0) + val
         sample_count += 1
         emit({"kind": "sample", "step": step,
               "observed_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -152,13 +148,46 @@ def collect(duration: int, interval: int,
               } for role in ROLES}})
         prev = current
     overall = calculate(first, prev)
+    pad_frames = sum(
+        overall[role]["counter_deltas"][direction]
+        for role in ROLES
+        for direction in ("padding_upload_frames", "padding_download_frames")
+    )
+    jitter_frames = sum(
+        overall[role]["counter_deltas"][direction]
+        for role in ROLES
+        for direction in ("jitter_upload_frames", "jitter_download_frames")
+    )
+    error_count = sum(
+        sum(overall[role]["error_deltas"].values()) for role in ROLES
+    )
+    pad_jitter_status = (
+        "PASS_PAD_AND_JITTER_ACTIVATED" if pad_frames > 0 and jitter_frames > 0
+        else "NO_OBSERVED_PAD_OR_JITTER_ACTIVATION"
+    )
+    if pad_frames > 0 and jitter_frames == 0:
+        pad_jitter_status = "PAD_ONLY_JITTER_NOT_OBSERVED"
+    if jitter_frames > 0 and pad_frames == 0:
+        pad_jitter_status = "JITTER_ONLY_PAD_NOT_OBSERVED"
+    if error_count:
+        pad_jitter_status = "ERROR_COUNTERS_INCREASED"
     result = {
         "kind": "summary",
         "schema": "tervon.m3.passive-evidence.v1",
         "duration_seconds_target": duration,
         "samples": sample_count,
         "nodes": overall,
-        "status": "PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY",
+        "activation": {
+            "padding_frames_total": pad_frames,
+            "jitter_frames_total": jitter_frames,
+            "error_delta_total": error_count,
+            "status": pad_jitter_status,
+            "demand_generated_by_sampler": False,
+        },
+        "status": (
+            pad_jitter_status if require_activation
+            else "PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY"
+        ),
         "rtt": "NOT_MEASURED",
         "per_stream_fairness": "NOT_MEASURED",
         "jitter_frame_and_window_max": "NOT_MEASURED_FROM_AGGREGATES",
@@ -172,9 +201,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--duration", type=int, default=180)
     parser.add_argument("--interval", type=int, default=10)
+    parser.add_argument("--require-activation", action="store_true",
+                        help="require observed PAD and jitter frames, without generating test traffic")
     args = parser.parse_args(argv)
     try:
-        collect(args.duration, args.interval)
+        result = collect(args.duration, args.interval,
+                         require_activation=args.require_activation)
+        if args.require_activation and result["status"] != "PASS_PAD_AND_JITTER_ACTIVATED":
+            return 3
     except (OSError, ValueError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
         # Do not print stderr from SSH/curl, network endpoints or configs.
         print(json.dumps({"kind": "summary", "status": "M3_PASSIVE_EVIDENCE_FAIL",
