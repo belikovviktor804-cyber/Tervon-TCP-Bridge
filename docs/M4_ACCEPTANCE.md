@@ -108,3 +108,22 @@ Operator evidence: detached `tervon-m4-isolated-stage.service`, exact SHA `8b2f3
 - `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`; stage `/opt/tervon-tcp-bridge/m4/stage-qgAtBg91`, binary SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
 - `PRODUCTION_BINARY_REPLACED=NO`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`, unit exited successfully.
 - **Isolated host staging acceptance subgate CLOSED / PASS.** Do not repeat. This is NOT the separate live M4 acceptance (real cross-host network faults, sustained resource accounting and shutdown). M4 stays IN_PROGRESS until those are evidenced. M5 remains blocked.
+
+## Operator-approved M3 → M4 live cutover: preflight stage (2026-11-19)
+
+The operator has authorized replacing the working M3 with M4 **if readiness is verified**, and asked to test the new version. The known immutable M4 candidate from prior Homeserver isolated staging is source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. It has passed Go vet, M4 targeted race tests and Linux/amd64 build on Homeserver, but *not yet* real cross-host M4 routing. M4 changes TLS handshake enforcement and therefore a blind upgrade without a rollback plan could interrupt VPN service.
+
+**Before any service restart:** run read-only `tests/homeserver/m4-live-preflight.sh` separately for Homeserver and Finserver to identify **the actual systemd process executable**, active PID, unit, on-disk and running SHA256. This deliberately does not read private JSON configs or keys, nor reveal tokens or external addresses. On Homeserver from SSH checkout:
+
+```bash
+cd /opt/tervon-tcp-bridge/m4/source
+git pull --ff-only origin work/m4-http2-reliability
+bash tests/homeserver/m4-live-preflight.sh homeserver
+ssh -T -o BatchMode=yes finserver 'bash -s -- finserver' < tests/homeserver/m4-live-preflight.sh
+```
+
+Stop and report discrepancies if a unit is inactive, the running SHA differs from the executable, the path is unknown or the Finserver SSH alias cannot be used. **Never paste configurations, certificate files, private keys or environment exports.** The prior M1 deploy script notes that Finserver may actually execute `/opt/tervon-bridge-linux-amd64`, not `/opt/tervon-tcp-bridge/bridge`; identify the working path, not a familiar filename.
+
+**Switching policy once preflight is confirmed:** retain current M3 files and SHA256 on each host; verify matching M4 binary SHA256 after staging independently on each host; assess the effective service configuration's `/v2/stream` and capability compatibility *locally without emitting sensitive values*; first upgrade the Finserver decapsulator, confirm mTLS/HTTP2 listener and public two-node metrics, then upgrade Homeserver encapsulator and confirm actual TCP VPN client traffic, session counters, PAD/Jitter deltas, controlled peer failures and no persistent sessions. On any failure, rollback the **affected unit to its exact pre-upgrade binary**, restart only that Bridge unit, verify the running SHA and VPN recovery. Do not restart nginx, Stats, x-ui or unrelated services. A restart of Bridge can momentarily interrupt active TCP VPN connections — schedule a controlled cutover and preserve old binaries until accepted.
+
+**Current stage:** two-node preflight and cutover are **NOT RUN**, M4 runtime on both hosts is **NOT DEPLOYED**. No claim of production M4 PASS, M5 remains blocked.
