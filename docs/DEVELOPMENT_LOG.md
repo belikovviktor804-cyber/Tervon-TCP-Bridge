@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Linux v1.0.1 install script and GitHub release staging prepared
+
+- Operator requested to prepare GitHub Release and script-based installation. Prepared `install/install-bridge.sh` with exact working M4 SHA pin, separate install/activate, no overwrites of live binaries/configuration, two role JSON examples; `install/prepare-release-assets.sh` copies only previously verified M4 artifact with SHA256SUMS and BUILD_INFO. Added Russian install instructions, release notes and release packaging checklist, linked from README.
+- Added `.github/workflows/m5-installer.yml` for syntax, pinned hash and fail-closed bad-asset checks; **CI PASS not yet observed**. No install executed on target hosts, no package has been generated/uploaded, no GitHub Release/tag published, live services untouched.
+- Final 180-second YouTube + dual Speedtest report not yet supplied; M5.2+M5.3 remains active. Subsequent M5.4/M5.5 gates must be confirmed sequentially; preparation does not bypass them. Distribution license/rights still need confirmation before public binaries. M6 HOLD.
+
 ## 2026-11-19 — User chooses real concurrent load for combined M5.2+M5.3
 
 - Operator elected to run YouTube simultaneously with Speedtest on PC and tablet through existing M4 v1.0.1 rather than rerun the short loopback synthetic experiment.
