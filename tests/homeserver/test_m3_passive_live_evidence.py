@@ -60,6 +60,39 @@ class PassiveEvidenceTests(unittest.TestCase):
         self.assertEqual(outcome["full_M3_gate"], "NOT_ASSERTED")
         self.assertEqual([e["kind"] for e in events], ["start", "sample", "summary"])
 
+    def test_activation_gate_requires_both_pad_and_jitter(self):
+        first = fixture()
+        second = fixture()
+        second["nodes"]["finserver"]["metrics"]["padding_upload_frames"] = 7
+        second["nodes"]["homeserver"]["metrics"]["padding_download_frames"] = 7
+        second["nodes"]["finserver"]["metrics"]["jitter_upload_frames"] = 3
+        second["nodes"]["finserver"]["metrics"]["jitter_upload_delay_ns"] = 2000000
+        data = iter((first, second))
+        result = collect(60, 60, fetcher=lambda: next(data),
+                         sleep=lambda s: None, emit=lambda e: None,
+                         require_activation=True)
+        self.assertEqual(result["status"], "PASS_PAD_AND_JITTER_ACTIVATED")
+        self.assertEqual(result["full_M3_gate"], "NOT_ASSERTED")
+        self.assertFalse(result["activation"]["demand_generated_by_sampler"])
+
+    def test_activation_gate_refuses_zero_eligible_traffic(self):
+        data = iter((fixture(), fixture()))
+        result = collect(60, 60, fetcher=lambda: next(data),
+                         sleep=lambda s: None, emit=lambda e: None,
+                         require_activation=True)
+        self.assertEqual(result["status"], "NO_OBSERVED_PAD_OR_JITTER_ACTIVATION")
+        self.assertEqual(result["full_M3_gate"], "NOT_ASSERTED")
+
+    def test_activation_gate_refuses_pad_without_jitter(self):
+        first = fixture()
+        second = fixture()
+        second["nodes"]["homeserver"]["metrics"]["padding_upload_frames"] = 10
+        data = iter((first, second))
+        result = collect(60, 60, fetcher=lambda: next(data),
+                         sleep=lambda s: None, emit=lambda e: None,
+                         require_activation=True)
+        self.assertEqual(result["status"], "PAD_ONLY_JITTER_NOT_OBSERVED")
+
     def test_does_not_accept_missing_samples(self):
         with self.assertRaises(ValueError):
             collect(70, 60, fetcher=lambda: fixture(), sleep=lambda n: None)
