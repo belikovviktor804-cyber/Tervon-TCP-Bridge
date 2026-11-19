@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 live traffic counters and Finserver Jitter proof (operator evidence)
+
+- Homeserver `live-metrics.jsonl` 12 observations, 02:09:10–02:11:13 UTC. `ready=true`; `download_bytes` 90,314,955 → 154,450,323 (**+64,135,368 bytes**, roughly 4.17 Mbit/s aggregate), `sessions_active` 19 → 41; PAD downstream received `padding_download_frames=115`, `padding_download_bytes=42,216`. Last cumulative `padding_download_wire_overhead_percent=0.028077636328413504` (percentage, not fraction). Homeserver `jitter_*_frames=0` in this collection; this is not proof Jitter is inactive on the server.
+- Previous local SSH sampler returned `CalledProcessError` for Finserver on all 12 samples, so **two-node simultaneous measurement remains unproven**. Operator applied a read-only local script fix to pass remote Python via SSH stdin. Direct `ssh finserver` + loopback curl then returned `schema=tervon.bridge.telemetry.v1`, `ready=true`, `sessions_active=45`, `padding_download_frames=691`, `jitter_download_frames=109`, `jitter_download_delay_ns=144580471` (~144.58 ms cumulative; ~1.33 ms per delayed frame). **Finserver live JITTER APPLIED / PAD OBSERVED PASS** at counter level. These cumulative metrics do not establish per-frame 4ms bound, real RTT/fairness, or 5% wire overhead for each qualified stream.
+- Screenshot of Bridge Stats shows older date 2026-11-18 and `Padding / Jitter: Выкл. / Не реализовано`; does **not** verify present M3 visualization and suggests stale screenshot or older dashboard state. Finserver still not connected to dashboard. The screenshot of failing Guard/CrowdSec GitHub Actions belongs to **Tervon Federation**, separate from Bridge M3; do not mix repository gates.
+- **Remaining M3 gate:** reliable dual-node sampling under controlled same-stream sustained ≥1 Mbit/s; verify bounded jitter, PAD overhead, latency/fairness; implement/test private SSH-forwarded Finserver Stats and update read-only two-node UI; test local/external HTTPS and safe rollback; no release yet.
+
+
 ## 2026-11-19 — M3 live binary rollout + bilateral opt-in and Finserver private metrics (operator evidence)
 
 - **Source candidate:** `ba8d6cedbac58fc9c1b4e81872e127075783a3b9`; SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. Both nodes checked their active `/proc/<pid>/exe` and returned the expected digest; `tervon-bridge-client.service` and `tervon-bridge-server.service` are active. This is **BINARY INSTALL PASS**, not live VPN E2E PASS.
