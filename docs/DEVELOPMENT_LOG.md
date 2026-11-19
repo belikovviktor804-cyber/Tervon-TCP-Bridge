@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — User chooses real concurrent load for combined M5.2+M5.3
+
+- Operator elected to run YouTube simultaneously with Speedtest on PC and tablet through existing M4 v1.0.1 rather than rerun the short loopback synthetic experiment.
+- Committed `tests/m5/run-m5-23-userload.sh`: read-only 180-second/19-sample two-node telemetry under operator-provided traffic; real user load and SHA/PID continuity; private useful byte/session/error/PAD/Jitter deltas and Homeserver RSS/CPU snapshots. No service restarts, no configs accessed, no generated traffic.
+- **SOURCE_COMMITTED / OPERATOR_RESULT_PENDING**; no new performance PASS claimed. Old short loopback experiment's TCP/PAD/RTT good evidence retained, Jitter activation not yet confirmed live. M5.2+M5.3 active, M6 HOLD.
+
 ## 2026-11-19 — M5 loopback first run: TCP/fairness/PAD PASS, Jitter activation test insufficient duration
 
 - Operator ran `tests/m5/run-m5-network-batch.sh` at `2026-11-19T09:46:15Z` on `c8bbb8a76f066422f760eab3a0af922906189ebb`, unchanged M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; test exited `1` due to `client_jitter_frames=0, server_jitter_frames=0`.
