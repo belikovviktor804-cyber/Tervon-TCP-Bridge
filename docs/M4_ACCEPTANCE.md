@@ -215,3 +215,16 @@ This reports `status/reason/role/field` or a numerical delta. It does not claim 
 The operator's `tervon-m4-homeserver-cutover.service` journal confirms successful `m4-cutover-switch.sh install homeserver` and `M4_INSTALL=PASS_PROCESS_AND_SHA` at 11:24:24 Homeserver journal time. Service `tervon-bridge-client.service`, exact running SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`; `CONFIG_CHANGED=NO`; `UNRELATED_SERVICES_RESTARTED=NO`. The transient installer exited successfully. Finserver was already running M4 with identical SHA256 and corresponding process-level PASS.
 
 **Installed M4 on both nodes; two-node process/SHA acceptance PASSED.** Keep verified M3 backups and SHA manifests on both nodes. Previous user confirmation of working VPN and monitoring applied to mixed M3/M4 before the Homeserver switch. **Do not infer fresh M4↔M4 data-plane acceptance from that earlier confirmation.** The only immediate post-cutover observation requested is the operator's normal TCP VPN usage and working Stats dashboard, optionally a screenshot. No additional long synthetic monitoring run solely to confirm normal service. Until observed, M4 module-wide acceptance remains IN_PROGRESS and v1.0.1 is not released.
+
+## M4 final acceptance — OPERATOR PASS (2026-11-19)
+
+**Decision:** operator explicitly confirmed **«М4 готов. Работает. Можно закрывать.»** after both Homeserver and Finserver were switched to M4 and verified. This constitutes operational confirmation of the current M4↔M4 production VPN path; public monitoring was also confirmed working earlier in the same rollout sequence. No new synthetic long run was requested or performed.
+
+**Established evidence:**
+- Finserver `tervon-bridge-server.service`: `M4_INSTALL=PASS_PROCESS_AND_SHA` and `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
+- Homeserver `tervon-bridge-client.service`: `M4_INSTALL=PASS_PROCESS_AND_SHA`, identical running SHA256 and `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`.
+- M4 source CI previously **PASS** for TLS1.3/h2 downgrade refusal, timeout/network failure, session lifecycle, concurrency/churn, unit and race; isolated Homeserver M4 stage `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`.
+- Operator confirmed working VPN and current M4 operation. Earlier separate mixed-version telemetry observed both nodes' session and byte counter growth with zero error deltas. This does **not** constitute an additional quantitative performance measurement on M4↔M4.
+- Immutable M3 rollback copies remain on both nodes; do not delete them merely because M4 is accepted.
+
+**M4 MODULE = PASS / CLOSED by operator.** This closes M4 implementation, source checks and accepted operational behavior. **Explicitly excluded from M4 closure and still release-blocking in M5:** previously deferred M3 jitter ≤4ms per frame and 20ms/s window, measured long-run RTT/fairness/load and final Linux v1.0.1 regression/release gate. Those metrics were not declared PASS here. **M5 may start next, M6 remains HOLD pending separate architectural discussion.** No release tag was created by this document change.
