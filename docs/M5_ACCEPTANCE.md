@@ -38,3 +38,9 @@
 **Создан baseline:** [`M5_BASELINE.md`](M5_BASELINE.md) с инвентаризацией M4/M3/исторического v1.0.0 SHA, методикой сравнений и release-blocking критериями. **M5.1 RELEASE_ASSET_IDENTITY = OPERATOR PASS:** фактический GitHub Release v1.0.0 binary asset проверен на Homeserver по размеру и SHA256, оба совпали с историческим бинарником. **M5.1 в целом пока НЕ PASS:** воспроизводимого сравнительного benchmark ещё нет, численные пороги RTT/CPU/RSS/throughput и CI доказательства требуют отдельной проверки. Продолжаем только M5.1; без вмешательства в службы.
 
 **M5.1 OFFLINE VERIFIER TESTS = HOMESERVER PASS (5/5, exit 0, tested checkout `4b0a7ac4`):** подтверждены корректный asset, отказ при неверном размере, SHA, дубликатах и некорректном tag/URL. GitHub Actions CI отдельно ещё не подтверждён. **Тестирование M5.1 начато:** `tests/m5/verify_release_baseline.py`, его offline regression cases и отдельный workflow; локальные 5/5 тестов на Homeserver PASS; отдельный GitHub Actions CI ещё не подтверждён; checksum release asset **PASS по операторскому выводу 2026-11-19**. Имеющиеся проверки M4 не повторять.
+
+## M5.1 — пакетное выполнение (подготовлено, не запущено)
+
+- `tests/m5/run-m5-1-batch.sh`: одна read-only команда на Homeserver, проверяет SSH Git origin, чистую ветку/точный commit, исторический SHA v1.0.0, доступность исходного commit M4, документы, публичный Git tag и JSON-примеры; сообщает build metadata старого бинарника.
+- Хранит отчет в `/opt/tervon-tcp-bridge/m5/results/m5.1-*/report.log`; никакого обновления или перезапуска Bridge/Stats/Xray, никаких приватных конфигураций.
+- **SOURCE_COMMITTED / HOST_BATCH_NOT_RUN**. Ранее пройденные 5/5 unit и реальный SHA-PASS не отменяются. `M5.1` остаётся IN_PROGRESS до нового отчёта; результаты performance отдельно в последующих пакетах.
