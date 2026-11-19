@@ -19,6 +19,8 @@ func TestStreamCapacityRejectsBeforeBackendDial(t *testing.T) {
  r.ProtoMajor = 2
  r.Header.Set("Tervon-Service", "vpn")
  r.TLS = &tls.ConnectionState{
+  Version: tls.VersionTLS13,
+  NegotiatedProtocol: "h2",
   PeerCertificates: []*x509.Certificate{{Raw: []byte("test")}},
   VerifiedChains: [][]*x509.Certificate{{{Raw: []byte("test")}}},
  }
