@@ -2,19 +2,19 @@
 
 **Актуализировано:** 2026-11-19  
 **Источник истины:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)  
-**Режим:** планирование и документирование; не разрешает выполнять M5/M6 раньше подтверждённого закрытия M4.  
-**Очередь:** M4 acceptance → M5 Linux integration / validation / release v1.0.1 → M6 Android TervonVPN.
+**Режим:** M4 закрыт оператором как PASS. **M5 STARTED (planning/setup); M6 HOLD / DISCUSSION_REQUIRED**. Документ не утверждает прохождение M5-проверок.  
+**Очередь:** M4 PASS → **M5 active on `work/m5-linux-release`** → Linux v1.0.1 (only after release gates) → M6 Android **only after separate architectural discussion and approval**.
 
 ## Зафиксированное состояние перед M5
 
 - Linux M4-кандидат исходного коммита `8d0aa3777c209d2825a1c11dfbae9487893cb7f5` установлен на **Homeserver и Finserver**. Оба оператора установки сообщили `M4_INSTALL=PASS_PROCESS_AND_SHA`, фактический SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`; исходные M3-бинарники и манифесты отката сохранены.
-- До перехода Homeserver на M4 оператор подтвердил нормальную работу VPN и мониторинга в смешанной паре M3→M4. После установки M4 на Homeserver **отдельное подтверждение нормальной работы пары M4↔M4 ещё не поступало**. Не выдавать процессный PASS за полный M4 PASS.
+- После перехода обоих узлов на M4 оператор **прямо подтвердил «М4 готов. Работает. Можно закрывать.»**. M4 принят и закрыт как PASS в `M4_ACCEPTANCE.md`. Результат работающего VPN/Stats принят без повторных синтетических тестов; это не означает наличие новых количественных RTT/fairness измерений.
 - M3 Padding/Jitter live-активация и двусторонние агрегированные счётчики ранее были подтверждены. Но количественные критерии **per-frame Jitter ≤4 мс и бюджет 20 мс/сек, RTT/fairness/длительная нагрузка** не были подтверждены индивидуальными измерениями; оператор разрешил перенести эти *release-blocking* доказательства в M5. Не объявлять их выполненными без данных.
 - В старом журнале есть исторические FAILED/NOT_RUN до их исправлений и последующих PASS. При определении текущего статуса пользоваться **последним датированным результатом**, а не устаревшей строкой.
 
 ## M5 — измерения, интеграция, выпуск Linux v1.0.1
 
-**Назначение:** получить обоснованную готовность существующего Linux Bridge к одному релизу v1.0.1. Не переписывать работающее приложение, не расширять TCP scope до UDP/QUIC и не запускать длинные бессодержательные тесты.
+**Статус:** **IN_PROGRESS / M5.1 PLANNING** (ветка `work/m5-linux-release`; количественные и релизные проверки ещё НЕ НАЧАТЫ).\n\n**Назначение:** получить обоснованную готовность существующего Linux Bridge к одному релизу v1.0.1. Не переписывать работающее приложение, не расширять TCP scope до UDP/QUIC и не запускать длинные бессодержательные тесты.
 
 | Шаг | Что входит | Проверка/результат |
 |---|---|---|
@@ -31,7 +31,7 @@
 
 ## M6 — Android TervonVPN, строго после M5
 
-**Назначение:** подключить проверенный Linux Bridge к Android VPN-приложению, сохраняя действующие протоколы/ядро и поведение VpnService. M6 — **не часть условий публикации Linux v1.0.1**.
+**Статус:** **HOLD / DISCUSSION_REQUIRED / NOT_STARTED**. Ни один подход к интеграции Android ещё не утверждён; технический перечень ниже — темы для обсуждения, а **не поручение на реализацию**.\n\n**Назначение:** в будущем подключить проверенный Linux Bridge к Android VPN-приложению, сохраняя действующие протоколы/ядро и поведение VpnService. M6 — **не часть условий публикации Linux v1.0.1**.
 
 | Шаг | Что планируется | Проверка/результат |
 |---|---|---|
@@ -47,19 +47,16 @@
 ## Статусы и переходы
 
 ```text
-M4: Linux Homeserver + Finserver installed / SHA PASS
-  -> M4↔M4 VPN + monitoring operator acceptance pending
-  -> M4 remaining reliability closeout (only outstanding evidence)
-  -> M4 PASS + commit + docs
-M5: NOT STARTED
+M4: PASS/CLOSED — Linux two-node M4 installed, operator VPN acceptance
+M5: IN_PROGRESS (M5.1 baseline and acceptance planning)
   -> comparable baseline
   -> focused TCP, performance and release-blocking Jitter/fairness proof
   -> release readiness
   -> ONE Linux GitHub Release v1.0.1, verified
-M6: NOT STARTED
-  -> Android architecture audit
+M6: HOLD / DISCUSSION_REQUIRED / NOT_STARTED
+  -> only after operator's architecture decision: Android audit
   -> safe Bridge integration, opt-in UI, Keystore and protect()
   -> Android mobile lifecycle and release gates
 ```
 
-Этот документ описывает **план**, не факт реализации M5/M6. Подробная история выполненных работ хранится в [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md).
+Этот документ описывает **план M5** и предварительные **темы обсуждения M6**, а не завершённую реализацию или разрешение на Android-разработку. Подробная история выполненных работ хранится в [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md).
