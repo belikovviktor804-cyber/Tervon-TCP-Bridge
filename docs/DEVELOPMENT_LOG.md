@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 cutover: both immutable M3 backups and M4 candidates prepared, operator PASS
+
+- Operator executed nonmutating `tests/homeserver/m4-cutover-prepare.sh` on Homeserver and Finserver; **both returned `M4_PREPARE=PASS`** with `LIVE_BINARY_REPLACED=NO`, `LIVE_SERVICE_RESTARTED=NO`.
+- Homeserver: `BACKUP_ROOT=/opt/tervon-tcp-bridge/m4/cutover-homeserver`; Finserver: `BACKUP_ROOT=/opt/tervon-tcp-bridge/m4/cutover-finserver`. Both verified preserved M3 SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499` and prepared M4 SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. M4 candidate copied to Finserver over SSH/scp, both roles verified exact hash.
+- **Preparation acceptance subgate CLOSED / PASS; do not rerun or overwrite backups.** Both production units still run original M3. Next authorized action: Finserver-only M4 switch, then runtime SHA and actual M3-client → M4-server VPN/Stats evidence. The install script's automatic rollback is startup/checksum-only, **not** a guarantee of rollback after an arbitrary later data-plane fault; explicit rollback remains required.
+- No live switch has yet occurred, so `M4_INSTALL`, real dataplane and module-wide M4 PASS are still **NOT ASSERTED**.
+
+
 ## 2026-11-19 — M4 prepared rollback and guarded binary switch: source CI PASS (production untouched)
 
 - Read-only two-host preflight already **operator PASS**, identical active M3 SHA256 on Homeserver and Finserver `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`; known tested M4 candidate `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
