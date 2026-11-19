@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 15:37:36–15:37:56 — M5 two-node cutover operator PASS
+
+- Operator supplied systemd journal. Both snapshots/backups and verified old instances PASS by 15:37:47; parallel switching started 15:37:47. Homeserver new SHA and zero config PASS at 15:37:48; Finserver new SHA and zero config PASS at 15:37:54; public stats both `max_sessions=0` PASS by 15:37:56; final `M5_DUAL_RESULT=PASS_TWO_NODE_CUTOVER`, unit deactivated successfully.
+- New production binary SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b` on both nodes, fixed quota removed. Rollback not invoked; backups retained. Other services outside scope. Post-cutover user-level forwarding/fairness/RTT has not yet been separately verified. GitHub Release NOT RELEASED; M6 HOLD.
+
 ## 2026-11-19 — simultaneous two-node cutover requested; code and runbook prepared
 
 - Operator explicitly requested a single simultaneous update of Homeserver/Finserver to remove fixed connection quotas. Candidate SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b` from previously operator-verified M5 staging.
