@@ -70,3 +70,9 @@
 - В sustained тестах по виртуальному времени `eligible_frames=527 / 529`, `max_frame_ns=3969448 / 3994250` (оба ≤4000000), `max_window_ns=20000000` (≤20000000). Интерактивный/idle/backlog обход PASS; 8 независимых jitter-состояний PASS. `M5_ADAPTIVE_POLICY=PASS`, `M5_ADAPTIVE_EXIT_CODE=0`.
 - Журнал `/opt/tervon-tcp-bridge/m5/results/m5-adaptive-6bhWTQVD/tests.log`.
 - **Подтверждены строгие численные лимиты решения policy**, но не фактические сетевые wall-clock задержки, real RTT и fairness между конкурирующими TCP-сессиями. Общий статус объединённого этапа: `OFFLINE_TCP_PASS + LIVE_PASSIVE_PASS + ADAPTIVE_POLICY_PASS / REAL_NETWORK_MEASUREMENTS_PENDING`. Изменений работающих служб нет.
+
+## M5.2+M5.3 — сетевой loopback пакет с реальным TLS1.3 / HTTP2 (подготовлен, не выполнен)
+
+Созданы `tests/m5/m5_loopback_network_test.go` и `tests/m5/run-m5-network-batch.sh`: проверка **неизменённого M4** на настоящих loopback TCP сокетах с тестовыми mTLS сертификатами, /v2/stream, активными Padding/Rate/Jitter policies, четырьмя конкурирующими длительными потоками по 128 кадров, 24 короткими запросами на их фоне, byte-exact echo и наблюдением Jitter/PAD counters. Замеряются application roundtrip p50/p95/max, завершённость всех потоков и коротких запросов, диагностический Go heap. `p95 ≤1s` — только локальный test threshold против зависания, **не** допуск Internet RTT. Пакет создаёт всё в одноразовом каталоге; никаких серверных конфигураций, service restarts, действующего трафика. `SOURCE_COMMITTED / OPERATOR_NOT_RUN`.
+
+**Разделение доказательств:** jitter policy 4/20ms уже PASS, а фактические RTT на Homeserver↔Finserver и end-to-end межпоточная fairness действующих пользователей этим loopback тестом не измеряются. Local loopback RTT — проверка транспортной реализации и отсутствия starvation в контролируемой среде. Финальное заключение по реальной межсерверной сети допускается только по её наблюдениям; не подменять её loopback.
