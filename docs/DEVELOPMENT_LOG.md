@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5 loopback first run: TCP/fairness/PAD PASS, Jitter activation test insufficient duration
+
+- Operator ran `tests/m5/run-m5-network-batch.sh` at `2026-11-19T09:46:15Z` on `c8bbb8a76f066422f760eab3a0af922906189ebb`, unchanged M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; test exited `1` due to `client_jitter_frames=0, server_jitter_frames=0`.
+- **Observed successful evidence (not a full gate PASS):** all four long flows completed 128/128 frames, 24/24 short probes completed, loopback application RTT p50 1.516ms / p95 2.216ms / max 2.614ms, Padding client=212 server=208 frames, Go heap 1,033,856→3,492,024 B. Source: `/opt/tervon-tcp-bridge/m5/results/m5-network-CpnDZ2Cb/test.log`.
+- Root cause hypothesis grounded in M4 `framing/stream.go` and policies: RateState requires two completed 1-second windows for activation; Jitter.State then requires 2s of eligible samples **after RateState is active**, so the original 3.45s test ended before this qualification could complete. **This is a test-design defect, not proof that production Jitter is broken.**
+- Revised test only (not `prototype/`): 128→320 frames per long stream and 18s→25s stream deadline; rate/jitter defaults unchanged. **FIX_COMMITTED / RECHECK_PENDING**, no live services modified. M5.2+M5.3 still active, M6 HOLD.
+
 ## 2026-11-19 — M5.2+M5.3 real-socket loopback RTT/fairness test prepared (not yet executed)
 
 - Added `tests/m5/m5_loopback_network_test.go` and `tests/m5/run-m5-network-batch.sh`: disposable unchanged M4 source, loopback TLS1.3/h2 mutual cert test server and backend, Padding/Jitter policies enabled, 4 x 128-frame long streams plus 24 short probes. Measures application RTT p50/p95/max, byte integrity, short-probe completion, stream progress, Jitter/PAD counters, Go heap; all local sockets, no production mutations.
