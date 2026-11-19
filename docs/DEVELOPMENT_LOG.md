@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Operator confirms real mixed M3→M4 VPN traffic and monitoring; Homeserver M4 switch authorized
+
+- Operator explicitly confirmed that the VPN through the live Bridge **works normally** with Homeserver M3 client and Finserver M4 server, and that public monitoring **works, counts and displays the metrics**. This is direct operational evidence, additional synthetic or prolonged checks are not necessary solely to restate the same functioning.
+- Independent short `m4_mixed_diagnose.py` previously returned `PASS_DIAGNOSTIC_COUNTER_CONTINUITY`; Finserver new sessions +2, Homeserver +3, upload/download byte counters increased on both, error deltas 0. The old M3 sampler `ValueError` was an inconclusive diagnostic failure, **not** proof of VPN failure.
+- **M4 mixed-version operator acceptance = PASS** (VPN functioning + working Stats + zero observed counter errors in short snapshot). Candidate/rollback backups already `M4_PREPARE=PASS` on both nodes. **Next step: use existing guarded `m4-cutover-switch.sh install homeserver`, only Homeserver Bridge service is restarted**, and inspect `M4_INSTALL=PASS_PROCESS_AND_SHA`. Finserver stays M4. Do not repeat long tests, do not run M3 staging/diagnostic again, do not restart other services. M4 full-module signoff requires observed working M4↔M4 VPN after the switch.
+- User requested efficient, evidence-driven checks: ask the operator whether an existing dashboard/VPN works and accept a direct confirmation or screenshot before writing more monitors/tests.
+
+
 ## 2026-11-19 — Mixed M3 Homeserver → M4 Finserver: short public telemetry continuity PASS (operator)
 
 - Operator ran `tests/homeserver/m4_mixed_diagnose.py` after GitHub SSH pull to `bf3e8f9489c46d8cbcf6306db33f93203b27b82c`. The 10-second two-sample read-only diagnostic returned **`PASS_DIAGNOSTIC_COUNTER_CONTINUITY`**, `m4_module_pass=false`, `vpn_dataplane_proven=false`.
