@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 passive external telemetry sampler: GitHub CI SUCCESS
+
+- Source `tests/homeserver/m3_passive_live_evidence.py` and `test_m3_passive_live_evidence.py`, workflow change through `298d90af7d6cbb46851f307ba1b4b4ae89135fc6`.
+- [Go prototype checks #44460373997](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44460373997) completed **SUCCESS**, including mocked sampler tests, Go build/unit/race and M3 jitter regressions. [M3 Linux candidate #44460374223](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44460374223) **SUCCESS** (artifact only).
+- Live 180-second collection on the operator's Homeserver remains **NOT RUN**; full M3 active end-to-end RTT/fairness acceptance remains **NOT VERIFIED**, no fabricated PASS.
+- Operator procedure and exact evidence limitations: `docs/M3_GATE_CLOSURE.md`. No production service modified.
+
+
 ## 2026-11-19 — M3 real-world passive telemetry collector implemented; active flow gate still open
 
 - Branch `work/m3-adaptive-jitter`, previously confirmed HEAD `a5b4ce1b0293a0d4cd704ac272d26840df555ef6`. The live SSH metrics tunnel recovery + public API gate was independently confirmed by operator and documented in plan/log; no repeat required.
