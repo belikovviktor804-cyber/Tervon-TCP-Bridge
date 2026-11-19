@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.2+M5.3 short read-only live observation OPERATOR PASS
+
+- Homeserver ran `tests/m5/run-m5-23-live-short.sh` at `2026-11-19T09:33:48Z`; live M4 SHA PASS, six 10-second intervals/seven snapshots, two-node continuity PASS, exit 0; report `/opt/tervon-tcp-bridge/m5/results/m5.23-live-sPZnEtyL/evidence.jsonl`.
+- Homeserver and Finserver sessions active 17→15 each, seven new sessions each, no new errors (0/0); Homeserver CPU 0.6%→0.6%, RSS 20644→21128 KiB (+484 KiB).
+- No new padding or jitter frames in observation window; does **not** prove adaptation under eligible load. RTT, fairness and real per-frame/window maxima remain NOT_MEASURED, no numerical gate claimed PASS.
+- **PASSIVE_LIVE=OPERATOR_PASS / OFFLINE=6 of 6 PASS / COMBINED_GATE=IN_PROGRESS**. Working services unchanged, M5.4 NOT_STARTED, M6 HOLD.
+
 ## 2026-11-19 — M5.2+M5.3 short live passive observation prepared
 
 - Committed `tests/m5/run-m5-23-live-short.sh` to observe existing M4=v1.0.1 process SHA/PID, CPU/RSS and 60-second two-node public telemetry via existing tested M3 sampler. No test traffic, service modification or historical version comparison.
