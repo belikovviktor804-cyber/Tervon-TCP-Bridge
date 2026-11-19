@@ -2,6 +2,9 @@
 
 **Статус:** утверждённый порядок работы, актуализировано 2026-11-19. **Единственный рабочий план для следующих изменений.**
 
+> **M4 HOMESERVER ISOLATED STAGING — OPERATOR PASS (2026-11-19):** команда `tervon-m4-isolated-stage-cachefix.service` успешно завершилась после проверок GitHub SSH exact commit `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, `go vet`, `go test -race -run '^TestM4' ./...`, статической сборки Linux/amd64, SHA256 и BUILD_INFO. Отчёт: **`STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`**, `STAGE_DIR=/opt/tervon-tcp-bridge/m4/stage-qgAtBg91`, `BINARY_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. Systemd-юнит завершился успешно; `PRODUCTION_BINARY_REPLACED=NO`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`. **M4 staging gate закрыт как PASS, повтор не нужен.** Это не подтверждает поведение нового бинарника в реальной цепочке Homeserver–Finserver; отдельные M4 live reliability/resource/shutdown gates ещё открыты. **M4 IN_PROGRESS / M5 NOT STARTED / v1.0.1 NOT RELEASED**. Старые записи ниже про staging pending являются историей.
+
+
 > **M4 STAGING GO ENVIRONMENT FIX — CI SUCCESS / HOST RERUN PENDING:** исправление приватных `HOME`, `GOCACHE`, `XDG_CACHE_HOME`, `GOMODCACHE`, `TMPDIR` подтверждено [GitHub Go prototype checks #44473045048](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44473045048) **SUCCESS** (source/workflow SHA `39e19270578b91c60459d115955e1288d100f5b0`): `bash -n`, проверка отсутствия управляющих командами сервисов, smoke Go cache с очищенной HOME, сборка, vet/unit/race и legacy regressions. **Успешный CI не делает предыдущий staging `8b2f3d72` успешным:** операторский systemd-run завершился FAILURE до `go vet` из-за отсутствия кэша, и на Homeserver требуется **НОВАЯ изолированная проверка точного HEAD**. Live Bridge, Stats, nginx, VPN не тронуты. **M4 IN_PROGRESS, M5 NOT STARTED.**
 
 
