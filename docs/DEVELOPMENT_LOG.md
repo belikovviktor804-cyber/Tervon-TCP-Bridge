@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 failure modes and streaming continuity: CI PASS; churn regression pending
+
+- **Source commit `c2e44c058158324dcb900f066270739969f9fdc1`**, [GitHub Go prototype checks #44466460566](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44466460566) **SUCCESS**, including Go build, vet, complete unit tests, race detector, M1/M2/M3 and bounded fuzz regressions.
+- `prototype/m4_failure_modes_test.go`: isolated (not production) TCP peer with stalled TLS handshake, authenticated TLS1.3/h2 peer with missing response headers and canceled request context, oversized HTTP2 response header rejection. These verify the standard-library setup bounds (not absolute VPN session deadlines).
+- `prototype/m4_long_lived_stream_test.go`: authenticated HTTP/2-backed TCP echo session remains byte-exact and alive past a simulated response-header timeout, then finishes after local peer close. Test successful within the above CI.
+- Added `prototype/m4_churn_test.go` subsequently (SHA `9ce54ac557856e6596e04cf1f5141a0b020fe566`): 3 waves × 8 independently authenticated h2 TCP sessions with M3 Padding/Jitter enabled; checks byte-for-byte echo, bounded session drain, exact started/completed counts and bounded Go goroutine residual. **This new resource regression is not yet CI accepted; current workflow run #44466925122 pending.**
+- No production service changes. M4 remains `IN_PROGRESS`, final host/live resource and failure gates not yet passed; M5 not started.
+
+
 ## 2026-11-19 — M4 HTTPS/2 bounds and downgrade rejection: first source batch CI PASS
 
 - Tested M4 source commit `35067ac3bc59837e606a9aa6d63803e523abb2c7` on [Go prototype checks #44464477666](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44464477666): **SUCCESS**, including build, vet, unit, race, new M4 transport/server bounds and TLS1.2/h1/missing-ALPN rejection tests, M1/M2/M3 regressions and fuzz checks.
