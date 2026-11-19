@@ -296,6 +296,38 @@ func NewClient(tlsConfig *tls.Config, url, service string) *Client {
 		ResponseHeaderTimeout: 15 * time.Second,
 		MaxResponseHeaderBytes: 32 << 10,
 	}
+	// net/http may support HTTP/1.1 fallback even with an h2-preferred TLS
+	// config. Enforce ALPN before net/http can write request headers or VPN
+	// bytes. tls.Dialer handles all TLS cryptography and certificate checks.
+	// When DialTLSContext is supplied, net/http does not apply its own
+	// TLSHandshakeTimeout; enforce the same configured bound explicitly.
+	tr.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		timeout := tr.TLSHandshakeTimeout
+		if timeout <= 0 {
+			timeout = 10 * time.Second
+		}
+		handshakeCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		dialer := &tls.Dialer{
+			NetDialer: &net.Dialer{Timeout: timeout},
+			Config: secureTLS,
+		}
+		conn, err := dialer.DialContext(handshakeCtx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		secured, ok := conn.(*tls.Conn)
+		if !ok {
+			_ = conn.Close()
+			return nil, fmt.Errorf("TLS connection required")
+		}
+		state := secured.ConnectionState()
+		if state.Version != tls.VersionTLS13 || state.NegotiatedProtocol != "h2" {
+			_ = secured.Close()
+			return nil, fmt.Errorf("TLS 1.3 with h2 ALPN required before request")
+		}
+		return secured, nil
+	}
 	return &Client{HTTP: &http.Client{Transport: tr}, URL: url, Service: service}
 }
 
