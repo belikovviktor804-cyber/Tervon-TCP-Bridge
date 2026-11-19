@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Finserver temporary metrics SSH tunnel restored (operator evidence)
+
+- Previous rollback claim of restoration was not equivalent to verified access: `ss` showed no TCP/8897 listener, `curl` connection refused, and `nodes.finserver=unavailable` while Homeserver remained `ok`.
+- Operator relaunched temporary OpenSSH forward with `-o ClearAllForwardings=no`, `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ExitOnForwardFailure=yes` and `-L 127.0.0.1:8897:127.0.0.1:8896`; `ss` confirmed listener `ssh PID 1465553` and a live curl request to `/metrics/v1` succeeded. **TEMPORARY TUNNEL RESTORED PASS**, but permanent systemd service remains **NOT ACCEPTED**.
+- GitHub unit fixed and regression check added; latest observed candidate build CI success, full Go prototype checks still running. Do not replace the restored temporary tunnel until source CI is PASS and corrected unit is staged and validated. Site externally accessible HTTPS still unverified.
+
+
 ## 2026-11-19 — Managed Stats tunnel rollback: root cause fixed in GitHub, deployment not yet PASS
 
 - Operator cutover `tervon-fin-tunnel-cutover.service` 05:56:58–05:57:24: managed SSH unit started and remained active, but 20 attempts to connect loopback TCP/8897 failed; rollback disabled and stopped unit and relaunched temporary `ssh -fN`, printing `TEMPORARY_TUNNEL_RESTORED=PASS`. Subsequent dashboard API showed `nodes.homeserver=ok, nodes.finserver=unavailable`; this **does not** establish a successful verified restoration.
