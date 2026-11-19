@@ -84,3 +84,7 @@
 - Operator output: 5 named tests OK — different asset size, mismatched historical SHA, duplicate asset, malformed tag/external URL, valid asset selection. `Ran 5 tests in 0.001s`, `OK`, `M5_TEST_EXIT_CODE=0`.
 - **M5.1 OFFLINE_VERIFIER_TESTS=HOMESERVER_PASS (5/5)**, distinct from pending GitHub Actions CI result. Prior public v1.0.0 asset identity test remains `OPERATOR_PASS`. These tests do **not** measure TCP performance, Jitter limits, fairness or CPU/RSS.
 - No live Bridge, Stats, Xray or other service touched. **M5.1 overall IN_PROGRESS** pending comparability/threshold decisions; M5.2–M5.6 NOT_STARTED; M6 HOLD.
+
+## 10. Сводная пакетная проверка M5.1 — OPERATOR PASS
+
+Исходный commit `0909812d09dd149f872b0eee9e8e48bd85374530`; запуск `2026-11-19T09:13:58Z` на Homeserver; `M5_1_BATCH=PASS_PROVENANCE_AND_STATIC_BASELINE`, exit 0. Проверки SHA старого опубликованного бинарника, наличия объекта M4, документов, ref `v1.0.0`, примеров JSON — все PASS. Git ref tag SHA `1f104008437ba9699a54404c6da1af4acb81f651`; binary Go 1.25.5. Лог `/opt/tervon-tcp-bridge/m5/results/m5.1-2EO4eslf/report.log`. **Это provenance/static PASS, не сравнительный benchmark.**
