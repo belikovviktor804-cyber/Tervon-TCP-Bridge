@@ -31,7 +31,7 @@ func TestM3VideoAndShortRequestsDoNotShareJitterBudget(t *testing.T) {
     interactive.now=now
     videoFrame:=bytes.Repeat([]byte{0x12,0x00,0xff,0x42,0x30},2500) // 12,500 bytes / 100 ms = 1Mbps
     smallFrame:=bytes.Repeat([]byte{0x01},128)
-    for i:=0;i<40;i++ {
+    for i:=0;i<70;i++ {
         if _,err:=video.Write(videoFrame);err!=nil{t.Fatal(err)}
         if _,err:=interactive.Write(smallFrame);err!=nil{t.Fatal(err)}
         clock=clock.Add(100*time.Millisecond)
@@ -45,11 +45,11 @@ func TestM3VideoAndShortRequestsDoNotShareJitterBudget(t *testing.T) {
     if err:=video.CloseWrite();err!=nil{t.Fatal(err)}
     if err:=interactive.CloseWrite();err!=nil{t.Fatal(err)}
     got,err:=io.ReadAll(NewPaddingDecoder(&videoWire))
-    if err!=nil || !bytes.Equal(got,bytes.Repeat(videoFrame,40)){
+    if err!=nil || !bytes.Equal(got,bytes.Repeat(videoFrame,70)){
         t.Fatalf("video byte integrity: %d err=%v",len(got),err)
     }
     got,err=io.ReadAll(NewPaddingDecoder(&interactiveWire))
-    if err!=nil || !bytes.Equal(got,bytes.Repeat(smallFrame,40)){
+    if err!=nil || !bytes.Equal(got,bytes.Repeat(smallFrame,70)){
         t.Fatalf("interactive byte integrity: %d err=%v",len(got),err)
     }
 }
