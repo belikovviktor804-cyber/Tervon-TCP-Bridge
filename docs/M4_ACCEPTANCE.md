@@ -74,3 +74,13 @@ systemd-run --unit=tervon-m4-isolated-stage --collect \
 ```
 
 Evidence: `journalctl -u tervon-m4-isolated-stage -n 80 --no-pager`. Accept only `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`, binary checksum verification, exact expected `SOURCE_COMMIT`, and `BRIDGE_RESTART=NONE` / `STATS_RESTART=NONE` / `NGINX_RELOAD=NONE`. This remains a staging build and isolated test, **not real data-plane acceptance**, so no M4 module PASS until the rest of the matrix is confirmed.
+
+## M4 batch 4 — outbound transport fail-closed before VPN data
+
+The previous M4 client **response** verification rejected TLS 1.2 / non-h2 peers only after `http.Client.Do` returned. That was not a sufficient guarantee against transmitting an upload over a downgraded handshake in a caller using weak TLS settings. The standard-library constructor `NewClient` now clones the supplied `tls.Config`, enforces `MinVersion=tls.VersionTLS13` and `NextProtos=[]string{"h2"}` **before any network request**, leaving the caller's original config unmodified. A nil caller config receives the same safe protocol minimum. This is not a custom TLS implementation.
+
+Regression tests:
+- `TestM4ClientConstructorRejectsOutboundDowngradeBeforePayload`: checks TLS version/ALPN enforcement, cloned config, original caller not mutated and safe nil defaults.
+- `TestM4OutboundTransportRefusesDowngradeBeforeHTTPHandler`: actual ephemeral test TLS 1.2-only peer and TLS 1.3 HTTP/1.1-only peer both fail before the test HTTP handler executes.
+
+**SOURCE MODIFIED; exact CI outcome recorded separately.** No running service is reconfigured. The M4 host staging script must use a commit at or after this fix; earlier isolated M4 candidates must not be promoted to release.
