@@ -1,0 +1,34 @@
+# M6 — Super Proxy (SCHELER Software): публичные сведения и проверка совместимости
+
+**Дата исследования:** 2026-11-19. **Статус:** RESEARCH / PROPOSED TEST PLAN; **не APPROVED, не IMPLEMENTED, не TESTED, не RELEASED**. Основной источник истины: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md). Linux v1.0.1 RELEASED, не изменять действующий Bridge Россия → Финляндия и работающие службы Homeserver.
+
+## Решение оператора и очередь
+
+- M6: **TCP-only**. Вход Android → российский сервер по HTTPS/TLS. На российской стороне соединения должны пройти существующие DNS, AdBlock и правила маршрутизации 3x-ui/Xray, затем действующий межсерверный Bridge Россия → Финляндия.
+- Использовать приложение **Super Proxy (SCHELER Software)** для **первого независимого реального Android-теста**. **Не встраивать** новое ядро в TervonVPN до подтверждённой работы интернета в Super Proxy через отдельный российский тестовый вход.
+- HEV в TervonVPN оставить неизменным, Xray-core сохранить рядом с будущим Bridge-core. Не менять production Xray/3x-ui, порты или маршруты без отдельного операторского решения.
+- Выбор между Caddy и иными поддерживаемыми HTTPS CONNECT реализациями **не утверждён**. Нельзя объявлять совместимость с уже выпущенным Bridge без тестов.
+
+## Проверенные публичные сведения
+
+- [Официальный сайт Super Proxy](https://superproxy.cc/): Android VpnService, upstream HTTP proxy через стандартный **HTTP CONNECT** или SOCKS5; внешний upstream proxy может использовать **TLS**. Утверждается, что DNS-запросы разрешаются на стороне proxy, UDP блокируется по умолчанию для HTTP/SOCKS5 режима. Есть экспериментальный UDP/SOCKS5 beta, который **не входит** в нашу задачу.
+- [Google Play](https://play.google.com/store/apps/details?id=com.scheler.superproxy), package `com.scheler.superproxy`, publisher SCHELER Software, verified listing updated 2026-11-01.
+- В доступных официальных публичных материалах **не найдены** опубликованный source repository / лицензия на копирование ядра, гарантии mTLS **client certificate**, либо гарантия HTTP/2 CONNECT. Отсутствие сведений не доказывает отсутствие функции — эти пункты требуется проверить на реальном приложении/у разработчика. Без явной лицензии не переносить декомпилированный код или APK в TervonVPN.
+- [GOST v3, официальный HTTP proxy guide](https://latest.gost.run/en/tutorials/protocols/http/) документирует штатный HTTPS forward proxy: `gost -L https://:8443`, а также username/password. [Лицензия GOST](https://github.com/go-gost/gost/blob/master/LICENSE): MIT. Это **кандидат** для изолированного теста Super Proxy CONNECT/TLS, не выбранное production решение.
+- [Caddy reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) является HTTP reverse proxy. Он **не эквивалентен автоматически** серверу standard HTTPS forward proxy/CONNECT; совместимость с двусторонним CONNECT-туннелем и upstream необходимо доказать, а не предполагать.
+
+## Несовместимость wire-протокола, требующая решения
+
+**Super Proxy**: обычный HTTPS forward proxy, вероятно HTTP/1.1 CONNECT; точную ALPN версию на Android требуется измерить. **Tervon TCP Bridge v1.0.1**: HTTP/2 POST `/v2/stream` и fingerprint-based mTLS authorization, `service` выбирается из конфигурации клиента, удалённый backend задан server-side allowlist. Проверено по `prototype/cmd/bridge/main.go`, `prototype/bridge.go` и `docs/CONFIGURATION.ru.md`. **Нельзя направить Super Proxy непосредственно в неизменённый Bridge Decapsulator** или считать что Caddy конвертирует CONNECT в POST автоматически.
+
+Входной M6 требует стандартного HTTPS CONNECT-протокола на внешнем входе либо отдельного совместимого адаптера. Перенос клиентской идентичности от Caddy к Bridge требует самостоятельного доверенного контракта. Аутентификация должна исключать открытый proxy и доступ к произвольным внутренним IP:port. Не обманываться тем, что HTTPS скрывает содержание: корректность TLS и сетевой классификации проверяется отдельно на фактическом маршруте.
+
+## План испытаний, не запускать до выбора реализации
+
+1. Изолированная среда: отдельный контейнер, непроизводственный порт и доменное имя, авторизация HTTPS proxy, запрет неавторизованных CONNECT, запрет обращения к loopback/metadata/внутренним служебным адресам и ограничения доступа. Официальный GOST v3 как возможный минимальный контрольный server reference, если утверждён оператором; Caddy только при проверенной CONNECT совместимости.
+2. Настроить Super Proxy на Android как `HTTP proxy + TLS/SSL`; подтвердить успешный TLS, ALPN/HTTP CONNECT, серверную аутентификацию, DNS без утечек, отсутствие UDP, TCP browse/download/video. Не подставлять частные ключи и пароли в публичные отчёты.
+3. Серверный поток направить в **локальный** `mixed` inbound отдельного изолированного экземпляра Xray; только после корректной передачи в routing/DNS/adblock проверять интеграцию с действующим 3x-ui (строго по отдельному разрешению).
+4. Результат: `SUPER_PROXY_TO_RUSSIAN_GATE=PASS` только при реальном Android клиенте, рабочем интернете, серверной маршрутизации и отсутствии нежелательного обхода; если не выполнено — `BLOCKED` с конкретной причиной. Не подменять фактический PASS только успешным TLS handshake.
+5. Лишь **после PASS** — M6 Android-аудит TervonVPN HEV/ABI, выбор готовой поддерживаемой библиотеки для HTTPS CONNECT; Super Proxy исходник переносить только если опубликована совместимая лицензия и доступны исходники. Не использовать реверс-инжиниринг проприетарного APK как предположение о разрешённом переиспользовании.
+
+**Инженерный вывод:** первоочередная задача — предоставить Super Proxy стандартный HTTPS CONNECT gateway, а не стандартный `POST /v2/stream` от нашего Linux Bridge. Конечная архитектура Caddy + Bridge + mixed остаётся **PROPOSED / NOT APPROVED**, до теста CONNECT и идентификации mTLS режима.
