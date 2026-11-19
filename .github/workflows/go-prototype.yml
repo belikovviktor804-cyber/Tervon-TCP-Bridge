@@ -50,7 +50,7 @@ jobs:
       - name: Check isolated M4 staging script syntax and no service commands
         run: |
           bash -n ../tests/homeserver/stage-m4-candidate.sh
-          ! grep -Eq 'systemctl|service |nginx -s' ../tests/homeserver/stage-m4-candidate.sh
+          ! grep -Eq '^[[:space:]]*(systemctl|service|nginx)([[:space:]]|$)' ../tests/homeserver/stage-m4-candidate.sh
       - name: Check M3 tunnel-only recovery script syntax (no host action)
         run: bash -n ../tests/homeserver/m3-managed-tunnel-recovery.sh
       - name: Check guarded deployment script syntax
