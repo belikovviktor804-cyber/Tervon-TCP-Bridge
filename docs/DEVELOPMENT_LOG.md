@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 managed SSH metrics tunnel fault/recovery: LIVE PASS (operator evidence)
+
+- Operator executed the committed detached test `tests/homeserver/m3-managed-tunnel-recovery.sh` under `tervon-m3-tunnel-recovery.service` on Homeserver, source commit `dfa2bfc10be4c2b6e9c90eef79023c7651c58f48`.
+- Journal (2026-11-19 04:06:01–04:06:09 UTC): `INJECT=SIGTERM_MAINPID_ONLY`, tunnel SSH `TUNNEL_PID_BEFORE=1474240`, new SSH `TUNNEL_PID_AFTER=1672169` (6 seconds), `M3_TUNNEL_RESTART=PASS`. External HTTPS two-node JSON check from Finserver yielded `M3_TUNNEL_RECOVERY_PUBLIC_API=PASS` (8 seconds after injection).
+- `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`; detached systemd-run unit exited successfully. **M3 MANAGED METRICS TUNNEL RECOVERY GATE = PASS. No repeat required.**
+- **M3 not yet full PASS:** outstanding sustained real-network latency/RTT, multi-stream fairness and jitter frame/window constraints with complete evidence. M4/M5/M6 not started.
+
+
 ## 2026-11-19 — M3 integrated tunnel recovery scenario: CI PASS, host run pending
 
 - Latest tunnel-only script adds automatic *external Finserver* HTTPS check of `https://stats.xrayvless.online/bridge/api/status` pinned to public IPv4 `87.103.198.219`, after observing managed SSH tunnel MainPID recovery. Both `homeserver` and `finserver` must report `ok`; otherwise no recovery PASS.
