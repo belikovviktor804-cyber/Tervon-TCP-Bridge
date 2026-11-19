@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — operator specifies seven simultaneous application sessions under load
+
+- Exact intended application workload: YouTube 1, Speedtest 3, 2ip.io Speedtest 3; total 7 concurrent application sessions. These are not identical to underlying Bridge TCP connections. Counters registered 424 admitted sessions and 313 rejected TCP attempts on Homeserver over the 180-second interval, which cannot be attributed solely to those seven sessions without connection-level evidence.
+- Source `Client.ListenAndServe` implements a finite `MaxLocalConnections` admission semaphore and calls `Metrics.Reject` when full. Candidate cause of observed 313 rejections, but production cap currently NOT VERIFIED. **Do not infer seven-connection service capacity from this report**; keep issue open pending bounded read-only limit verification. No service changes, M6 HOLD.
+
 ## 2026-11-19 — full 180s M5 user-load summary provided, with capacity finding
 
 - Operator supplied a complete 19-snapshot JSON summary (target 180s) distinct from previously inspected 9-sample partial artifact; no unverified association between the two source files. Live `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`, `PASS_PAD_AND_JITTER_ACTIVATED`, zero aggregate errors on both nodes; 424 sessions started and 359 completed on each side; active 32→97.
