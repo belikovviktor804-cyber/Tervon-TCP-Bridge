@@ -33,6 +33,20 @@ if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
 fi
 STAGE="$(mktemp -d "$ROOT/stage-XXXXXXXX")"
 mkdir -p "$STAGE/source" "$STAGE/dist" "$STAGE/evidence"
+
+# systemd-run --collect may start without HOME/XDG_CACHE_HOME/GOCACHE.
+# Keep ALL Go compiler caches and temporary files inside this unique
+# private staging tree, not /root, /tmp or any live Bridge directories.
+export HOME="$STAGE/home"
+export XDG_CACHE_HOME="$STAGE/cache"
+export GOCACHE="$STAGE/cache/go-build"
+export GOMODCACHE="$STAGE/cache/go-mod"
+export TMPDIR="$STAGE/tmp"
+mkdir -p "$HOME" "$GOCACHE" "$GOMODCACHE" "$TMPDIR"
+chmod 0700 "$HOME" "$GOCACHE" "$GOMODCACHE" "$TMPDIR"
+echo "STAGE_M4_GO_CACHE=$GOCACHE"
+echo "STAGE_M4_GO_TMP=$TMPDIR"
+
 git -C "$SOURCE" archive --format=tar "$ACTUAL_SHA" | tar -xf - -C "$STAGE/source"
 (
   cd "$STAGE/source/prototype"
