@@ -9,7 +9,7 @@
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
 | **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS + ADAPTIVE POLICY 6/6 PASS / REAL NETWORK PENDING** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
-| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **SOURCE PREPARED / ASSETS + GATES PENDING** |
+| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **HOST RELEASE ASSETS PREP=PASS / CI + RELEASE GATES PENDING** |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
 
 ## Принцип объединённой проверки
@@ -90,3 +90,7 @@ First run 4×128-frame loopback flows and 24 short probes completed successfully
 ## Подготовка GitHub Release и установки (2026-11-19)
 
 По прямому запросу оператора создан безопасный скрипт установки Linux v1.0.1 и пошаговая инструкция; подготовлен копировщик проверенного M4 бинарника для GitHub Release. Никаких production-служб не затрагивали; пакет на Homeserver ещё не собирали, GitHub Release не публиковали. Файлы: `install/install-bridge.sh`, `install/prepare-release-assets.sh`, `docs/INSTALL-v1.0.1.ru.md`, `docs/RELEASE_NOTES_v1.0.1.ru.md`, `docs/M5_RELEASE_PACKAGE.md`. Отдельный CI workflow `m5-installer.yml` создан, его фактический PASS ещё не подтверждён. Действующий Gate M5.2+M5.3 остаётся открытым до итогового отчёта нагрузки и принятия остающихся критериев. Публикацию не проводить до соблюдения release gates и согласования условий распространения.
+
+## Операторский PASS подготовки релизных файлов — 2026-11-19
+
+На Homeserver выполнен `install/prepare-release-assets.sh`. Вывод оператора: `RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, `RELEASE_VERSION=v1.0.1`, `RELEASE_SOURCE_COMMIT=8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, `RELEASE_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `RELEASE_DIR=/opt/tervon-tcp-bridge/m5/release`, `RELEASE_PREP_EXIT_CODE=0`, `PUBLICATION_DONE=NO`. **Подготовка бинарника/MANIFEST PASS**. Не означает GitHub Release или PASS установки с нуля; CI и финальные release gates отдельно. Действующие службы не тронуты.
