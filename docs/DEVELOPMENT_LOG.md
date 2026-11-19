@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 release baseline testing harness committed; execution evidence pending
+
+- Read authoritative development plan, M5 acceptance, baseline and source jitter policy in M5 branch. Default jitter limits in source: 4ms per frame / 20ms per 1s window, but no claim of on-wire maximum measurement.
+- GitHub tag/ref `v1.0.0` resolves and returns README; tag release asset metadata not yet fetched.
+- Committed read-only `tests/m5/verify_release_baseline.py`, negative synthetic test suite and `.github/workflows/m5-baseline.yml`. This is baseline provenance work **inside M5.1**, not jumping to M5.3.
+- **SOURCE=COMMITTED; OFFLINE_CI=UNVERIFIED; ACTUAL_RELEASE_ASSET=UNVERIFIED; M5.1 IN_PROGRESS; M5.2–M5.6 NOT_STARTED; M6 HOLD.** Nothing was run on either production host and all running services remain unchanged.
+
 ## 2026-11-19 — M5.1 provenance and comparison baseline recorded (docs only)
 
 - Resumed from branch `work/m5-linux-release`, last preceding HEAD `0bcb1091400e329fa40cd7dfdd72b75539212e25`. Read authoritative plan and M5 acceptance before writing.
