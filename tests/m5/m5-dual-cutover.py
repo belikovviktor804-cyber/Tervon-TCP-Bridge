@@ -6,10 +6,12 @@ GitHub over existing git SSH. Requires already-built exact-hash M5 candidate.
 """
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 SOURCE = Path("/opt/tervon-tcp-bridge/m5/source")
 WORKER = SOURCE / "tests/m5/m5-dual-cutover-worker.py"
@@ -50,7 +52,7 @@ def worker(action, role):
         if action == "prepare":
             command += " " + REMOTE_CANDIDATE
         args = SSH + [command]
-    result = run(args, timeout=125)
+    result = run(args, timeout=180)
     if result.stdout:
         # Worker output is allowlisted status messages; config is never printed.
         print(result.stdout.decode(errors="replace"), end="", flush=True)
@@ -70,6 +72,31 @@ def stage_remote():
     verify = checked(SSH + ["sha256sum " + REMOTE_CANDIDATE]).stdout.decode().split()[0]
     if verify != NEW:
         raise RuntimeError("remote_candidate_hash_mismatch")
+
+def confirm_both_no_quota():
+    # Reuse deployed independent two-node public stats validation. No payloads.
+    path = SOURCE / "tests/homeserver/m3_passive_live_evidence.py"
+    spec = importlib.util.spec_from_file_location("m5_public_stats_collector", path)
+    if spec is None or spec.loader is None:
+        return False
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for _ in range(12):
+        try:
+            data = module.remote_public_fetch()
+            nodes = data["nodes"]
+            if all(
+                nodes[role]["status"] == "ok" and
+                nodes[role]["metrics"]["ready"] is True and
+                type(nodes[role]["metrics"]["max_sessions"]) is int and
+                nodes[role]["metrics"]["max_sessions"] == 0
+                for role in ("homeserver", "finserver")
+            ):
+                return True
+        except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+            pass
+        time.sleep(2)
+    return False
 
 def main():
     if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] != "deploy":
@@ -98,8 +125,9 @@ def main():
     output("PREPARE=PASS_BOTH_VERIFIED_OLD_VERSIONS_AND_BACKUPS")
     output("PARALLEL_SWITCH=START")
     results = both("switch")
-    if all(results.values()):
+    if all(results.values()) and confirm_both_no_quota():
         output("PARALLEL_SWITCH=PASS_BOTH_RUNNING_NEW_SHA_WITH_ZERO_QUOTA")
+        output("POST_SWITCH_PUBLIC_TELEMETRY=PASS_BOTH_MAX_SESSIONS_ZERO")
         output("RESULT=PASS_TWO_NODE_CUTOVER")
         return 0
 
