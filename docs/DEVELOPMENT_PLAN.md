@@ -448,6 +448,14 @@
 
 ### M3 — Адаптивный Jitter
 
+#### M3 — isolated candidate staging prepared (2026-11-19; NO HOST ACTION)
+
+- Full previous M3 concurrency tests [#44434798348](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44434798348) **SUCCESS**, Linux M3 candidate [#44434798307](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44434798307) **SUCCESS** on precise test commit `e76a4d2b4062892b8fb7bbde39fe3251677bd765`. Confirms independent qualified 1-Mbps video versus 128B interactive traffic behavior in mocked-time encode/decode tests, **not live RTT or deployment**.
+- Added `tests/homeserver/stage-m3-candidate.sh`: exact 40-character commit SHA is required as input; the existing checkout must be clean, on `work/m3-adaptive-jitter`, and have exactly SSH remote `git@github.com:tervon-software/Tervon-TCP-Bridge.git`. Fetches the pinned M3 commit via SSH and builds with Go from an immutable `git archive` in a private new `/opt/tervon-tcp-bridge/m3/stage-XXXXXXXX`. Creates candidate binary, `SHA256SUMS`, `BUILD_INFO`. **No replacement, deploy, systemctl, nginx, service restart or Finserver modification.** CI checks script syntax. Staging is **PREPARED / NOT RUN ON HOMESERVER** at this checkpoint.
+- After source CI PASS for staging script, operator may run the script to stage candidate without live interruption. Before actual M3 activation, a separate guarded two-node install plan with backups and verified rollback must be approved. On any version or remote mismatch, stop; do not perform live changes. Production remains **M2**; public Stats UI/collector already **LOCAL PASS**, do not reinstall.
+
+
+
 #### M3 — resumed after interrupted session (2026-11-19)
 
 - Re-read current `docs/DEVELOPMENT_PLAN.md` and `docs/DEVELOPMENT_LOG.md` on `work/m3-adaptive-jitter`, rather than relying on chat memory. **Previously pending** CI [#44281963459](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44281963459) (Go/race/integration) and [#44281958023](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44281958023) (M3 Linux build candidate) both completed **SUCCESS**. No production installation is implied.
