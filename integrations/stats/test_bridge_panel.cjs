@@ -12,13 +12,13 @@ function mount(fetcher) {
   const elements = new Map();
   for (const id of [
     "tb-panel", "tb-status", "tb-updated", "tb-sessions-active",
-    "tb-sessions-counts", "tb-bytes", "tb-backend", "tb-latency",
-    "tb-tls", "tb-runtime", "tb-adaptation",
+    "tb-sessions-counts", "tb-bytes",
+    "tb-runtime", "tb-adaptation",
     "tb-padding-bytes", "tb-padding-overhead", "tb-padding-direction",
     "tb-padding-activity", "tb-jitter-delays", "tb-errors",
     "tb-fin-status", "tb-fin-active", "tb-fin-bytes", "tb-fin-pad",
     "tb-fin-overhead", "tb-fin-jitter", "tb-fin-adaptation",
-    "tb-fin-backend", "tb-fin-tls",
+    "tb-fin-backend", "tb-fin-latency", "tb-fin-tls",
   ]) elements.set(id, { textContent: "" });
   const calls = [];
   const context = {
@@ -106,8 +106,6 @@ test("renders local Homeserver metrics with fixed, same-origin API", async () =>
   assert.equal(elements.get("tb-padding-bytes").textContent, "1.0 КиБ / 512 Б");
   assert.equal(elements.get("tb-padding-direction").textContent, "Активно / Нет активности");
   assert.equal(elements.get("tb-padding-activity").textContent, "7 / 2 кадров; 3 / 1 переходов");
-  assert.equal(elements.get("tb-backend").textContent, "На стороне Decapsulator");
-  assert.equal(elements.get("tb-tls").textContent, "На стороне Decapsulator");
   assert.equal(elements.get("tb-padding-overhead").textContent, "2.50% / 1.25%");
   assert.equal(elements.get("tb-jitter-delays").textContent, "4 / 2.50 мс / 3 / 1.00 мс");
   assert.equal(elements.get("tb-errors").textContent, "3");
@@ -185,13 +183,13 @@ test("explicitly disabled padding is reported as disabled", async () => {
     "Выключено / Выключено");
 });
 
-test("latency without samples is not presented as zero milliseconds", async () => {
+test("Finserver latency without samples is zero observations, not fabricated milliseconds", async () => {
   const data = await response().json();
-  data.nodes.homeserver.metrics.connect_latency_samples = 0;
+  data.nodes.finserver = {status:"ok",metrics:{...data.nodes.homeserver.metrics,connect_latency_samples:0}};
   const { elements } = mount(async () => ({ ok: true, json: async () => data }));
   await tick();
   await tick();
-  assert.equal(elements.get("tb-latency").textContent, "Нет измерений");
+  assert.equal(elements.get("tb-fin-latency").textContent, "0 замеров");
 });
 
 test("never uses HTML injection sinks or remote metrics endpoints", () => {
@@ -216,6 +214,9 @@ test("Finserver renders independent delayed PAD and Jitter counters", async () =
   await tick(); await tick();
   assert.equal(elements.get("tb-fin-status").textContent, "Finserver готов");
   assert.equal(elements.get("tb-fin-active").textContent, "45");
+  assert.equal(elements.get("tb-fin-latency").textContent, "1.0 / 5.0 / 10.0 мс (3)");
+  assert.equal(elements.get("tb-fin-backend").textContent, "9 / 1");
+  assert.equal(elements.get("tb-fin-tls").textContent, "5");
   assert.match(elements.get("tb-fin-pad").textContent, /^7 \/ 1[\s\u00a0\u202f]870$/);
   assert.match(elements.get("tb-fin-jitter").textContent, /357 \/ 407\.55 мс/);
   assert.equal(elements.get("tb-sessions-active").textContent, "2");
@@ -229,4 +230,14 @@ test("Finserver loss clears only Finserver metrics", async () => {
   assert.equal(elements.get("tb-fin-status").textContent, "Finserver: метрики недоступны");
   assert.equal(elements.get("tb-fin-active").textContent, "—");
   assert.equal(elements.get("tb-sessions-active").textContent, "2");
+});
+
+test("source has no fixed Decapsulator placeholder values", () => {
+  assert.ok(!source.includes('setText("tb-backend"'));
+  assert.ok(!source.includes('setText("tb-tls"'));
+  const html=fs.readFileSync(path.join(__dirname,"bridge_panel.html"),"utf8");
+  assert.ok(!html.includes('id="tb-backend"'));
+  assert.ok(!html.includes('id="tb-tls"'));
+  assert.ok(!html.includes('id="tb-latency"'));
+  assert.ok(html.includes('id="tb-fin-latency"'));
 });
