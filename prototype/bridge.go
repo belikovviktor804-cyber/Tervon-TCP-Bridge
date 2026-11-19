@@ -32,7 +32,8 @@ type Server struct {
 	Routes             map[string][]Backend
 	AuthorizedServices map[[32]byte]map[string]bool
 	DialTimeout        time.Duration
-	// MaxConcurrent caps admitted stream handlers; zero means no cap (experimental only).
+	// MaxConcurrent caps stream handlers when positive; zero means no fixed session quota.
+	// TLS authentication and operating-system resource limits still apply.
 	MaxConcurrent int
 	admissionOnce sync.Once
 	admission     chan struct{}
@@ -268,8 +269,8 @@ type Client struct {
 	// ShutdownTimeout bounds listener shutdown when a handler fails to exit.
 	// Zero uses 5 seconds; negative disables the deadline.
 	ShutdownTimeout time.Duration
-	// MaxLocalConnections caps accepted local TCP sessions. Zero disables the
-	// cap for experiments; production configurations should set a positive value.
+	// MaxLocalConnections caps accepted local TCP sessions when positive.
+	// Zero removes the fixed session quota; OS resources remain finite.
 	MaxLocalConnections int
 }
 
