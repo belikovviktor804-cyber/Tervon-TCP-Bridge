@@ -9,7 +9,7 @@ class UnitTests(unittest.TestCase):
         for item in (
             "127.0.0.1:8897:127.0.0.1:8896",
             "BatchMode=yes", "StrictHostKeyChecking=yes",
-            "ExitOnForwardFailure=yes", "ClearAllForwardings=yes",
+            "ExitOnForwardFailure=yes", "ClearAllForwardings=no",
             "ServerAliveInterval=15", "ServerAliveCountMax=3",
             "Restart=always", "ProtectSystem=strict", "ProtectHome=read-only",
             "NoNewPrivileges=yes",
@@ -17,6 +17,7 @@ class UnitTests(unittest.TestCase):
             self.assertIn(item, UNIT)
         self.assertNotIn("0.0.0.0:8897", UNIT)
         self.assertNotIn("GatewayPorts=yes", UNIT)
+        self.assertNotIn("ClearAllForwardings=yes", UNIT)
 
     def test_unit_does_not_restart_bridge_or_nginx(self):
         self.assertIn("ExecStart=/usr/bin/ssh ", UNIT)
