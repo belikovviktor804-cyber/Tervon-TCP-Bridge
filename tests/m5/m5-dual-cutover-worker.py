@@ -142,9 +142,9 @@ def install_new(role, unit, binary, config, mode, field):
     validate_unit(unit, binary, config)
     if not verify_service(unit, binary, OLD) or digest(config) != meta["old_config_sha"]:
         raise RuntimeError("live_source_changed_since_preparation")
-    atomic_copy(backup_path("new-binary"), binary, 0o755)
-    atomic_copy(backup_path("new-config"), config)
     try:
+        atomic_copy(backup_path("new-binary"), binary, 0o755)
+        atomic_copy(backup_path("new-config"), config)
         run("systemctl", "restart", unit, timeout=45)
         for _ in range(15):
             if verify_service(unit, binary, NEW):
