@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 pre-cutover M3 backup and candidate preparation implemented (NOT RUN)
+
+- Both production Bridge processes passed read-only preflight: **Homeserver** active `/opt/tervon-tcp-bridge/bridge` and **Finserver** active `/opt/tervon-bridge-linux-amd64`, both disk and running SHA256 `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. No services were changed.
+- Added `tests/homeserver/m4-cutover-prepare.sh` to verify one node's exact role/unit/ExecStart, running and disk SHA, candidate SHA before **copying** the proven M3 original and verified M4 candidate into a dedicated private `/opt/tervon-tcp-bridge/m4/cutover-ROLE` directory; records manifest and refuses overwrites. No live-path replacement or restart. CI `bash -n` and prohibition on service management added.
+- Known M4 candidate `/opt/tervon-tcp-bridge/m4/stage-qgAtBg91/dist/tervon-bridge-m4-linux-amd64` has SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. Finserver candidate must be transferred over SSH/scp only (after staging target directory), verify on destination.
+- `docs/M4_ACCEPTANCE.md` contains the one-time nonmutating operator preparation command. **Current status: backup preparation NOT RUN, M4 live cutover NOT RUN, source/CI safety gate pending final workflow completion, M4 IN_PROGRESS.** Only after both `M4_PREPARE=PASS` and a tested rollback/install routine may an operator execute actual M3→M4 Bridge restart.
+
+
 ## 2026-11-19 — M4 both-node production read-only preflight: operator PASS
 
 - Operator ran `tests/homeserver/m4-live-preflight.sh` on Homeserver and over SSH `finserver`. **Both returned `M4_PREFLIGHT=PASS_READ_ONLY`**, both active, disk SHA equals running process SHA, no restart, no config/secret access.
