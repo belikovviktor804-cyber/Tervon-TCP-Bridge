@@ -2,7 +2,7 @@
 
 **Ветка:** `work/m5-linux-release`  
 **M4:** `CLOSED / OPERATOR PASS`  
-**M5.2+M5.3:** offline PASS, live passive PASS, адаптивный Jitter policy PASS; финальная сводка 180-секундного пользовательского стресс-теста **ещё не получена**  
+**M5.2+M5.3:** offline PASS, live passive PASS, адаптивный Jitter policy PASS; стресс-тест **умышленно остановлен оператором после 9/18 интервалов**, частичные результаты приняты оператором; полная 180-секундная сводка отсутствует  
 **M5.5 package files:** operator preparation PASS (`RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, exit 0); **M5.4/M5.5/M5.6 gate:** CI and approval pending; GitHub Release **NOT RELEASED**.  
 **M6:** HOLD.
 
@@ -84,3 +84,7 @@ gh release create v1.0.1 \
 ## Операторский результат package preparation (2026-11-19)
 
 `RELEASE_PREP=PASS_VERIFIED_EXISTING_M4` / `RELEASE_PREP_EXIT_CODE=0`; версия `v1.0.1`; origin M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`; артефакты `/opt/tervon-tcp-bridge/m5/release`. Отдельно подтверждено `PUBLICATION_DONE=NO`. **Повторная пересборка или повторный prepare не требуются**. Следующий шаг — финальная сводка `M5_LOAD`, CI и release gate; upload/tag не выполнены.
+
+## Причина неполного стресс-отчёта установлена
+
+Оператор самостоятельно остановил нагрузочный сбор после 9/18 интервалов: оценил наблюдавшиеся нагрузки и работу приложения достаточными. Отсутствие summary не является сбоем Bridge/установщика. Не требуется запускать повторный стресс-тест только ради 180 секунд. Опубликованные release notes должны описывать этот факт, не утверждая полный 180s PASS; количественные RTT и per-stream fairness остаются без прямых измерений.
