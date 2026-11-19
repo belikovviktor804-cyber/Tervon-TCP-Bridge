@@ -92,3 +92,11 @@ A new actual network regression showed Go's `net/http.Transport` can fall back t
 **Verified code commit `6814c57130326f5ecbbea7280f57117074eeee0b`:** [Go prototype checks #44468661056](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468661056) SUCCESS, including two real downgrade peers refused *before the HTTP handler*, TLS/HTTP2 stream integration, unit, race, vet, build and prior regressions. [M4 Linux candidate #44468661092](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468661092) SUCCESS (artifact only). Earlier M4 candidate builds pre-dating this security fix must **not be installed or used for release**.
 
 **Next gate:** isolated Homeserver stage must use an exact commit **at or after** `6814c571...` (prefer current branch HEAD) with verified `STAGE_M4=PASS`. No production cutover is authorized merely by CI.
+
+## First Homeserver stage failure and correction (2026-11-19)
+
+Operator evidence: detached `tervon-m4-isolated-stage.service`, exact SHA `8b2f3d723469ae4bf8211adf2b7a0280138c0014`, GitHub fetch PASS, `go vet` stopped immediately with `build cache is required, but could not be located: GOCACHE is not defined and neither $XDG_CACHE_HOME nor $HOME are defined`. The unit exited **FAILURE**, no tests or binary were produced, and production Bridge/Stats/nginx remained untouched.
+
+**Fix in GitHub:** the guarded staging script now creates isolated per-run `HOME`, `XDG_CACHE_HOME`, `GOCACHE`, `GOMODCACHE` and `TMPDIR` inside the private `stage-XXXXXXXX` tree before invoking Go. GitHub workflow checks the presence of these variables and runs a Go environment smoke test with inherited `HOME` and `GOCACHE` removed. This only fixes the missing runtime environment; it does not modify Bridge source or live services.
+
+**Do not repeat the failed old SHA.** Use the corrected branch tip with a new exact full SHA, not a stale checkout. The existing failed stage directory may remain as evidence; do not delete it automatically. Stage PASS must still be proven on Homeserver from detached systemd journal after CI, and only then can this acceptance subgate close.
