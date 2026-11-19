@@ -2,6 +2,9 @@
 
 **Статус:** утверждённый порядок работы, актуализировано 2026-11-19. **Единственный рабочий план для следующих изменений.**
 
+> **M4 MIXED-VERSION LIVE OBSERVATION — BLOCKED BY LEGACY SAMPLER DIAGNOSTIC (2026-11-19):** операторский `tervon-m4-mixed-live.service` (Homeserver M3 → Finserver M4) запустился 10:55:08, `m3_passive_live_evidence.py` после ~13с завершился `M3_PASSIVE_EVIDENCE_FAIL`, `failure_type=ValueError`, unit exit 1. **Причина НЕ УСТАНОВЛЕНА**: старый скрипт скрывает текст исключения, один `ValueError` охватывает HTTP fetch, schema/status/ready/counters/reset. Это не доказывает поломку M4, но **не является PASS живой совместимости**. Finserver M4 process/SHA PASS сохраняется, Homeserver M3 НЕ ПЕРЕКЛЮЧАТЬ. Добавлен короткий read-only `tests/homeserver/m4_mixed_diagnose.py` с точным кодом статуса/причины/роли/имени числового поля без конфигурации, ключей, URL и raw JSON, плюс offline тесты/CI. Только после безопасной диагностики и подтверждённого TCP VPN трафика решать о Homeserver cutover или rollback Finserver. **M4 IN_PROGRESS / M5 NOT STARTED.**
+
+
 > **M4 FINSERVER CUTOVER — OPERATOR PROCESS+SHA PASS (2026-11-19):** на Finserver оператор запустил `tervon-m4-finserver-cutover.service`, команда `m4-cutover-switch.sh install finserver` завершилась **`M4_INSTALL=PASS_PROCESS_AND_SHA`**, `ROLE=finserver`, `UNIT=tervon-bridge-server.service`, `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`, systemd transient unit завершился успешно. **Finserver работает с M4, Homeserver остаётся на M3.** Старые бинарники M3 сохранены на обоих узлах. Отдельный обязательный gate **M3 Homeserver → M4 Finserver реальный VPN/data plane, TLS13/h2, PAD/Jitter, ошибки/сессии** ещё NOT TESTED; до подтверждения не переключать Homeserver. При проблемах — explicit rollback Finserver (не путать процессный PASS с полной работой сети). **M4 IN_PROGRESS / M5 NOT STARTED.**
 
 
