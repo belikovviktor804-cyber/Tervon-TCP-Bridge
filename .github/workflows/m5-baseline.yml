@@ -1,0 +1,24 @@
+name: M5.1 baseline provenance (offline)
+on:
+  push:
+    branches:
+      - work/m5-linux-release
+    paths:
+      - 'tests/m5/**'
+      - '.github/workflows/m5-baseline.yml'
+  pull_request:
+    paths:
+      - 'tests/m5/**'
+      - '.github/workflows/m5-baseline.yml'
+permissions:
+  contents: read
+jobs:
+  baseline-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax verification
+        run: python3 -m py_compile tests/m5/verify_release_baseline.py tests/m5/test_verify_release_baseline.py
+      - name: Synthetic metadata and artifact regression tests
+        run: python3 -m unittest discover -s tests/m5 -p 'test_*.py' -v
