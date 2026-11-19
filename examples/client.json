@@ -5,7 +5,10 @@
   "key_file": "/etc/tervon-tcp-bridge/pki/client.key",
   "ca_file": "/etc/tervon-tcp-bridge/pki/server-ca.crt",
   "server_name": "bridge.example.org",
-  "remote_url": "https://bridge.example.org:18443/v1/stream",
+  "remote_url": "https://bridge.example.org:18443/v2/stream",
   "service": "vpn",
-  "max_local_connections": 32
+  "max_local_connections": 0,
+  "padding_enabled": true,
+  "padding_rate_enabled": true,
+  "jitter_enabled": true
 }
