@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.1 offline verifier: operator 5/5 PASS on Homeserver
+
+- Operator `git pull --ff-only origin work/m5-linux-release` advanced checkout `e9a96b3..4b0a7ac`. Command `python3 -m unittest discover -s tests/m5 -p 'test_*.py' -v` returned five `ok` cases, `Ran 5 tests in 0.001s`, `OK`, `M5_TEST_EXIT_CODE=0`.
+- Passed cases: malformed release tag/external URL, duplicate asset, invalid size, SHA mismatch, valid asset selection. **OFFLINE_VERIFIER_TESTS=OPERATOR_PASS, exact checkout HEAD=4b0a7ac4c218755af3a18c303376faf8a740adf8**.
+- This is a confirmed **Homeserver offline test**, not a claim of GitHub CI, real TCP benchmarks or full M5.1 module PASS. v1.0.0 published asset identity separately PASS in previous entry; next focus remains M5.1 comparable baseline/thresholds. Production services unchanged. M6 HOLD.
+
 ## 2026-11-19 — M5.1 operator verifies v1.0.0 published binary asset: PASS
 
 - Operator completed SSH GitHub clone into isolated M5 source, downloaded published `v1.0.0/tervon-bridge-linux-amd64` into isolated artifacts, and ran `tests/m5/verify_release_baseline.py` successfully.
