@@ -3,7 +3,7 @@
 **Ветка:** `work/m5-linux-release`  
 **M4:** `CLOSED / OPERATOR PASS`  
 **M5.2+M5.3:** offline PASS, live passive PASS, адаптивный Jitter policy PASS; финальная сводка 180-секундного пользовательского стресс-теста **ещё не получена**  
-**M5.4/M5.5/M5.6:** подготовка пакета разрешена, публикация **NOT AUTHORIZED / NOT RELEASED** до закрытия gate.  
+**M5.5 package files:** operator preparation PASS (`RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, exit 0); **M5.4/M5.5/M5.6 gate:** CI and approval pending; GitHub Release **NOT RELEASED**.  
 **M6:** HOLD.
 
 ## Обязательные входные данные
@@ -80,3 +80,7 @@ gh release create v1.0.1 \
 ## Важная граница
 
 Пользователь подтвердил работоспособность VPN. Исходные и Jitter-policy тесты также пройдены. Промежуточный стресс-тест показал живой Padding/Jitter; **полный трёхминутный отчёт пока отсутствует**. Статус `M5 IN_PROGRESS` нужно держать честным до его сверки и завершения указанных release blockers.
+
+## Операторский результат package preparation (2026-11-19)
+
+`RELEASE_PREP=PASS_VERIFIED_EXISTING_M4` / `RELEASE_PREP_EXIT_CODE=0`; версия `v1.0.1`; origin M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`; артефакты `/opt/tervon-tcp-bridge/m5/release`. Отдельно подтверждено `PUBLICATION_DONE=NO`. **Повторная пересборка или повторный prepare не требуются**. Следующий шаг — финальная сводка `M5_LOAD`, CI и release gate; upload/tag не выполнены.
