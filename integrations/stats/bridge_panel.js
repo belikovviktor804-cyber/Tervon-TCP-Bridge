@@ -5,8 +5,8 @@
   "use strict";
   const api = "/bridge/api/status";
   const ids = [
-    "tb-sessions-active", "tb-sessions-counts", "tb-bytes", "tb-backend",
-    "tb-latency", "tb-tls", "tb-runtime", "tb-adaptation",
+    "tb-sessions-active", "tb-sessions-counts", "tb-bytes",
+    "tb-runtime", "tb-adaptation",
     "tb-padding-bytes", "tb-padding-overhead", "tb-padding-direction",
     "tb-padding-activity", "tb-jitter-delays", "tb-errors",
   ];
@@ -57,15 +57,6 @@
     setText("tb-sessions-counts",
       [m.sessions_started, m.sessions_completed, m.sessions_rejected].map(fmt).join(" / "));
     setText("tb-bytes", bytes(m.upload_bytes) + " / " + bytes(m.download_bytes));
-    // These are Decapsulator-side observations. On the Homeserver client,
-    // zero does not mean that TLS or backend connectivity is absent.
-    setText("tb-backend", "На стороне Decapsulator");
-    setText("tb-latency", integer(m.connect_latency_samples) &&
-      m.connect_latency_samples > 0 ?
-      [m.connect_latency_p50_ms, m.connect_latency_p95_ms,
-        m.connect_latency_p99_ms].map(decimal).join(" / ") + " мс" :
-      "Нет измерений");
-    setText("tb-tls", "На стороне Decapsulator");
     setText("tb-runtime", decimal(m.uptime_seconds) + " с / " +
       fmt(m.goroutines) + " / " + bytes(m.memory_alloc_bytes));
     // OFF is an activity state; legacy binaries may not report configuration.
@@ -112,7 +103,7 @@
   // traffic, and never render untrusted HTML or expose remote endpoint URLs.
   const finIds = ["tb-fin-active", "tb-fin-bytes", "tb-fin-pad",
     "tb-fin-overhead", "tb-fin-jitter", "tb-fin-adaptation",
-    "tb-fin-backend", "tb-fin-tls"];
+    "tb-fin-backend", "tb-fin-latency", "tb-fin-tls"];
   const renderFin = (data) => {
     const node = data && data.schema === "tervon.bridge.dashboard.v1" &&
       data.nodes && data.nodes.finserver;
@@ -143,6 +134,17 @@
     setText("tb-fin-adaptation", padding + " / " + state(m.jitter_state));
     setText("tb-fin-backend",
       fmt(m.backend_dial_success) + " / " + fmt(m.backend_dial_failure));
+    // These are measurements made by the Decapsulator, not Homeserver.
+    // Show a factual sample count when no latency observations exist.
+    if (integer(m.connect_latency_samples) && m.connect_latency_samples > 0) {
+      setText("tb-fin-latency", [
+        m.connect_latency_p50_ms, m.connect_latency_p95_ms,
+        m.connect_latency_p99_ms,
+      ].map(decimal).join(" / ") + " мс (" + fmt(m.connect_latency_samples) + ")");
+    } else {
+      setText("tb-fin-latency",
+        integer(m.connect_latency_samples) ? "0 замеров" : "—");
+    }
     setText("tb-fin-tls", fmt(m.tls13_h2_mtls_requests));
   };
   const refresh = async () => {
