@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5 no-fixed-session-quota candidate verified on Homeserver (STAGING ONLY)
+
+- Operator ran isolated `tests/m5/run-m5-unbounded-candidate.sh` against source `96c136702d10b6fb9a16aa2893f6b978e8b14e86`, exit `0`. `VET=PASS`, `UNIT=PASS`, `RACE=PASS`, `BUILD=PASS`, `PASS_STAGING_ONLY`. Compiled artifact `tervon-bridge-linux-amd64: OK`, SHA256 `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`; private stage `/opt/tervon-tcp-bridge/m5/unbounded/stage-qSxWhELI`.
+- `PRODUCTION_MODIFIED=NO`. Deployed M4 binaries still `5035217a...` and both active configs still admission cap 100. No service restart/install/release. The old prepared M4 release is stale for the no-quota fix; never upload it as fixed v1.0.1.
+- Next gate within M5: read-only host checks and exact-file backup/config-and-binary transaction design for Finserver then Homeserver; operator approval required before touching production. No M6 work.
+
 ## 2026-11-19 — remove hidden admission quota from planned v1.0.1 fix
 
 - Operator explicitly rejects fixed client/session caps: seven application sessions did not imply only seven underlying TCP streams. Confirmed both live nodes configured with 100 max sessions, 313 local rejects on Homeserver. This preset was imposed without approval and must not ship as the default product policy.
