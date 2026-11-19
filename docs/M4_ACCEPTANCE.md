@@ -28,3 +28,12 @@ Operator accepted M3 real PAD/Jitter behaviour and authorized immediate transiti
 - Any future host build may run on Homeserver, in an isolated staging directory, without replacing production binaries or restarting services.
 - Keep M3 validation results separate from M4 implementation evidence.
 - Do not overclaim DPI invisibility from TLS1.3/HTTP2 compatibility.
+
+## M4 batch 2 — targeted network failure tests (2026-11-19)
+
+Added test-only, isolated regression cases; no production service or server configuration changes:
+
+- `prototype/m4_failure_modes_test.go`: a local TCP peer that accepts a socket without sending any TLS records must hit a bounded TLS-handshake timeout; a real TLS 1.3 / h2 test server that never returns response headers must hit `ResponseHeaderTimeout` and cancel the handler's HTTP/2 context; an oversized h2 response header (>64KiB) must be rejected under transport's 32KiB cap.
+- `prototype/m4_long_lived_stream_test.go`: after valid h2 headers, an established byte-exact TCP echo session must survive an idle gap longer than the response-header timeout and terminate cleanly after the local peer closes. This guards against mistakenly substituting `http.Client.Timeout` or server body deadlines for setup-only bounds.
+
+**Gate:** exact branch commit must pass full `Go prototype checks` (unit, vet, race, M1/M2/M3 regressions); no manual host run and no M4 release PASS until then. Existing tests cover backend refusal/cancellation, capacity and goroutine churn but those pass results must be checked against current SHA, not historical commits.
