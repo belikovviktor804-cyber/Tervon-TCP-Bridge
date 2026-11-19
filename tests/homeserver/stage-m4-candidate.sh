@@ -6,7 +6,7 @@ REMOTE='git@github.com:tervon-software/Tervon-TCP-Bridge.git'
 BRANCH='work/m4-http2-reliability'
 ROOT='/opt/tervon-tcp-bridge/m4'
 SOURCE="$ROOT/source"
-EXPECTED_SHA="$1"
+EXPECTED_SHA="${1:-}"
 if [[ "$EUID" -ne 0 || ! "$EXPECTED_SHA" =~ ^[[:xdigit:]]{40}$ ]]; then
   echo 'STAGE_M4=ROOT_AND_EXACT_SHA_REQUIRED'
   exit 2
