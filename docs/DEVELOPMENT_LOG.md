@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 guarded Homeserver staging script: CI PASS (not executed on host)
+
+- Source `tests/homeserver/stage-m4-candidate.sh` prepares separate `/opt/tervon-tcp-bridge/m4` workspace, GitHub SSH-only clone/fetch, requires an exact 40-character expected SHA, clean M4 checkout and HEAD match, archives exact source into a private new staging directory, runs Go vet and isolated `go test -race -run '^TestM4'`, builds static Linux amd64 binary and validates SHA256/provenance. It contains no systemd, Nginx, VPN or production binary modification commands.
+- `.github/workflows/go-prototype.yml` checks `bash -n` and absence of direct service-management commands in the staged script. Initial validation run #44467617619 failed due to an overly broad CI grep matching the word "service" in a **comment**. The safety matcher was corrected to target command starts, not documentation comments; source script was unchanged.
+- [Go prototype checks #44467642316](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44467642316) **SUCCESS** at commit `24e6352a76b9759afa0c1c07b3b71c8ad70053b9`, including M4 isolated stage safety/syntax check, Go build/vet/unit/race and full M1/M2/M3 regressions.
+- **M4 staged candidate on Homeserver = NOT RUN; real production VPN/data plane not touched.** Isolated host staging instructions and acceptance criteria in `docs/M4_ACCEPTANCE.md`. M4 module and M5 release gates remain open.
+
+
 ## 2026-11-19 — M4 authenticated HTTP/2 resource churn: full CI PASS; isolated M4 candidate PASS
 
 - `prototype/m4_churn_test.go` at commit `9ce54ac557856e6596e04cf1f5141a0b020fe566`: 3 waves × 8 authenticated mTLS/HTTP2 sessions, existing M3 negotiated rate padding and jitter enabled; byte-exact loopback backend, each wave drains both clients' and server's active session counts to 0, verifies 24 started/completed on both and bounded residual Go goroutines after closing transport idle connections. No production services touched.
