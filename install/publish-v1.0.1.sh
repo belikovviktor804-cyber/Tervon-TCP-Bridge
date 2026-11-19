@@ -48,11 +48,16 @@ fi
 
 # Bind tag to the exact source-and-public-documents branch HEAD.
 # Git tag creation via the GitHub REST API, not HTTPS git push.
-REMOTE_TAG="$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)"
-if [[ -n "$REMOTE_TAG" ]]; then
+# gh may print an HTTP error JSON body even when it exits nonzero.
+# Check the exit code rather than treating nonempty stdout as a valid tag SHA.
+if REMOTE_TAG="$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.sha' 2>/dev/null)"; then
+  [[ "$REMOTE_TAG" =~ ^[[:xdigit:]]{40}$ ]] ||
+    { echo "M5_PUBLISH=BLOCKED_UNEXPECTED_TAG_RESPONSE"; exit 3; }
   [[ "$REMOTE_TAG" == "$HEAD_SHA" ]] ||
     { echo "M5_PUBLISH=BLOCKED_TAG_POINTS_TO_OTHER_COMMIT"; exit 3; }
 else
+  # A missing ref returns HTTP 404. A transient or authorization error will
+  # fail closed at the POST request; an existing tag cannot be overwritten.
   gh api --method POST "repos/$REPO/git/refs" \
     -f "ref=refs/tags/$TAG" -f "sha=$HEAD_SHA" >/dev/null
 fi
