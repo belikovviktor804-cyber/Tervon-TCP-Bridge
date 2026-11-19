@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — remove hidden admission quota from planned v1.0.1 fix
+
+- Operator explicitly rejects fixed client/session caps: seven application sessions did not imply only seven underlying TCP streams. Confirmed both live nodes configured with 100 max sessions, 313 local rejects on Homeserver. This preset was imposed without approval and must not ship as the default product policy.
+- In current M5 branch changed `prototype/cmd/bridge/main.go` to accept `max_local_connections=0` and `max_streams=0` as no fixed quota, while rejecting negative limits; existing data-plane already checks `>0`. Removed obsolete test cases rejecting zero and added `m5_unbounded_config_test.go` covering client/server, zero/positive/negative with adaptive Pad/Jitter config. No CI/host verification yet: SOURCE_IMPLEMENTED, TESTS_COMMITTED, PASS_PENDING.
+- Caught and restored accidental `docs/DEVELOPMENT_PLAN.md` truncation: former branch had 17 lines versus 781-line source of truth at commit `3128a1a`, restored full plan plus current decisions. No deployment. Previously prepared M4 binary is obsolete for quota fix; must rebuild, verify and receive controlled two-node cutover approval before release. M6 HOLD.
+
 ## 2026-11-19 — Single read-only capacity diagnosis prepared (not yet executed)
 
 - M4 `Client.ListenAndServe` rejects new local TCP connections when `MaxLocalConnections` slots are exhausted, increments `sessions_rejected` outside `errors`. Seven concurrent application test sessions cannot be equated with TCP sessions; 313 historical rejects remain an admission-capacity finding until the actual cap is known.
