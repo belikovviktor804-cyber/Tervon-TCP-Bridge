@@ -32,7 +32,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import pathlib
-          required="5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90"
+          required="4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b"
           for path in ("install/install-bridge.sh", "install/prepare-release-assets.sh"):
               text=pathlib.Path(path).read_text(encoding="utf-8")
               assert required in text, path
