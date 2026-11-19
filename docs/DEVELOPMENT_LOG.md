@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Finserver M4 binary installation and process verification: operator PASS, mixed M3/M4 runtime
+
+- Operator executed guarded `m4-cutover-switch.sh install finserver` via detached `tervon-m4-finserver-cutover.service` on Finserver. Journal shows successful service start at Finserver Nov 19 07:49:52, completed 07:50:01 with **`M4_INSTALL=PASS_PROCESS_AND_SHA`**, `ROLE=finserver`, `UNIT=tervon-bridge-server.service`, `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`, transient unit deactivated successfully.
+- **Finserver M4 install/process gate = PASS.** Prepared Finserver M3 backup remains `/opt/tervon-tcp-bridge/m4/cutover-finserver/m3-bridge`, SHA `df3bcdfc70dfa8f238af454cd9fa1e852188b61233799972fd38bde48c8aa499`. Homeserver still expected to run M3, but this has not been remeasured after the Finserver cutover.
+- **Mixed-path M3 Homeserver client → M4 Finserver server live compatibility has NOT been verified** by this journal: process/hash PASS is not proof of successful authenticated HTTP2 connections, backend data flow, PAD/Jitter or stable error counters. Do not switch Homeserver until a separate mixed-version actual VPN/Stats observation PASS. On data-plane failure, explicitly rollback **Finserver only** using the prepared M3 binary and verify recovery; startup auto-rollback does not monitor later failures.
+- **M4 MODULE IN_PROGRESS / M5 NOT STARTED / Linux v1.0.1 NOT RELEASED.**
+
+
 ## 2026-11-19 — M4 cutover: both immutable M3 backups and M4 candidates prepared, operator PASS
 
 - Operator executed nonmutating `tests/homeserver/m4-cutover-prepare.sh` on Homeserver and Finserver; **both returned `M4_PREPARE=PASS`** with `LIVE_BINARY_REPLACED=NO`, `LIVE_SERVICE_RESTARTED=NO`.
