@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 read-only production cutover preflight CI PASS, operator host outputs still required
+
+- New source `tests/homeserver/m4-live-preflight.sh` inspects ONLY the known `tervon-bridge-client.service` on Homeserver or `tervon-bridge-server.service` on Finserver and obtains the real selected `ExecStart` executable, `MainPID`, active state and SHA256 of both disk and `/proc/PID/exe`. Rejects unexpected binary paths and disk/running mismatches, does not read configs or expose secrets, and never restarts services.
+- [Go prototype checks #44479023907](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44479023907) **SUCCESS** at source/workflow commit `a58c96f0e207970648ef9156cadedfd36737e993`, including preflight `bash -n` and no-service-mutation guard, full Go unit/race/vet and M1–M4 regressions. Independent host preflight command is in `docs/M4_ACCEPTANCE.md`.
+- **CI/PREFLIGHT CODE PASS; PROD TWO-HOST PREFLIGHT NOT RUN; M4 NOT DEPLOYED.** Operator approval was conditional upon readiness. Finserver active executable may differ from the path containing an older artifact; obtain both actual SHA256 outputs before preparing M4 replacements or touching any live Bridge service. M5 remains NOT STARTED.
+
+
 ## 2026-11-19 — M4 production cutover conditionally authorized; preflight tooling prepared, NO DEPLOYMENT
 
 - Operator: `Продолжаем. Если готово, можно менять М3 на М4 и проверять работу.` Prior evidence: M4 Linux candidate source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, Homeserver staging `STAGE_M4=PASS`, `M4_TARGETED_RACE=PASS`, candidate SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. **No dual-host live M4 proof yet.**
