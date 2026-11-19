@@ -38,3 +38,22 @@ cat BUILD_INFO
 - Quantitative real-network RTT / per-stream fairness and actual wallclock Jitter maxima: NOT_MEASURED; M5.2+M5.3 final gate not marked full PASS
 - LICENSE absent at repository root. No license or public redistribution permission silently invented; require operator decision
 - Official GitHub Release v1.0.1: NOT_RELEASED; existing v1.0.0 only. Do not publish until approved gates satisfied
+
+## Авторизация официального выпуска и фактическая публикация
+
+**Оператор 2026-11-19 прямо поручил опубликовать Linux v1.0.1** и привести публичные README/инструкции в порядок. Это разрешение на публикацию проверенного бинарника и документации, **не** заявление о PASS ранее неизмеренных сетевых RTT/per-stream fairness/live wall-clock maxima. Ограничения явно отражены в публичных release notes. Ни одна open-source лицензия не назначена: файл LICENSE отсутствует, репозиторий доступен публично, но права на копирование/модификацию кода не предполагаются автоматически.
+
+- Публичный README в `main` обновлён, убраны ссылки на внутренний AI/development plan, добавлено клонирование `git@github.com:tervon-software/Tervon-TCP-Bridge.git`.
+- Обновлены `SECURITY.md`, `docs/CONFIGURATION.ru.md`, `INSTALL-v1.0.1.ru.md`, `INSTALL-BINARY.ru.md`, `RELEASE.ru.md`, `RELEASE_NOTES_v1.0.1.ru.md`, `INSTALL.ru.md`, `TROUBLESHOOTING.ru.md`, `examples/client.json`, `examples/server.json` и установщик в `main` для новых Linux-серверов.
+- [Public release preflight PASS](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44532739760) (Bash синтаксис, точный SHA, нулевые квоты, отсутствие внутренних ссылок на главной странице); installer CI PASS (run 44532252732).
+- **Публикация бинарных файлов требует GitHub API от имени оператора Homeserver**, поскольку проверенный бинарник физически хранится там. Подготовлен `install/publish-v1.0.1.sh`, который использует официальную утилиту `gh` (предварительно авторизованную вне ChatGPT). Скрипт верифицирует SHA/исходный commit, создаёт тег через GitHub API, затем **draft** Release, загружает три asset, скачивает их обратно и побайтно сверяет перед снятием флага draft. Никаких production-сервисов или PKI не касается.
+
+На Homeserver, если официальный `gh` уже доступен и авторизован:
+
+```bash
+cd /opt/tervon-tcp-bridge/m5/source || exit 1
+git pull --ff-only origin work/m5-linux-release
+bash install/publish-v1.0.1.sh
+```
+
+Успешный завершающий маркер: `M5_PUBLISH=PASS_PUBLIC_RELEASE` и фактическая ссылка `https://github.com/tervon-software/Tervon-TCP-Bridge/releases/tag/v1.0.1`. **До этого маркера публикацию нельзя считать завершённой.** При отсутствии `gh` или авторизации — `BLOCKED`, не подставлять токен в чат и не обходить проверку. Повторно не пересобирать и не переустанавливать Bridge.
