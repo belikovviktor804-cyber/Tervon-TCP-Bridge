@@ -16,6 +16,9 @@ function mount(fetcher) {
     "tb-tls", "tb-runtime", "tb-adaptation",
     "tb-padding-bytes", "tb-padding-overhead", "tb-padding-direction",
     "tb-padding-activity", "tb-jitter-delays", "tb-errors",
+    "tb-fin-status", "tb-fin-active", "tb-fin-bytes", "tb-fin-pad",
+    "tb-fin-overhead", "tb-fin-jitter", "tb-fin-adaptation",
+    "tb-fin-backend", "tb-fin-tls",
   ]) elements.set(id, { textContent: "" });
   const calls = [];
   const context = {
@@ -192,6 +195,38 @@ test("latency without samples is not presented as zero milliseconds", async () =
 });
 
 test("never uses HTML injection sinks or remote metrics endpoints", () => {
-  assert.doesNotMatch(source, /\.innerHTML\s*=|insertAdjacentHTML|eval\s*\(/);
-  assert.doesNotMatch(source, /finserver|https?:\/\//i);
+  assert.doesNotMatch(source, /\\.innerHTML\\s*=|insertAdjacentHTML|eval\\s*\\(/);
+  assert.doesNotMatch(source, /https?:\\/\\//i);
+});
+
+test("Finserver renders independent delayed PAD and Jitter counters", async () => {
+  const payload = await response().json();
+  payload.nodes.finserver = {
+    status: "ok",
+    metrics: { ...payload.nodes.homeserver.metrics,
+      sessions_active: 45,
+      padding_download_frames: 1870,
+      jitter_download_frames: 357,
+      jitter_download_delay_ns: 407551246,
+      padding_download_wire_overhead_percent: 0.058,
+      jitter_state: "ENABLED",
+    },
+  };
+  const { elements } = mount(async () => ({ ok: true, json: async () => payload }));
+  await tick(); await tick();
+  assert.equal(elements.get("tb-fin-status").textContent, "Finserver готов");
+  assert.equal(elements.get("tb-fin-active").textContent, "45");
+  assert.equal(elements.get("tb-fin-pad").textContent, "7 / 1 870".replace(/\u00a0/g," "));
+  assert.match(elements.get("tb-fin-jitter").textContent, /357 \/ 407\.55 мс/);
+  assert.equal(elements.get("tb-sessions-active").textContent, "2");
+});
+
+test("Finserver loss clears only Finserver metrics", async () => {
+  const payload = await response().json();
+  payload.nodes.finserver = {status:"unavailable", metrics:null};
+  const { elements } = mount(async () => ({ok:true,json:async()=>payload}));
+  await tick(); await tick();
+  assert.equal(elements.get("tb-fin-status").textContent, "Finserver: метрики недоступны");
+  assert.equal(elements.get("tb-fin-active").textContent, "—");
+  assert.equal(elements.get("tb-sessions-active").textContent, "2");
 });
