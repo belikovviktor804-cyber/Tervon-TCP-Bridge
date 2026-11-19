@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 mixed-route safe 10-second diagnostic: CI PASS, host evidence pending
+
+- Safe diagnostic source commit `bf440fea4d6ca175ae971daa434972eac5e874a7` passed [Go prototype checks #44485259000](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44485259000) **SUCCESS**. This includes isolated tests of specific reasons for missing/not-ready node, missing/noninteger numeric metric, decreasing counter, fetch failure and secret-safe output; existing build/vet/race/M1–M4 regressions also passed.
+- `tests/homeserver/m4_mixed_diagnose.py` is read-only and emits a single JSON result after two public Stats samples 10 seconds apart; reports `status/reason/role/field` or numeric counter deltas and explicitly says `vpn_dataplane_proven=false`. This does **not** replace real TCP VPN testing. No configs, token values, raw JSON or exceptions are emitted.
+- Previous `tervon-m4-mixed-live.service` failed after 13s with `M3_PASSIVE_EVIDENCE_FAIL` `ValueError`, cause still unknown until operator's short diagnostic. **M4 mixed-version live gate NOT PASS**, Homeserver remains M3, Finserver M4 and no additional service modifications.
+
+
 ## 2026-11-19 — Mixed-version M3 Homeserver ↔ M4 Finserver passive sampling failed diagnostically; cause not yet identified
 
 - Operator ran detached `tervon-m4-mixed-live.service` with unchanged existing `tests/homeserver/m3_passive_live_evidence.py --duration 120 --interval 10`. Journal: started Homeserver 10:55:08, emitted `kind=start` at 10:55:11 (UTC 07:55:11), then emitted `{"kind":"summary","status":"M3_PASSIVE_EVIDENCE_FAIL","failure_type":"ValueError"}` at 10:55:24. Unit exited 1/FAILURE. **No 120-second summary or M4 mixed-version data-plane PASS.**
