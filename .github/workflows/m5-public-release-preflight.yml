@@ -1,0 +1,50 @@
+name: Linux v1.0.1 public release preflight (offline)
+on:
+  push:
+    branches: [work/m5-linux-release]
+    paths:
+      - 'README.md'
+      - 'SECURITY.md'
+      - 'docs/CONFIGURATION.ru.md'
+      - 'docs/INSTALL-v1.0.1.ru.md'
+      - 'docs/RELEASE_NOTES_v1.0.1.ru.md'
+      - 'examples/*.json'
+      - 'install/install-bridge.sh'
+      - 'install/publish-v1.0.1.sh'
+      - '.github/workflows/m5-public-release-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check installer and publisher syntax
+        run: |
+          bash -n install/install-bridge.sh
+          bash -n install/publish-v1.0.1.sh
+      - name: Check public examples, SHA, default zero quotas and link hygiene
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          expected="4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b"
+          client=json.loads(Path("examples/client.json").read_text())
+          server=json.loads(Path("examples/server.json").read_text())
+          assert client["max_local_connections"] == 0
+          assert server["max_streams"] == 0
+          assert client["remote_url"].endswith("/v2/stream")
+          assert client["jitter_enabled"] and server["jitter_enabled"]
+          readme=Path("README.md").read_text()
+          assert "docs/DEVELOPMENT_PLAN.md" not in readme
+          assert "docs/M5_RELEASE_PACKAGE.md" not in readme
+          assert "docs/DEVELOPMENT_LOG.md" not in readme
+          assert "releases/tag/v1.0.0" not in readme
+          assert "git@github.com:tervon-software/Tervon-TCP-Bridge.git" in readme
+          for path in ("install/install-bridge.sh","install/publish-v1.0.1.sh","docs/INSTALL-v1.0.1.ru.md","docs/RELEASE_NOTES_v1.0.1.ru.md"):
+              text=Path(path).read_text()
+              assert expected in text, path
+          print("M5_PUBLIC_DOCS_AND_INSTALLER=PASS")
+          PY
