@@ -5,7 +5,7 @@
 set -Eeuo pipefail
 umask 027
 VERSION=v1.0.1
-SHA=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90
+SHA=4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b
 ASSET=tervon-bridge-linux-amd64
 RELEASE=https://github.com/tervon-software/Tervon-TCP-Bridge/releases/download/v1.0.1
 PREFIX=/opt/tervon-tcp-bridge
@@ -176,7 +176,7 @@ if [[ "$ROLE" == client ]]; then
   "server_name": "bridge.example.org",
   "remote_url": "https://bridge.example.org:18443/v2/stream",
   "service": "vpn",
-  "max_local_connections": 64,
+  "max_local_connections": 0,
   "padding_enabled": true,
   "padding_rate_enabled": true,
   "jitter_enabled": true
@@ -191,7 +191,7 @@ else
   "cert_file": "/etc/tervon-tcp-bridge/pki/server.crt",
   "key_file": "/etc/tervon-tcp-bridge/pki/server.key",
   "ca_file": "/etc/tervon-tcp-bridge/pki/client-ca.crt",
-  "max_streams": 64,
+  "max_streams": 0,
   "padding_enabled": true,
   "padding_rate_enabled": true,
   "jitter_enabled": true,
