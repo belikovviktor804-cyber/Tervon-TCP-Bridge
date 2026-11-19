@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 PAD/Jitter actual TCP VPN activation: LIVE PASS (operator evidence)
+
+- Operator ran `tervon-m3-pad-jitter-live.service` detached (`m3_passive_live_evidence.py --duration 180 --interval 10 --require-activation`), 2026-11-19 05:08:53–05:12:28 UTC; 19 public-HTTPS samples via Finserver. Unit exited successfully with `status=PASS_PAD_AND_JITTER_ACTIVATED`, `error_delta_total=0`. Live active data-plane demand was created by operator on actual TCP VPN route, not by sampler.
+- Finserver sent **9,240 PAD frames / 4,448,642 PAD payload bytes**, and Homeserver received exactly **9,240 PAD frames / 4,448,642 bytes**. The total 18,480 in activation output sums sender and receiver observations, NOT 18,480 unique frames. Finserver downstream Jitter: **1,781 frames** and **1,519,999,202 ns** cumulative optional delays (~0.854 ms per delayed frame); Homeserver jitter frame delta 0, consistent with direction.
+- Finserver downstream useful bytes **205,613,515**, Homeserver received **205,613,380** (snapshot timing differences possible). Both nodes: +70 started, +62 completed, +0 rejected, active 29→37; 29+70−62=37. Finserver backend dial success +70, failure +0; TLS1.3/H2/mTLS +70. All error categories remained at delta 0. Under live sampling PAD/Jitter activated from step 7 onwards.
+- Operator browser screenshot also shows Finserver Padding active/enabled, total Jitter 1,951 frames / 1,787.55 ms since process start, and aggregate working sessions; screenshot values are cumulative and must not be substituted for the per-run deltas.
+- **Accepted gate: M3 production PAD/Jitter actual activation and two-sided PAD delivery = LIVE PASS. Do not repeat solely to prove activation.** Still NOT measured: individual frame maximum 4ms, per-stream 20ms/fixed window, live RTT and fairness against competing short streams, and drain behavior of controlled test sessions. **Full M3 PASS remains pending; M4 not started; Linux v1.0.1 not released.**
+
+
 ## 2026-11-19 — M3 PAD/Jitter activation gate source CI PASS (no live run)
 
 - Source commits `56f6db9b` (opt-in `--require-activation` checker), `d34d3e45` (isolated tests). Both PAD and Jitter counters must increase in one observed real-traffic window without increased error counters for `PASS_PAD_AND_JITTER_ACTIVATED`; no eligible traffic returns descriptive non-PASS and exit code 3.
