@@ -20,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT
 [[ $EUID == 0 ]] || { echo ROOT_REQUIRED; exit 2; }
-[[ -n "$INVOCATION_ID" ]] || { echo DETACHED_SYSTEMD_RUN_REQUIRED; exit 2; }
+[[ -v INVOCATION_ID ]] && [[ -n "$INVOCATION_ID" ]] || { echo DETACHED_SYSTEMD_RUN_REQUIRED; exit 2; }
 [[ -f "$SOURCE/.git/config" ]] || { echo SOURCE_MISSING; exit 2; }
 [[ "$(git -C "$SOURCE" remote get-url origin)" == 'git@github.com:tervon-software/Tervon-TCP-Bridge.git' ]] || { echo SSH_REMOTE_MISMATCH; exit 2; }
 [[ "$(git -C "$SOURCE" branch --show-current)" == work/m3-adaptive-jitter ]] || { echo BRANCH_MISMATCH; exit 2; }
