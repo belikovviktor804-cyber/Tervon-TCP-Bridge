@@ -7,7 +7,7 @@
 | Пакет | Приёмка | Статус |
 |---|---|---|
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
-| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS + ADAPTIVE POLICY 6/6 PASS / REAL NETWORK PENDING** |
+| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS + JITTER POLICY 6/6 PASS + USER-STOPPED LOAD OBSERVATION (9/18) / NETWORK QUANTITATIVE PENDING** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
 | M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **HOST RELEASE ASSETS PREP=PASS / CI + RELEASE GATES PENDING** |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
@@ -94,3 +94,7 @@ First run 4×128-frame loopback flows and 24 short probes completed successfully
 ## Операторский PASS подготовки релизных файлов — 2026-11-19
 
 На Homeserver выполнен `install/prepare-release-assets.sh`. Вывод оператора: `RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, `RELEASE_VERSION=v1.0.1`, `RELEASE_SOURCE_COMMIT=8d0aa3777c209d2825a1c11dfbae9487893cb7f5`, `RELEASE_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `RELEASE_DIR=/opt/tervon-tcp-bridge/m5/release`, `RELEASE_PREP_EXIT_CODE=0`, `PUBLICATION_DONE=NO`. **Подготовка бинарника/MANIFEST PASS**. Не означает GitHub Release или PASS установки с нуля; CI и финальные release gates отдельно. Действующие службы не тронуты.
+
+## Нагрузочный прогон YouTube + два Speedtest — уточнение оператора (2026-11-19)
+
+Оператор подтвердил: тест был **сознательно остановлен им после 9 из 18 запланированных интервалов**, потому что счёл уже полученные показатели достаточными. Отсутствие `summary` — следствие досрочной остановки, **не признак падения Bridge и не установленный дефект сборщика**. Сохранённый журнал `/opt/tervon-tcp-bridge/m5/results/m5.23-userload-Wowu3Ds3/telemetry.jsonl` содержит 9 последовательных 10-секундных снимков; пик наблюдавшихся активных TCP-сессий 66, PAD и Jitter фактически срабатывали на действующих Homeserver/Finserver. В интервалах 5–9 `error_delta=0` на обоих узлах; не следует автоматически распространять этот вывод на не предъявленные части журнала. Статус: `OPERATOR_EARLY_STOP / PARTIAL_LIVE_LOAD_EVIDENCE_ACCEPTED`, **не** `FULL_180S_PASS`. По решению оператора повторный пользовательский стресс-тест не запрашивается. Реальные RTT, wall-clock максимум Jitter и per-stream fairness агрегатными счётчиками не измерены. Успешная эксплуатация v1.0.1 и asset prep PASS остаются подтверждёнными.
