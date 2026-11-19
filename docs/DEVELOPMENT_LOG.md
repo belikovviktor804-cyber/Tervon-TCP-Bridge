@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Public two-node Stats UI: visual PASS (operator screenshots)
+
+- Operator confirmed no further dashboard testing is needed, providing two screenshots of the public Bridge dashboard with both sections and genuine values visible. Homeserver: 29 active sessions, 0 errors, PAD 29/1874 frames and Jitter 1 frame / 3.08 ms. Finserver: 31 active sessions, backend dial 1035 success / 0 failure, TLS 1035 requests, measured latency p50/p95/p99 1/1/1 ms from 1035 samples, Jitter 357 frames / 407.55 ms. Both sections rendered and prior text placeholders eliminated.
+- **M3 STATS UI = PASS (browser acceptance).** No more UI checks, reinstallations or restarts needed. Separate M3 gates for SSH tunnel resilience and sustained data-plane limits remain pending; v1.0.1 not released.
+
+
 ## 2026-11-19 — M3 public Bridge dashboard placeholder removal installed: local PASS (operator evidence)
 
 - On Homeserver, operator ran detached `systemd-run --unit=tervon-m3-ui-fix --collect` using `/opt/tervon-tcp-bridge/m3/evidence/install-ui-fix.sh`. Source checkout discovered at `/opt/tervon-tcp-bridge/m3/source`, Git SSH branch `work/m3-adaptive-jitter`, fast-forward `bb2a475 → 04c74c4`.
