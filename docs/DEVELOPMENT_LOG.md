@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — OPERATOR SCOPE CORRECTION: M4 is live v1.0.1; no previous-version comparisons
+
+- Operator explicitly clarified: M4 already delivers current Linux v1.0.1, and historical versions must not be reintroduced or used for comparative work.
+- Active plan now treats M5 as validation and release of **the existing M4 v1.0.1 binary/source**, not a new build campaign or a previous-version comparison; M5.1 baseline gate closed on M4 operator evidence, next M5.2 TCP evidence only.
+- Earlier provenance test results retained for history but no longer gating. `tests/m5/run-m5-1-source-batch.sh` marked **CANCELLED / DO NOT RUN**. Nothing launched on servers, no services touched. M6 HOLD.
+
 ## 2026-11-19 — M5.1 isolated source test + benchmark batch prepared
 
 - New `tests/m5/run-m5-1-source-batch.sh`: single-command private Go cache, source build, `go vet`, unit/race suites and bounded existing microbenchmarks; no service commands and no production config access.
