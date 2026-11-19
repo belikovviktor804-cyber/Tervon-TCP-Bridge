@@ -1,6 +1,6 @@
 # Установка Tervon TCP Bridge v1.0.1 скриптом (Linux x86-64)
 
-**Статус:** инструкция и установщик подготовлены в GitHub. До появления официального Release `v1.0.1` ссылка на автоматическое скачивание бинарника не работает; это не ошибка установщика. **Не запускайте эту процедуру поверх работающего Bridge.**
+**Для чистой первоначальной установки** на двух Linux-серверах. Готовые файлы и проверка SHA256 находятся в [GitHub Release v1.0.1](https://github.com/tervon-software/Tervon-TCP-Bridge/releases/tag/v1.0.1). **Не запускайте установщик поверх работающего Bridge.**
 
 ## Что устанавливается
 
@@ -11,13 +11,13 @@
 
 Режимы используют один и тот же Linux amd64 бинарник. Установщик создаёт системную учётную запись `tervon-bridge`, бинарник `/opt/tervon-tcp-bridge/bridge`, каталог `/etc/tervon-tcp-bridge/pki`, файл `client.json.example` или `server.json.example` и соответствующий `tervon-bridge-*.service`. **Не создаёт сертификаты, не изменяет firewall, не настраивает Xray и не включает службу автоматически.**
 
-Проверенный на Homeserver и Finserver бинарник M4=v1.0.1 имеет SHA-256:
+Проверенный бинарник Linux v1.0.1 имеет SHA256:
 
 ```text
 4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b
 ```
 
-Этот SHA жёстко зафиксирован в установщике; файл с любыми другими байтами будет отвергнут. Поэтому публикуется **именно бинарник M5 с отключённой фиксированной квотой**, успешно запущенный на двух серверах, а не старый M4 SHA.
+Этот SHA жёстко зафиксирован в установщике; файл с любыми другими байтами будет отвергнут. Публикуется **бинарник без фиксированной квоты TCP-сессий**, проверенный на двух серверах.
 
 ## 1. Предварительные условия
 
@@ -27,30 +27,31 @@
 
 ## 2. Скачать и проверить сам скрипт
 
-После публикации GitHub Release `v1.0.1` его исходный тег должен содержать `install/install-bridge.sh`. На новом сервере (в качестве root или через `sudo`) скачайте скрипт для осмотра:
+Для проверки исходного кода установщика рекомендуется клонировать официальный тег **через SSH**:
 
-```bash
-curl -fL --proto '=https' --tlsv1.2 \
-  -o install-bridge.sh \
-  https://raw.githubusercontent.com/tervon-software/Tervon-TCP-Bridge/v1.0.1/install/install-bridge.sh
-bash -n install-bridge.sh
-less install-bridge.sh
-```
+\`\`\`bash
+git clone git@github.com:tervon-software/Tervon-TCP-Bridge.git
+cd Tervon-TCP-Bridge
+git fetch --tags origin
+git checkout --detach v1.0.1
+bash -n install/install-bridge.sh
+less install/install-bridge.sh
+\`\`\`
 
-Для администраторов, желающих сверить source commit, загрузите скрипт из **подписанного/проверенного** GitHub source tag или получите код по Git SSH: `git@github.com:tervon-software/Tervon-TCP-Bridge.git`. Никогда не выполняйте удалённый скрипт через `curl | bash`.
+Не запускайте удалённые скрипты напрямую через `curl | bash`. Git tag указывает на исходники релиза, а исходный commit проверенного бинарника отдельно указан в [заметках к выпуску](RELEASE_NOTES_v1.0.1.ru.md). Не следует считать тег криптографически подписанным без проверки подписи.
 
 ## 3. Установить файлы (без запуска службы)
 
 На первом, локальном сервере:
 
 ```bash
-sudo bash install-bridge.sh install client
+sudo bash install/install-bridge.sh install client
 ```
 
 На втором, удалённом сервере:
 
 ```bash
-sudo bash install-bridge.sh install server
+sudo bash install/install-bridge.sh install server
 ```
 
 Скрипт загружает **только** официальный asset `tervon-bridge-linux-amd64` и `SHA256SUMS` из GitHub Release v1.0.1. Контрольный SHA проверяется дважды: против встроенного проверенного SHA и файла Release. Ожидаемый результат:
@@ -65,7 +66,7 @@ SERVICE_NOT_STARTED=YES
 Для установки **без доступа к GitHub**, после ручной передачи проверенных release assets:
 
 ```bash
-sudo bash install-bridge.sh install client \
+sudo bash install/install-bridge.sh install client \
   --asset ./tervon-bridge-linux-amd64 --checksums ./SHA256SUMS
 ```
 
@@ -134,14 +135,14 @@ python3 -m json.tool /etc/tervon-tcp-bridge/server.json >/dev/null  # тольк
 На сервере **server**:
 
 ```bash
-sudo bash install-bridge.sh activate server
+sudo bash install/install-bridge.sh activate server
 systemctl is-active tervon-bridge-server.service
 ```
 
 На сервере **client**:
 
 ```bash
-sudo bash install-bridge.sh activate client
+sudo bash install/install-bridge.sh activate client
 systemctl is-active tervon-bridge-client.service
 ```
 
@@ -167,4 +168,4 @@ journalctl -u tervon-bridge-server.service -n 30 --no-pager
 
 ## Подтверждение бинарника для официального выпуска
 
-На 2026-11-19 оператор подтвердил одновременный live cutover PASS обоих серверов на SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, настройка `max_sessions=0` на обоих подтверждена независимой телеметрией. В приведённых установщиком примерах `max_local_connections=0` и `max_streams=0`, то есть программного ограничения числа сессий нет. Сохраняются конечные ресурсы ОС, а также mTLS и авторизация. **Официальный GitHub Release v1.0.1 пока не опубликован**. Не пытайтесь устанавливать через URL Release до публикации assets, а существующие рабочие серверы не переустанавливайте этим скриптом.
+На 2026-11-19 оператор подтвердил одновременный live cutover PASS обоих серверов на SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, настройка `max_sessions=0` на обоих подтверждена независимой телеметрией. В приведённых установщиком примерах `max_local_connections=0` и `max_streams=0`, то есть программного ограничения числа сессий нет. Сохраняются конечные ресурсы ОС, а также mTLS и авторизация. Существующие рабочие серверы этим скриптом не переустанавливайте. Для новых серверов проверяйте, что SHA256 опубликованного asset совпадает с указанным выше.
