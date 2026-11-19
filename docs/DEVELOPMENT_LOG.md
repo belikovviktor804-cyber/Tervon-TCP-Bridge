@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5.2+M5.3 real-socket loopback RTT/fairness test prepared (not yet executed)
+
+- Added `tests/m5/m5_loopback_network_test.go` and `tests/m5/run-m5-network-batch.sh`: disposable unchanged M4 source, loopback TLS1.3/h2 mutual cert test server and backend, Padding/Jitter policies enabled, 4 x 128-frame long streams plus 24 short probes. Measures application RTT p50/p95/max, byte integrity, short-probe completion, stream progress, Jitter/PAD counters, Go heap; all local sockets, no production mutations.
+- **SOURCE_COMMITTED / NOT_RUN**; loopback results are not Homeserver↔Finserver RTT nor proof of fairness over uncontrolled WAN. Existing policy 4/20ms OPERATOR PASS retained, M5.2+M5.3 active, M6 HOLD.
+
 ## 2026-11-19 — M5.2+M5.3 adaptive Jitter numerical policy OPERATOR PASS 6/6
 
 - Homeserver ran `tests/m5/run-m5-adaptive-batch.sh` at `2026-11-19T09:40:35Z` from `87b2f2385813c5d82b6c15dfbe6c559248e0dea4`, testing unchanged M4 policy. Six test cases across two `-race` passes PASS, exit 0; log `/opt/tervon-tcp-bridge/m5/results/m5-adaptive-6bhWTQVD/tests.log`.
