@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5/M6 roadmap formalized in GitHub (documentation only)
+
+- Operator asked to update documentation and show M5/M6 planned scope. Reopened mandatory `docs/DEVELOPMENT_PLAN.md` on `work/m4-http2-reliability` and read original M5 and M6 definitions in order.
+- Created `docs/M5_M6_ROADMAP.md`: **M5** Linux baseline/comparative integration, real TCP VPN and only necessary quantitative RTT/CPU/RSS/Jitter/fairness/latency/rollback evidence, release notes/JSON/SHA256SUMS, **one GitHub Release v1.0.1**; **M6** (after M5) Android TervonVPN audit, approved Bridge integration approach, Keystore/protect() and VPN-loop prevention, opt-in «Обход DPI», mobile-network/lifecycle validation and separately authorized APK release.
+- Explicitly carried unfinished quantitative M3 jitter per-frame/window and per-stream fairness/load thresholds into M5 as release-blocking; operator-visible functioning VPN/Stats may be accepted through direct confirmation or screenshot rather than rerunning redundant long diagnostics.
+- **Status remains M4 installed on both Linux hosts with process/SHA PASS**, but no fresh operator confirmation of M4↔M4 real VPN/Stats after Homeserver switch was supplied; **M4 MODULE IN_PROGRESS, M5/M6 NOT_STARTED, Linux v1.0.1 NOT_RELEASED**. This commit updates documentation only; no server, running service, Android project or APK was touched.
+
+
 ## 2026-11-19 — Homeserver M4 cutover: process and SHA verification PASS; two-node M4 running
 
 - Operator launched detached `tervon-m4-homeserver-cutover.service` using the previously prepared, exact-checksum `m4-cutover-switch.sh install homeserver`. Homeserver journal Nov 19 11:24:20–11:24:24 shows `M4_INSTALL=PASS_PROCESS_AND_SHA`, `ROLE=homeserver`, `UNIT=tervon-bridge-client.service`, `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`; transient unit deactivated successfully.
