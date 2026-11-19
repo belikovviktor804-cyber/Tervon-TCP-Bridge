@@ -28,7 +28,7 @@ jobs:
           set -Eeuo pipefail
           bash -n install/install-bridge.sh
           bash -n install/prepare-release-assets.sh
-      - name: SHA pinned to installed and already-proven M4 binary
+      - name: SHA pinned to deployed and verified M5 no-quota binary
         run: |
           python3 - <<'PY'
           import pathlib
@@ -41,6 +41,9 @@ jobs:
           assert 'ACTIVATE=ALREADY_RUNNING_REFUSE' in installer
           assert 'SERVICE_NOT_STARTED=YES' in installer
           assert 'padding_enabled' in installer and 'jitter_enabled' in installer
+          assert '"max_local_connections": 0' in installer
+          assert '"max_streams": 0' in installer
+          assert '5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90' not in installer
           assert 'sha256sum --check --status SHA256SUMS' in installer
           print("M5_INSTALLER_STATIC=PASS")
           PY
