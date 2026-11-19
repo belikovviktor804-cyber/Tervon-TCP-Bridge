@@ -1,5 +1,9 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — post-cutover observer offline CI PASS
+
+- GitHub Actions cutover/observer offline workflow run [44529048327](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44529048327) completed **SUCCESS** on commit `cb7e7cafcc7778cb24faeec12834728c74ad9267`. It validates the new post-cutover Python observer with synthetic two-node metrics alongside previous coordinator rollback tests. The observer has **NOT** yet been run on active Homeserver/Finserver; this is source-only CI PASS.
+
 ## 2026-11-19 — Github installer CI PASS, post-cutover telemetry observer prepared
 
 - Real GitHub Actions run 44528805350 (installer, commit 2b26452) SUCCESS: Bash syntax, corrected M5 SHA, zero-cap templates and negative offline asset installation. Dual cutover offline mocked CI run 44524847060 SUCCESS. Earlier intermediate CI failures are superseded by these passing runs.
