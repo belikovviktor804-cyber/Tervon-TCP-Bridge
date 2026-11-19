@@ -63,7 +63,7 @@ class SiteTests(unittest.TestCase):
         self.assertEqual(headers["x-frame-options"], "DENY")
         self.assertIn(b"/bridge/bridge_panel.js", body)
         self.assertIn(b"/bridge/bridge_panel.css", body)
-        self.assertNotIn(b"finserver", body.lower())
+        self.assertIn(b"Finserver", body)
 
     def test_reuses_existing_monitoring_site_theme_and_navigation(self):
         app = module.create_app("")
@@ -104,6 +104,29 @@ class SiteTests(unittest.TestCase):
             with self.subTest(path=path):
                 status, _, _ = asyncio.run(request(app, path))
                 self.assertEqual(status, 404)
+
+
+    def test_finserver_loopback_and_independent_status(self):
+        class FakeCollector:
+            def __init__(self, endpoint):
+                self.endpoint = endpoint
+            def collect(self):
+                state = {"status": "unavailable", "metrics": None} if "8897" in self.endpoint else {"status": "ok", "metrics": {"ready": True}}
+                return {"schema": "tervon.bridge.dashboard.v1", "nodes": {"homeserver": state}}
+
+        with patch.dict("os.environ", {"TERVON_BRIDGE_FIN_METRICS_URL": "http://127.0.0.1:8897/metrics/v1"}, clear=True):
+            with patch.object(module, "BridgeMetricsCollector", FakeCollector):
+                app = module.create_app("http://127.0.0.1:8895/metrics/v1")
+                status, _, body = asyncio.run(request(app, "/bridge/api/status"))
+        self.assertEqual(status, 200)
+        nodes = json.loads(body)["nodes"]
+        self.assertEqual(nodes["homeserver"]["status"], "ok")
+        self.assertEqual(nodes["finserver"]["status"], "unavailable")
+
+    def test_remote_finserver_url_rejected(self):
+        with patch.dict("os.environ", {"TERVON_BRIDGE_FIN_METRICS_URL": "http://2.26.228.15:8896/metrics/v1"}, clear=True):
+            with self.assertRaises(ValueError):
+                module.create_app("")
 
     def test_bad_endpoint_fails_at_startup(self):
         with self.assertRaises(ValueError):
