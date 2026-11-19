@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M4 HTTPS/2 bounds and downgrade rejection: first source batch CI PASS
+
+- Tested M4 source commit `35067ac3bc59837e606a9aa6d63803e523abb2c7` on [Go prototype checks #44464477666](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44464477666): **SUCCESS**, including build, vet, unit, race, new M4 transport/server bounds and TLS1.2/h1/missing-ALPN rejection tests, M1/M2/M3 regressions and fuzz checks.
+- Earlier run [#44464272483](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44464272483) failed the pre-existing admission-test fixture because its simulated authenticated request had no TLS version or ALPN. Test fixture fixed (explicit TLS 1.3 + `h2`) in `35067ac3`; **production TLS/ALPN checks were not weakened**.
+- **M4 BATCH 1 SOURCE+CI = PASS.** Production Homeserver/Finserver untouched; no M4 live host acceptance and no M4 complete module PASS yet. Next in this same module: controlled failure cases, resource/churn evidence, bounded live acceptance; no M5 transition pending completed M4.
+
+
 ## 2026-11-19 — Operator accepts M3→M4 transition; M4 first reliability hardening package
 
 - Operator explicitly stated that the M3 Padding/Jitter question is closed and instructed to begin M4. Branch `work/m4-http2-reliability` created from `b97ad886258d5668f40370bef73013cbcc59d7e0` (latest documented live M3 PAD/Jitter activation). Prior confirmed M3 evidence includes 9,240 paired PAD frames, 1,781 Finserver jitter frames, zero error deltas, SSH tunnel fault/recovery PASS and public Stats PASS.
