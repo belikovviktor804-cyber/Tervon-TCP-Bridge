@@ -1,5 +1,14 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 passive public two-node telemetry: operator live PASS (19 snapshots)
+
+- Operator launched `tervon-m3-passive-live.service` on Homeserver, source `m3_passive_live_evidence.py --duration 180 --interval 10`. Detached unit ran 2026-11-19 04:51:25–04:55:00 UTC and exited successfully. **Result `PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`; 19 snapshots** via Finserver public HTTPS pinned to external IPv4.
+- Both nodes: 17 active sessions initially, 27 at end; 61 sessions started, 51 completed, 0 rejected, all error deltas = 0. All 18 intermediate readings showed the SAME active session count on both nodes; observed counts ranged from 20 to 46. Session accounting balances 17 + 61 − 51 = 27, on each node.
+- Homeserver: 1,613,532 bytes upload, 86,102,084 bytes download. Finserver: 1,612,461 bytes upload, 86,792,135 bytes download; Finserver backend dial success +61, failure +0, TLS1.3/H2/mTLS requests +61.
+- **Critical limitation:** PAD frames/bytes and Jitter frames/delay delta were all 0 in this 180s passive interval on both nodes. No qualifying traffic proved in this observation; this is NOT a Padding/Jitter under-load activation test. No real RTT, per-stream fairness, individual frame delay maxima, fixed-window jitter budgets, or session cleanup after isolated controlled load measured. These remain open M3 gates.
+- **Accepted subgate:** passive public two-node counter continuity PASS, do not rerun solely to confirm availability. **M3 module still IN_PROGRESS, M4 NOT STARTED, v1.0.1 NOT RELEASED.** No production services changed.
+
+
 ## 2026-11-19 — M3 passive external telemetry sampler: GitHub CI SUCCESS
 
 - Source `tests/homeserver/m3_passive_live_evidence.py` and `test_m3_passive_live_evidence.py`, workflow change through `298d90af7d6cbb46851f307ba1b4b4ae89135fc6`.
