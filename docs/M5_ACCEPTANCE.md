@@ -172,3 +172,9 @@ Read-only текущего production: `max_sessions=100` на Homeserver и Fin
 ## Новый исправленный v1.0.1: operator release asset prep PASS (2026-11-19)
 
 `RELEASE_PREP=PASS_VERIFIED_DEPLOYED_M5`, exit `0`, SHA256 `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, source `96c136702d10b6fb9a16aa2893f6b978e8b14e86`, artifacts `/opt/tervon-tcp-bridge/m5/release-no-quota`, `PUBLICATION_DONE=NO`. Пакет собран из уже работающего на двух узлах исправленного M5-бинарника, не из прежнего M4. Установщик теперь проверяет новый SHA и предоставляет JSON-примеры `max_local_connections=0`, `max_streams=0`. **PASS только локальной упаковки**; прямой результат CI workflow не получен, GitHub Release v1.0.1 ещё не опубликован. Не повторять `prepare-release-assets.sh` для уже существующего каталога; скрипт ожидаемо запрещает перезапись. М6 HOLD.
+
+## Проверено в GitHub: установщик CI PASS / post-cutover observer PENDING
+
+GitHub Actions installer workflow run 44528805350 SUCCESS: Bash syntax, correct M5 SHA, both installation templates with zero session limits, negative mismatched asset test with no installation. Dual cutover mock CI run 44524847060 SUCCESS. These are actual observed GitHub CI run results, not inferred from the source.
+
+Added `tests/m5/m5-post-cutover-readonly.py` for 30-second two-node read-only observations after production cutover, and synthetic unit tests. This does not open a VPN stream, print configs, or modify services. Use after SSH Git pull: `python3 tests/m5/m5-post-cutover-readonly.py`. It verifies Homeserver live process SHA, both nodes ready and max_sessions=0, reports counter deltas, goroutines and heap. If no user traffic occurs in the window, it prints NOT_OBSERVED rather than claiming an end-to-end transfer PASS. SOURCE COMMITTED / HOST NOT RUN. Network RTT, per-stream fairness and jitter wallclock max remain unmeasured; M5.2+M5.3 cannot be closed as full PASS without independent evidence or operator decision.
