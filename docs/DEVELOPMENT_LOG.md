@@ -1,5 +1,15 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5 started as new branch after confirmed M4 closure; M6 held for discussion
+
+- Operator explicitly confirmed `М4 готов. Работает. Можно закрывать. М5 сейчас создаём. М6 пока не делаем. По нему нужно ещё решить некоторые моменты обсуждением.`
+- Closed M4 in `docs/M4_ACCEPTANCE.md` based on confirmed two-host running M4 with identical binary SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, successful install/process SHAs, earlier CI/stage tests and operator's M4 working VPN acceptance. No additional long tests or host actions.
+- Final M4-branch closure state: `work/m4-http2-reliability` commit `eb4fde88d6477defb58f8237fd0526c292e93cfe`. Created **`work/m5-linux-release`** directly from that commit using GitHub API; M5 accepted as **IN_PROGRESS / M5.1 baseline planning**, not M5 implementation/test PASS.
+- Created `docs/M5_ACCEPTANCE.md` with sequential M5.1–M5.6 packages and Linux v1.0.1 release criteria; adjusted `docs/M5_M6_ROADMAP.md` and authoritative `docs/DEVELOPMENT_PLAN.md` to point to M5 as active.
+- **M6 explicitly `HOLD / DISCUSSION_REQUIRED / NOT_STARTED`**: Android design, source, UI, APK and any implementation remain untouched pending user discussion and decision. Historic M3 quantitative jitter/fairness/RTT/load evidence remains M5 release-blocking, not passed by the M4 operating acceptance.
+- Only GitHub docs and new branch were modified. **Homeserver/Finserver production unchanged**, Linux v1.0.1 **NOT_RELEASED**.
+
+
 ## 2026-11-19 — M4 final operator PASS; transition to M5, M6 on hold
 
 - Operator explicitly confirmed after the M4 upgrades on both hosts: **«М4 готов. Работает. Можно закрывать.»** Homeserver and Finserver both reported `M4_INSTALL=PASS_PROCESS_AND_SHA` against identical SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`. M4 HTTPS2 reliability CI and isolated staging passed earlier; operational VPN functionality accepted by operator. **M4 MODULE=CLOSED/PASS**; no redundant extended telemetry test.
