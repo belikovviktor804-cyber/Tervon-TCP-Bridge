@@ -216,7 +216,7 @@ test("Finserver renders independent delayed PAD and Jitter counters", async () =
   await tick(); await tick();
   assert.equal(elements.get("tb-fin-status").textContent, "Finserver готов");
   assert.equal(elements.get("tb-fin-active").textContent, "45");
-  assert.equal(elements.get("tb-fin-pad").textContent, "7 / 1 870".replace(/\u00a0/g," "));
+  assert.match(elements.get("tb-fin-pad").textContent, /^7 \/ 1[\s\u00a0\u202f]870$/);
   assert.match(elements.get("tb-fin-jitter").textContent, /357 \/ 407\.55 мс/);
   assert.equal(elements.get("tb-sessions-active").textContent, "2");
 });
