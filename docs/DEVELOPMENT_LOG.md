@@ -1,5 +1,15 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 simultaneous two-node real traffic measurement (operator evidence)
+
+- **COLLECTOR SSH FIX / simultaneous live data:** third collection in `/opt/tervon-tcp-bridge/m3/evidence/live-metrics.jsonl` has **12/12 valid samples on both Homeserver and Finserver**, UTC 02:20:48.431539 to 02:22:55.383720. Both nodes report `ready=true`, `padding_rate_configured=true`, `jitter_configured=true`. Unlike the first two data sets, no `CalledProcessError` for the third.
+- **Homeserver download payload:** `1,474,714,022 → 1,539,682,008`, delta **64,967,986 bytes** (~61.96 MiB over 126.95 seconds, ~4.09 Mbit/s aggregate). Aggregate throughput cannot establish per-stream ≥1 Mbps qualification.
+- **Bilateral downstream PAD consistency:** both report `padding_download_frames 701 → 1870` (+1169) and `padding_download_bytes 312583 → 868347` (+555764). Finserver `padding_download_transitions 20 → 24` with active and inactive samples. Homeserver receiver `padding_state=OFF` is distinct from remote sender's activity; PAD byte/frame counters agree end-to-end.
+- **Finserver downstream actual Jitter:** `jitter_download_frames 109 → 357` (+248), `jitter_download_delay_ns 144580471 → 407551246` (+262970775 ns / 262.97 ms, 1.06 ms **average** per newly delayed frame). Homeserver encoder jitter counters remain zero for upstream. This is **LIVE JITTER APPLIED PASS** at counters level, not proof of 4ms per-frame max or 20ms/s/per-stream guardrail.
+- **PAD overhead:** final cumulative `padding_download_wire_overhead_percent` Home **0.057612350822508276%**, Fin **0.058218331940012316%**, below 5% in displayed aggregate observations; cannot substitute for stream-specific worst case test.
+- **Status:** real two-node PAD and Jitter counter activity PASS; long-run RTT/fairness, per-stream bounds, site two-node integration, and external dashboard fresh HTTPS still pending; M3 **IN_PROGRESS / NOT RELEASED**. Only user supplied read-only telemetry was evaluated; no production service changed in this documentation update.
+
+
 ## 2026-11-19 — M3 live traffic counters and Finserver Jitter proof (operator evidence)
 
 - Homeserver `live-metrics.jsonl` 12 observations, 02:09:10–02:11:13 UTC. `ready=true`; `download_bytes` 90,314,955 → 154,450,323 (**+64,135,368 bytes**, roughly 4.17 Mbit/s aggregate), `sessions_active` 19 → 41; PAD downstream received `padding_download_frames=115`, `padding_download_bytes=42,216`. Last cumulative `padding_download_wire_overhead_percent=0.028077636328413504` (percentage, not fraction). Homeserver `jitter_*_frames=0` in this collection; this is not proof Jitter is inactive on the server.
