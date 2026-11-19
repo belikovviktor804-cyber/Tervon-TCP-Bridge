@@ -7,7 +7,7 @@
 | Пакет | Приёмка | Статус |
 |---|---|---|
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
-| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS / LIVE MEASUREMENTS PENDING** |
+| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS / QUANTITATIVE PENDING** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
 | M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | NOT_STARTED |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
@@ -46,3 +46,15 @@
 ## Короткая пассивная проверка v1.0.1 — подготовлена, ещё не выполнена
 
 `tests/m5/run-m5-23-live-short.sh`: один 60-секундный read-only прогон существующего M3 public dashboard sampler (6 интервалов по 10 секунд), проверка SHA и неизменности PID действующего M4-бинарника, снимки RSS/CPU, динамика сессий/счётчиков Padding/Jitter/ошибок с обеих нод. Не генерирует пользовательский TCP, не трогает сервисы/конфигурации; не повторяет 6/6 уже пройденных тестов. Пассивная телеметрия доказывает наблюдаемую стабильность за 60 секунд, **не** RTT, fairness или max per-frame/window jitter. `SOURCE_COMMITTED / LIVE_NOT_RUN`.
+
+## М5.2+М5.3 — 60-секундное пассивное испытание: OPERATOR PASS (2026-11-19)
+
+Оператор выполнил `tests/m5/run-m5-23-live-short.sh`. Источник: Homeserver, начало `2026-11-19T09:33:48Z`, журнал `/opt/tervon-tcp-bridge/m5/results/m5.23-live-sPZnEtyL/evidence.jsonl`; код возврата `0`. `M5_LIVE_RUNNING_M4_SHA=PASS`, `M5_LIVE_SAMPLER=PASS_PASSIVE_TWO_NODE_COUNTER_CONTINUITY`, `M5_LIVE_SAMPLES=7`, `M5_LIVE=PASS_PASSIVE_OBSERVATION`.
+
+| Показатель | Homeserver | Finserver |
+|---|---:|---:|
+| Активные сессии до → после | 17 → 15 | 17 → 15 |
+| Новые сессии | 7 | 7 |
+| Прирост ошибок | 0 | 0 |
+
+Параметры процесса Homeserver: CPU `0.6% → 0.6%`; RSS `20644 → 21128 KiB` (+484 KiB). За минутное окно `M5_LIVE_JITTER_FRAMES=0`, `M5_LIVE_PADDING_FRAMES=0`, поэтому реальное срабатывание адаптивных механизмов этим прогоном **не проверено**. Измерения реального RTT/fairness/максимума задержки на кадр `NOT_MEASURED`. Прежний source suite **6/6 PASS**, эксплуатация VPN/Stats ранее оператором подтверждена. **Текущая приёмка: OFFLINE_PASS + PASSIVE_LIVE_PASS; количественные Jitter/RTT/fairness ещё не PASS.** Никаких перезапусков или замен работающих служб.
