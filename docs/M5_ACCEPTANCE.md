@@ -7,7 +7,7 @@
 | Пакет | Приёмка | Статус |
 |---|---|---|
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
-| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **ACTIVE / NOT YET PASS** |
+| **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS / LIVE MEASUREMENTS PENDING** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
 | M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | NOT_STARTED |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
@@ -33,3 +33,12 @@
 ## Следующее действие
 
 Выполнить объединённый offline + evidence-inspection batch, получить один отчёт. Если обнаружится недостаток инструментирования для реальных RTT/Jitter/fairness, зафиксировать конкретный пробел **внутри объединённого пакета**, а не открывать другой модуль. M5.4 не начинать до подтверждённого PASS M5.2+M5.3.
+
+## Результат единого прогона — 2026-11-19, подтверждён оператором
+
+- Точно протестирован исходный код действующей M4=v1.0.1: M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; HEAD тестового checkout `3a6e1c5d0ce9be96fd5a2f7069c2256e65caf52f`; Go `go1.25.5 linux/amd64`.
+- Время начала `2026-11-19T09:27:17Z`; журнал `/opt/tervon-tcp-bridge/m5/results/m5.23-8xLZEb4p/summary.log`.
+- **Операторский PASS 6/6:** `M5_23_VET=PASS`, `M5_23_BUILD=PASS`, `M5_23_INTEGRATION=PASS`, `M5_23_RACE=PASS`, `M5_23_JITTER_REPEAT=PASS`, `M5_23_FRAMING_REPEAT=PASS`; `M5_23_OFFLINE=PASS`. Предыдущее свидетельство работающего VPN/Stats: `M5_23_LIVE_TCP=OPERATOR_M4_PASS_EXISTING`.
+- Конечный `M5_23_FINAL=BLOCKED_LIVE_MEASUREMENTS` и exit code 3 — **предусмотренная блокировка критериев, а не сбой тестов или сервиса**. Скрипт устанавливает этот код намеренно при отсутствии реальных численных наблюдений.
+- **Осталось измерить, не повторяя офлайн-прогон:** сетевой RTT, отсутствие starvation/fairness конкурентных потоков, реальный профиль CPU/RSS/goroutines, максимум задержек Jitter в live path (либо чётко разграничить строго доказанный policy bound и непроверенные wall-clock задержки). Не выдавать full PASS без этих данных.
+- Активный объединённый этап `M5.2+M5.3=OFFLINE_PASS / LIVE_MEASUREMENTS_PENDING`. M5.4 остаётся NOT_STARTED; M6 HOLD. Работающие службы не изменялись.
