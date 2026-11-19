@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Single read-only capacity diagnosis prepared (not yet executed)
+
+- M4 `Client.ListenAndServe` rejects new local TCP connections when `MaxLocalConnections` slots are exhausted, increments `sessions_rejected` outside `errors`. Seven concurrent application test sessions cannot be equated with TCP sessions; 313 historical rejects remain an admission-capacity finding until the actual cap is known.
+- Committed `tests/m5/m5_capacity_readonly.py` and synthetic validation `tests/m5/test_m5_capacity_readonly.py`. Existing two-node dashboard SSH collector is reused; only allowlisted limit/active/rejected/goroutine/heap numbers are returned. **SOURCE_COMMITTED / NOT_RUN_ON_HOMESERVER**; no secret config reading, production changes or load tests.
+- Next: operator runs once from SSH checkout, shares allowlisted `M5_CAPACITY_...` output. Current process cap is evidence for the installed limit, but not historic instant occupancy. M5.2+M5.3 remains active and M6 HOLD.
+
 ## 2026-11-19 — operator specifies seven simultaneous application sessions under load
 
 - Exact intended application workload: YouTube 1, Speedtest 3, 2ip.io Speedtest 3; total 7 concurrent application sessions. These are not identical to underlying Bridge TCP connections. Counters registered 424 admitted sessions and 313 rejected TCP attempts on Homeserver over the 180-second interval, which cannot be attributed solely to those seven sessions without connection-level evidence.
