@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M5 combined gate: isolated adaptive policy numerical batch ready
+
+- Prior passive check confirmed live M4 SHA, 7 session starts on both nodes and no new errors, but no eligible Padding/Jitter frames during minute window. Instead of repeating low-signal passive windows, added `tests/m5/m5_adaptive_policy_test.go` and `tests/m5/run-m5-adaptive-batch.sh` to exercise M4's unchanged jitter policy at virtual times under eligible, interactive/idle/backpressure and competing stream scenarios.
+- Bound checks: per frame ≤4ms, virtual fixed-second accumulated delay ≤20ms, independently budgeted streams, 2x isolated race execution. **SOURCE_COMMITTED / NOT_RUN**; no claim of real wire RTT/fairness, and no production service changes. M5.2+M5.3 in progress, M6 HOLD.
+
 ## 2026-11-19 — M5.2+M5.3 short read-only live observation OPERATOR PASS
 
 - Homeserver ran `tests/m5/run-m5-23-live-short.sh` at `2026-11-19T09:33:48Z`; live M4 SHA PASS, six 10-second intervals/seven snapshots, two-node continuity PASS, exit 0; report `/opt/tervon-tcp-bridge/m5/results/m5.23-live-sPZnEtyL/evidence.jsonl`.
