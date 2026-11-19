@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 closure source-level CI PASS, host gates remain pending
+
+- Validated CI workflow from source commit `57979a2e50210bc8fd61fd24f18a2a9365adee36`: [Go prototype checks #44454557397](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44454557397) **SUCCESS**, including tunnel recovery script `bash -n`, 30-second fixed-window eight-stream Jitter test in repeated race suite, Go build, Go unit and race regressions, M1/M2/fuzz checks. [M3 Linux candidate #44454557441](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44454557441) **SUCCESS (artifact only)**. The CI test script check does not inject host failure.
+- This CI evidence does not prove external SSH tunnel recovery or live real-network RTT/fairness. Those operator-run gates still remain `PENDING`; M4 has not started.
+- After successful CI, operator action is documented in `docs/M3_GATE_CLOSURE.md`. Not yet deployed or executed on Homeserver.
+
+
 ## 2026-11-19 — M3 remaining gate tooling and exact module sequencing (SOURCE only)
 
 - User instructed to continue and refresh documentation after approving full M4/M5/M6 progression. Checked latest `docs/DEVELOPMENT_PLAN.md` in GitHub: M3 still lacks tunnel reconnect-after-SIGTERM and live sustained RTT/fairness/4ms-per-frame/20ms-fixed-window evidence. A prior **UI PASS** cannot be recycled as full M3 acceptance.
