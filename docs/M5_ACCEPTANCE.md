@@ -9,8 +9,8 @@
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
 | **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE/POLICY PASS; TWO-NODE NO-QUOTA CUTOVER PASS; POST-CUTOVER PASSIVE TCP COUNTERS PASS; RTT/FAIRNESS/LIVE JITTER MAX NOT MEASURED — CAVEAT ACCEPTED FOR REQUESTED RELEASE** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
-| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **M5 NO-QUOTA RELEASE ASSETS PREP=PASS / INSTALLER AND PUBLICATION PREFLIGHT CI=PASS** |
-| M5.6 | Единственный официальный GitHub Release `v1.0.1` | **PUBLISHER READY / ASSET UPLOAD AND PUBLIC RELEASE NOT VERIFIED** |
+| M5.5 | SHA-verified GitHub release package новой M5 v1.0.1 без фиксированной квоты | **RELEASE ASSETS PREP PASS / CI PASS / PUBLIC ASSETS VERIFIED** |
+| M5.6 | Единственный официальный GitHub Release `v1.0.1` | **RELEASED / PASS, 2026-11-19** |
 
 ## Принцип объединённой проверки
 
@@ -188,3 +188,9 @@ Added `tests/m5/m5-post-cutover-readonly.py` for 30-second two-node read-only ob
 2026-11-19 оператор **поручил оформить официальный Linux v1.0.1 в GitHub**, удалить публичные ссылки на документы для ИИ и обновить SSH-клонирование и первую установку. Это явное решение **о публикации проверенной сборки**, несмотря на отсутствие отдельных количественных данных RTT, per-stream fairness и wall-clock max jitter, которые не объявляются PASS. Прежняя проблема 313 отказов ограничителя устранена и подтверждена работой двух нод с `max_sessions=0`, плюс независимый 30-секундный PASS по передаче полезных счётчиков.
 
 Public Release CI: GitHub run 44532739760 PASS для документации, публикационного сценария и zero-cap примеров; installer CI run 44532252732 PASS. Подготовлен `install/publish-v1.0.1.sh`: проверяет SHA, draft assets, скачивает и сравнивает, только потом публикует. Из-за отсутствия возможности загрузить существующий бинарник с Homeserver через редактор документов GitHub итог **пока NOT_RELEASED**. Нужно фактическое выполнение script с правами GitHub API; не выдавать source commit за опубликованный asset. Новая лицензия не придумана: публичный исходный код сам по себе не объявляется открытым под определённой лицензией.
+
+## Официальная публикация v1.0.1 — GitHub API VERIFIED, 2026-11-19
+
+Оператор выполнил `install/publish-v1.0.1.sh`, `M5_PUBLISH=PASS_PUBLIC_RELEASE`, `M5_PUBLISH_DRAFT_REMOTE_VERIFY=PASS`, exit 0. GitHub API независимо подтвердил Release [v1.0.1](https://github.com/tervon-software/Tervon-TCP-Bridge/releases/tag/v1.0.1), `draft=false`, `prerelease=false`, published_at `2026-11-19T13:43:47Z`. Git tag `refs/tags/v1.0.1` указывает на `c77cf2685623e71705ae38f57125986fb9531fd8`; исходный commit сборки **отдельно** `96c136702d10b6fb9a16aa2893f6b978e8b14e86`. Assets: binary 6,869,176 B, `SHA256SUMS` 92 B, `BUILD_INFO` 256 B. SHA бинарника `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b` проверен оператором при исходной сборке, двухузловом cutover, формировании пакета и при обратной загрузке всех release assets.
+
+**M5.5 и M5.6 — закрыты PASS/RELEASED.** Это утверждение о статусе публикации и наличии проверенных assets, не доказательство ранее неизмеренных network RTT/fairness/live wall-clock Jitter. M5.2+M5.3 quantitative caveats сохраняются в публикации; M5.4 отдельно не закрыт и его испытания не выдумываем. M6 HOLD.
