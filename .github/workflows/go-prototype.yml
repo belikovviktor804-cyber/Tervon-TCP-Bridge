@@ -13,6 +13,7 @@ on:
       - 'tests/homeserver/stage-m3-candidate.sh'
       - 'tests/homeserver/m3-managed-tunnel-recovery.sh'
       - 'tests/homeserver/stage-m4-candidate.sh'
+      - 'tests/homeserver/m4-live-preflight.sh'
       - 'tests/homeserver/m3_passive_live_evidence.py'
       - 'tests/homeserver/test_m3_passive_live_evidence.py'
       - 'tests/homeserver/diagnose_m3_monitoring.py'
@@ -47,6 +48,10 @@ jobs:
         run: bash -n ../tests/homeserver/verify-m1.sh
       - name: Check M3 offline staging script syntax (no deployment)
         run: bash -n ../tests/homeserver/stage-m3-candidate.sh
+      - name: Check M4 live deployment preflight is read-only
+        run: |
+          bash -n ../tests/homeserver/m4-live-preflight.sh
+          ! grep -Eq '^[[:space:]]*(systemctl[[:space:]]+(restart|stop|start|enable|disable)|service[[:space:]]|nginx[[:space:]]+-s)' ../tests/homeserver/m4-live-preflight.sh
       - name: Check isolated M4 staging script syntax and no service commands
         run: |
           bash -n ../tests/homeserver/stage-m4-candidate.sh
