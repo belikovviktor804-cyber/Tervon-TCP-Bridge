@@ -209,3 +209,9 @@ python3 "$REPO/tests/homeserver/m4_mixed_diagnose.py"
 ```
 
 This reports `status/reason/role/field` or a numerical delta. It does not claim end-to-end VPN success without actual client use; any nonzero `error_delta` or absent new sessions requires further investigation. **No repeat of the prior full M3 PAD/Jitter activation test.** Finserver rollback remains available separately if the actual VPN traffic is faulty.
+
+## M4 two-node rollout: Homeserver process/SHA PASS, live operator check pending (2026-11-19)
+
+The operator's `tervon-m4-homeserver-cutover.service` journal confirms successful `m4-cutover-switch.sh install homeserver` and `M4_INSTALL=PASS_PROCESS_AND_SHA` at 11:24:24 Homeserver journal time. Service `tervon-bridge-client.service`, exact running SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`; `CONFIG_CHANGED=NO`; `UNRELATED_SERVICES_RESTARTED=NO`. The transient installer exited successfully. Finserver was already running M4 with identical SHA256 and corresponding process-level PASS.
+
+**Installed M4 on both nodes; two-node process/SHA acceptance PASSED.** Keep verified M3 backups and SHA manifests on both nodes. Previous user confirmation of working VPN and monitoring applied to mixed M3/M4 before the Homeserver switch. **Do not infer fresh M4↔M4 data-plane acceptance from that earlier confirmation.** The only immediate post-cutover observation requested is the operator's normal TCP VPN usage and working Stats dashboard, optionally a screenshot. No additional long synthetic monitoring run solely to confirm normal service. Until observed, M4 module-wide acceptance remains IN_PROGRESS and v1.0.1 is not released.
