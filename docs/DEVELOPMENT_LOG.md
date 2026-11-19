@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Mixed-version M3 Homeserver ↔ M4 Finserver passive sampling failed diagnostically; cause not yet identified
+
+- Operator ran detached `tervon-m4-mixed-live.service` with unchanged existing `tests/homeserver/m3_passive_live_evidence.py --duration 120 --interval 10`. Journal: started Homeserver 10:55:08, emitted `kind=start` at 10:55:11 (UTC 07:55:11), then emitted `{"kind":"summary","status":"M3_PASSIVE_EVIDENCE_FAIL","failure_type":"ValueError"}` at 10:55:24. Unit exited 1/FAILURE. **No 120-second summary or M4 mixed-version data-plane PASS.**
+- The legacy sampler catches every `ValueError` and prints the exception *type only*. Its possible causes include public HTTPS fetch failure, wrong dashboard schema/missing node, node not ready, missing/noninteger counter, or counter reset; existing journal alone does **not** distinguish them. Cannot infer M4 Bridge traffic failure from this result. Do **not** switch Homeserver or automatically roll back Finserver without independent evidence.
+- Added safe, nonmutating `tests/homeserver/m4_mixed_diagnose.py`: two public metrics samples 10 seconds apart, minimal allowlisted `status/reason/role/field` failure classification, numeric session/byte/error changes only; never prints public JSON, URLs, secrets or exception text. Added `test_m4_mixed_diagnose.py` cases for node unready, missing metric, decreasing counter, fetch error redaction and healthy numeric changes. Source/workflow test SHA `bf440fea4d6ca175ae971daa434972eac5e874a7`; full CI verdict to be recorded separately.
+- **MIXED VERSION LIVE ACCEPTANCE = BLOCKED / NOT PASS**; Finserver process M4 installation PASS remains recorded, Homeserver is M3 pending new independent read-only diagnosis. No service changed during this diagnostic failure.
+
+
 ## 2026-11-19 — Finserver M4 binary installation and process verification: operator PASS, mixed M3/M4 runtime
 
 - Operator executed guarded `m4-cutover-switch.sh install finserver` via detached `tervon-m4-finserver-cutover.service` on Finserver. Journal shows successful service start at Finserver Nov 19 07:49:52, completed 07:50:01 with **`M4_INSTALL=PASS_PROCESS_AND_SHA`**, `ROLE=finserver`, `UNIT=tervon-bridge-server.service`, `RUNNING_SHA256=5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`, `CONFIG_CHANGED=NO`, `UNRELATED_SERVICES_RESTARTED=NO`, transient unit deactivated successfully.
