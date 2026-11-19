@@ -46,3 +46,7 @@
 - **SOURCE_COMMITTED / HOST_BATCH_NOT_RUN**. Ранее пройденные 5/5 unit и реальный SHA-PASS не отменяются. `M5.1` остаётся IN_PROGRESS до нового отчёта; результаты performance отдельно в последующих пакетах.
 
 **Пакетная проверка Homeserver 2026-11-19:** `tests/m5/run-m5-1-batch.sh` на `0909812d09dd149f872b0eee9e8e48bd85374530` завершилась `PASS_PROVENANCE_AND_STATIC_BASELINE`, exit 0; шесть проверок PASS (SHA, M4 object, две документации, Git ref, JSON). Отчёт `/opt/tervon-tcp-bridge/m5/results/m5.1-2EO4eslf/report.log`. Исторический артефакт Go 1.25.5. **Не измеряет производительность/RTT/Jitter; M5.1 не закрыт целиком.**
+
+## M5.1 — batch Go verification prepared (NOT RUN)
+
+Added `tests/m5/run-m5-1-source-batch.sh`: offline isolated source build, vet, full unit + race tests and microbenchmarks. All toolchain caches and outputs stay under `/opt/tervon-tcp-bridge/m5/results`; no production binary/service/config mutation. Microbenchmarks describe **M5 candidate source only**, do not establish v1.0.0↔v1.0.1 comparable throughput, external RTT, or a Jitter on-wire cap. Benchmark groups without matching cases must not be interpreted as measured throughput. `SOURCE_COMMITTED / HOST_NOT_RUN / M5.1 IN_PROGRESS`.
