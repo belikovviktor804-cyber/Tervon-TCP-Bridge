@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — simultaneous two-node cutover requested; code and runbook prepared
+
+- Operator explicitly requested a single simultaneous update of Homeserver/Finserver to remove fixed connection quotas. Candidate SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b` from previously operator-verified M5 staging.
+- Added root-only per-node worker `tests/m5/m5-dual-cutover-worker.py`: checks exact M4 runtime binary SHA, standard service invocation, present JSON quota 100; keeps private old/new binary and JSON backups; writes only the requested zero quota; restarts its **own** Bridge unit; checks running SHA and 0 JSON; rollback restores both. Coordinating script `tests/m5/m5-dual-cutover.py` stages remote via SSH, prepares both, switches both concurrently, checks public telemetry says ready and max_sessions=0, attempts coordinated rollback on failure.
+- Added offline mocked tests for prepare/switch/rollback and orchestrator success/failure as well as `.github/workflows/m5-dual-cutover.yml` and `docs/M5_DUAL_CUTOVER.md`. **Scripts committed; offline test and actual cutover results not yet received.** Services unchanged by GitHub writes. Other running services out of scope. M6 HOLD.
+
 ## 2026-11-19 — M5 no-fixed-session-quota candidate verified on Homeserver (STAGING ONLY)
 
 - Operator ran isolated `tests/m5/run-m5-unbounded-candidate.sh` against source `96c136702d10b6fb9a16aa2893f6b978e8b14e86`, exit `0`. `VET=PASS`, `UNIT=PASS`, `RACE=PASS`, `BUILD=PASS`, `PASS_STAGING_ONLY`. Compiled artifact `tervon-bridge-linux-amd64: OK`, SHA256 `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`; private stage `/opt/tervon-tcp-bridge/m5/unbounded/stage-qSxWhELI`.
