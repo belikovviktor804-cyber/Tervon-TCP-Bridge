@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Github installer CI PASS, post-cutover telemetry observer prepared
+
+- Real GitHub Actions run 44528805350 (installer, commit 2b26452) SUCCESS: Bash syntax, corrected M5 SHA, zero-cap templates and negative offline asset installation. Dual cutover offline mocked CI run 44524847060 SUCCESS. Earlier intermediate CI failures are superseded by these passing runs.
+- Verified M5 no-quota assets prepared by operator at `/opt/tervon-tcp-bridge/m5/release-no-quota`, SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`; do not rebuild or overwrite. Official v1.0.1 release is NOT published; only v1.0.0 exists.
+- Added `tests/m5/m5-post-cutover-readonly.py` with synthetic unit tests and CI: 30 seconds passive two-node metrics, local live binary SHA, zero quota and error/byte deltas. No user traffic generation or production changes. Host result PENDING. Live network RTT/fairness/wallclock jitter not independently measured; M5.2+M5.3 final gate still not PASS. LICENSE absent from current branch root; distribution rights decision required. M6 HOLD.
+
 ## 2026-11-19 — M5 no-quota release packaging operator PASS
 
 - Homeserver operator executed `install/prepare-release-assets.sh` after SSH Git pull through `a0f33953a72d5cdd8afc9dcfb661c112a5388d7d`: `RELEASE_PREP=PASS_VERIFIED_DEPLOYED_M5`, `RELEASE_PREP_EXIT_CODE=0`, `RELEASE_VERSION=v1.0.1`, `RELEASE_SHA256=4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`, `RELEASE_SOURCE_COMMIT=96c136702d10b6fb9a16aa2893f6b978e8b14e86`, `RELEASE_DIR=/opt/tervon-tcp-bridge/m5/release-no-quota`, `PUBLICATION_DONE=NO`.
