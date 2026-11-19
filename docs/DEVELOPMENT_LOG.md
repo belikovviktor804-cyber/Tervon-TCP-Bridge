@@ -1,5 +1,13 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — M3 public Bridge dashboard placeholder removal installed: local PASS (operator evidence)
+
+- On Homeserver, operator ran detached `systemd-run --unit=tervon-m3-ui-fix --collect` using `/opt/tervon-tcp-bridge/m3/evidence/install-ui-fix.sh`. Source checkout discovered at `/opt/tervon-tcp-bridge/m3/source`, Git SSH branch `work/m3-adaptive-jitter`, fast-forward `bb2a475 → 04c74c4`.
+- UI-only guarded update saved backup `/opt/tervon/bridge-stats/.ui-backups/m3-ui-nz5ji82x` and returned `M3_STATS_UI_LOCAL=PASS`, `BRIDGE_RESTART=NONE`, `STATS_RESTART=NONE`, `NGINX_RELOAD=NONE`, `EXTERNAL_HTTPS=NOT_VERIFIED`.
+- Detached script additionally verified installed HTML contains `tb-fin-latency` and does not contain `id=\"tb-backend\"`; `M3_UI_FIX=PASS`, exit success. Decapsulator-only metrics moved to Finserver panel; no manufactured zeros or latency when there are no samples.
+- **Accepted gate: UI code installed and local read-back PASS.** Still pending: public IPv4 browser render/asset freshness, SSH managed tunnel recovery injection, sustained M3 network limits and fairness. No v1.0.1 release.
+
+
 ## 2026-11-19 — M3 dashboard placeholder elimination: real Decapsulator instrumentation (SOURCE MODIFIED)
 
 - User screenshot of live public Homeserver section had literal filler cards `На стороне Decapsulator` (Backend dial/TLS), and `Нет измерений` for Homeserver connection latency. Existing `bridge_panel.js` hardcoded first two texts, despite working two-node JSON API; Homeserver client does not measure backend-dial latency or Decapsulator TLS.
