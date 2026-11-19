@@ -1,5 +1,10 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — Verified v1.0.1 release assets prepared on Homeserver: OPERATOR PASS
+
+- Executed `install/prepare-release-assets.sh` via existing SSH source checkout; reported `RELEASE_PREP=PASS_VERIFIED_EXISTING_M4`, `RELEASE_PREP_EXIT_CODE=0`, `PUBLICATION_DONE=NO`. Directory `/opt/tervon-tcp-bridge/m5/release`; version v1.0.1; unchanged M4 source `8d0aa3777c209d2825a1c11dfbae9487893cb7f5`; exact binary SHA256 `5035217a89476117894efe1a44db5dcdd1242773d7fd9461170f2cf6ccb98a90`.
+- Package preparation **PASS**. No compilation, upload, tag/release, installation, unit restart or running-service changes. Final userload summary and release gate still pending; M6 HOLD.
+
 ## 2026-11-19 — Linux v1.0.1 install script and GitHub release staging prepared
 
 - Operator requested to prepare GitHub Release and script-based installation. Prepared `install/install-bridge.sh` with exact working M4 SHA pin, separate install/activate, no overwrites of live binaries/configuration, two role JSON examples; `install/prepare-release-assets.sh` copies only previously verified M4 artifact with SHA256SUMS and BUILD_INFO. Added Russian install instructions, release notes and release packaging checklist, linked from README.
