@@ -1,5 +1,12 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-19 — public Linux v1.0.1 release requested; public docs aligned, API publisher prepared
+
+- User explicitly requested official GitHub Linux v1.0.1 release, consistent public documentation, Git clone/install instructions and removal of links to AI-oriented internal documentation. On branch `work/m5-linux-release`, updated `README.md`, `SECURITY.md`, installation/configuration/diagnostics/release notes, zero-cap JSON examples. Public-facing files were also synchronized to default `main` via GitHub API, avoiding indiscriminate merging of historical internal work plans into default-branch navigation.
+- Verified public user docs reference `git@github.com:tervon-software/Tervon-TCP-Bridge.git`, v1.0.1, `/v2/stream`, zero limits and SHA `4f997b60bd777516339512ac71ddbb89b96d5bf9af979286ff3bd63690ea525b`. Public README has no link to `docs/DEVELOPMENT_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, or `docs/M5_RELEASE_PACKAGE.md`; no misleading claim that source is exclusively private.
+- GitHub Actions PASS: public release preflight run 44532739760, installer run 44532252732. New publisher `install/publish-v1.0.1.sh` via the official authenticated `gh` GitHub API from Homeserver creates v1.0.1 tag/draft, attaches existing verified binary, SHA256SUMS, BUILD_INFO, downloads and byte-compares them, then publishes. No running services touched or rebuilt.
+- **STATUS=PREPARED_FOR_PUBLICATION; PUBLIC_RELEASE_NOT_YET_VERIFIED**. The GitHub editor connector does not upload local binary release assets from Homeserver, so the operator must execute the publisher with their own authorized GitHub CLI session. Do not paste tokens/secrets. Pre-existing v1.0.0 should remain intact. M5 unmeasured RTT/fairness/live Jitter maxima are disclosed, not silently called PASS. No LICENSE choice made, no open source license invented. M6 HOLD.
+
 ## 2026-11-19 — Post-cutover two-node read-only observation: OPERATOR PASS
 
 - Operator ran `tests/m5/m5-post-cutover-readonly.py`, `M5_POST_RESULT=PASS_READ_ONLY_TWO_NODE_CHECK`, exit 0. Both updated Bridge nodes `ready`, `max_sessions=0`, active_end=17. Each observed one new session, zero rejects, +34,507 upload bytes, +1,424,030 download bytes and zero error delta over 30s. Homeserver goroutines 58 / Go heap 18,986,216 bytes, Finserver goroutines 43 / Go heap 2,341,768 bytes. `TCP_TRAFFIC=OBSERVED_COUNTER_INCREASE` confirms existing traffic moved across both nodes without generated test traffic.
