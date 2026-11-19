@@ -84,3 +84,11 @@ Regression tests:
 - `TestM4OutboundTransportRefusesDowngradeBeforeHTTPHandler`: actual ephemeral test TLS 1.2-only peer and TLS 1.3 HTTP/1.1-only peer both fail before the test HTTP handler executes.
 
 **SOURCE MODIFIED; exact CI outcome recorded separately.** No running service is reconfigured. The M4 host staging script must use a commit at or after this fix; earlier isolated M4 candidates must not be promoted to release.
+
+### Confirmed outbound downgrade fix (CI PASS, 2026-11-19)
+
+A new actual network regression showed Go's `net/http.Transport` can fall back to HTTP/1.1 despite setting TLS `NextProtos=["h2"]`: Go checks #44468361183 correctly failed because a TLS1.3 HTTP/1.1-only test server received an HTTP request. The fix is **not merely a TLS config check**: `NewClient` now uses standard Go `tls.Dialer.DialContext` and validates the completed TLS connection's `Version==TLS13` and `NegotiatedProtocol=="h2"` in `DialTLSContext` before returning that connection to `net/http`. The custom TLS dialing path explicitly enforces the transport's 10s handshake/setup timeout because net/http does not apply it to custom `DialTLSContext`; certificate verification and cryptography remain in Go's maintained `crypto/tls`. The original caller TLS config is cloned, never mutated.
+
+**Verified code commit `6814c57130326f5ecbbea7280f57117074eeee0b`:** [Go prototype checks #44468661056](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468661056) SUCCESS, including two real downgrade peers refused *before the HTTP handler*, TLS/HTTP2 stream integration, unit, race, vet, build and prior regressions. [M4 Linux candidate #44468661092](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44468661092) SUCCESS (artifact only). Earlier M4 candidate builds pre-dating this security fix must **not be installed or used for release**.
+
+**Next gate:** isolated Homeserver stage must use an exact commit **at or after** `6814c571...` (prefer current branch HEAD) with verified `STAGE_M4=PASS`. No production cutover is authorized merely by CI.
