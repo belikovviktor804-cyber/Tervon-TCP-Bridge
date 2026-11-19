@@ -9,7 +9,7 @@
 | M5.1 | Фиксация M4=v1.0.1, source commit, бинарного SHA и ранее подтверждённой рабочей VPN/Stats | **CLOSED / PASS** |
 | **M5.2+M5.3** | **ОДНА объединённая проверка** TCP correctness + Padding/Jitter (≤4 мс на кадр; ≤20 мс за 1 сек) + короткие и длинные потоки, конкурентность/fairness, RTT, CPU/RSS/goroutines | **OFFLINE 6/6 PASS + PASSIVE LIVE PASS + ADAPTIVE POLICY 6/6 PASS / REAL NETWORK PENDING** |
 | M5.4 | Сверка надёжности и rollback с уже пройденными M4; проверка только отсутствующего | NOT_STARTED |
-| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | NOT_STARTED |
+| M5.5 | Проверяемый GitHub release package для **того же** M4=v1.0.1 | **SOURCE PREPARED / ASSETS + GATES PENDING** |
 | M5.6 | Единственный официальный GitHub Release `v1.0.1` | NOT_STARTED |
 
 ## Принцип объединённой проверки
@@ -86,3 +86,7 @@ First run 4×128-frame loopback flows and 24 short probes completed successfully
 Оператор предложил одновременный YouTube и два Speedtest с ПК и планшета. Вместо дополнительных синтетических loopback попыток сначала проверяется **уже работающий двухузловой M4=v1.0.1** под реальной контролируемой пользователем нагрузкой. Скрипт `tests/m5/run-m5-23-userload.sh` наблюдает **180 секунд / 19 снимков**; использует только существующий оператором ранее проверенный public two-node collector, валидирует SHA и постоянство PID, фиксирует прирост полезных байтов, сессий, ошибок, PAD и Jitter кадров/запрошенных задержек с обеих сторон, а также RSS и lifetime-average CPU процесса Homeserver. Никакого изменения служб и никаких самостоятельных пользовательских соединений. Отчёт в приватном `/opt/tervon-tcp-bridge/m5/results/`.
 
 **Сценарий оператора:** запустить скрипт, сразу включить YouTube и одновременно Speedtest на ПК и планшете; обе машины должны действительно идти через TCP Bridge, иначе метрики измерят другой маршрут. Наблюдение выводит `PASS_TWO_NODE_TRAFFIC_AND_ERROR_FREE_WINDOW` при реальном трафике и отсутствии прироста ошибок, `NO_BRIDGE_TRAFFIC_OBSERVED` при нулевом полезном трафике или `ERROR_COUNTERS_INCREASED` при приросте ошибок. Эти статусы относятся к наблюдению, не доказывают wall-clock максимумы задержек, фактический RTT всей сети и per-stream fairness. **SOURCE_COMMITTED / USER_LOAD_NOT_RUN.** Предыдущий loopback тест за 3.45 секунды оставил Jitter=0; удлинение его тестового сценария подготовлено, но повтор не нужен до реальной пользовательской проверки.
+
+## Подготовка GitHub Release и установки (2026-11-19)
+
+По прямому запросу оператора создан безопасный скрипт установки Linux v1.0.1 и пошаговая инструкция; подготовлен копировщик проверенного M4 бинарника для GitHub Release. Никаких production-служб не затрагивали; пакет на Homeserver ещё не собирали, GitHub Release не публиковали. Файлы: `install/install-bridge.sh`, `install/prepare-release-assets.sh`, `docs/INSTALL-v1.0.1.ru.md`, `docs/RELEASE_NOTES_v1.0.1.ru.md`, `docs/M5_RELEASE_PACKAGE.md`. Отдельный CI workflow `m5-installer.yml` создан, его фактический PASS ещё не подтверждён. Действующий Gate M5.2+M5.3 остаётся открытым до итогового отчёта нагрузки и принятия остающихся критериев. Публикацию не проводить до соблюдения release gates и согласования условий распространения.
