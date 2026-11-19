@@ -76,7 +76,7 @@ func TestM5LoopbackRealTransportFairnessAndDelay(t *testing.T) {
  defer stop()
  cl,serverMetric:=m5LoopbackPair(t,addr)
  const streams=4
- const frames=128
+ const frames=320
  var completed [streams]atomic.Int64
  var wg sync.WaitGroup
  faults:=make(chan error,streams)
@@ -90,7 +90,7 @@ func TestM5LoopbackRealTransportFairnessAndDelay(t *testing.T) {
    local,peer:=net.Pipe()
    done:=make(chan error,1)
    go func(){done<-cl.Handle(local)}()
-   _=peer.SetDeadline(time.Now().Add(18*time.Second))
+   _=peer.SetDeadline(time.Now().Add(25*time.Second))
    payload:=bytes.Repeat([]byte{byte(id),0x42,0x00,0xff},4096)
    for i:=0;i<frames;i++ {
     if _,err:=peer.Write(payload);err!=nil {faults<-fmt.Errorf("stream %d write frame %d: %w",id,i,err);_ =peer.Close();return}
