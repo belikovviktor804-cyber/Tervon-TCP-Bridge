@@ -25,9 +25,24 @@ import java.security.MessageDigest
 internal class BridgeSignedServerCatalog(
     context: Context,
     trustedPublicKeys: Map<String, ByteArray>,
+    // Non-null for an independently trusted server. Isolates cache AND catalog
+    // contents: one server key cannot silently authorize another server.
+    trustedServerId: String? = null,
 ) {
+    private val scope = trustedServerId?.also {
+        require(it.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}"))) {
+            "invalid trusted server ID"
+        }
+    }
     private val file = AtomicFile(
-        File(context.applicationContext.noBackupFilesDir, "bridge-signed-catalog-v1.json")
+        File(
+            context.applicationContext.noBackupFilesDir,
+            if (scope == null) "bridge-signed-catalog-v1.json"
+            else "bridge-signed-catalog-" +
+                MessageDigest.getInstance("SHA-256")
+                    .digest(scope.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it.toInt() and 0xff) } + ".json",
+        )
     )
     private val trustedKeys = trustedPublicKeys.mapValues { (_, value) -> value.clone() }
     private val prefix = "Tervon-Bridge-Catalog-v1\u0000".toByteArray(StandardCharsets.UTF_8)
@@ -161,8 +176,12 @@ internal class BridgeSignedServerCatalog(
                 require(ep.port in 1..65535 && endpoints.add(ep) &&
                     assignedEndpoints.add(ep)) { "duplicate or invalid catalog endpoint" }
             }
+            if (scope != null) require(id == scope) {
+                "catalog signed for another Bridge server"
+            }
             servers.add(Server(id, endpoints, tlsName, bridgeUrl, enrollmentUrl, caPem))
         }
+        // A signed empty list is a valid full revocation for this scope.
         return Parsed(Catalog(serial, issued, expires, servers), bytes)
     }
 
