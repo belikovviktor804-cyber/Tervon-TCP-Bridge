@@ -38,7 +38,7 @@ internal class BridgeSignedServerCatalog(
         val tlsName: String,
         val bridgeUrl: String,
         val enrollmentUrl: String,
-        val clientCaPem: String,
+        val serverCaPem: String,
     )
 
     data class Catalog(
@@ -129,7 +129,7 @@ internal class BridgeSignedServerCatalog(
         for (i in 0 until list.length()) {
             val server = list.getJSONObject(i)
             exactFields(server, setOf(
-                "id", "endpoints", "tls_name", "bridge_url", "enrollment_url", "client_ca_pem"
+                "id", "endpoints", "tls_name", "bridge_url", "enrollment_url", "server_ca_pem"
             ))
             val id = server.getString("id")
             require(id.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")) &&
@@ -142,7 +142,7 @@ internal class BridgeSignedServerCatalog(
             require(URI(bridgeUrl).host == tlsName) {
                 "Bridge HTTPS endpoint does not match signed TLS name"
             }
-            val caPem = server.getString("client_ca_pem")
+            val caPem = server.getString("server_ca_pem")
             require(caPem.length in 128..16384 &&
                 caPem.startsWith("-----BEGIN CERTIFICATE-----") &&
                 caPem.trimEnd().endsWith("-----END CERTIFICATE-----")) {
