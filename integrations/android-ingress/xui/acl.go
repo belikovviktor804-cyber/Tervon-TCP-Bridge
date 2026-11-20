@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 )
 
 // AddDeviceToACL produces a complete staged server JSON config with exactly
@@ -56,8 +57,8 @@ func decodeServerConfig(data []byte) (map[string]json.RawMessage, error) {
 		return nil, errors.New("invalid server configuration")
 	}
 	var extra any
-	if err := d.Decode(&extra); err == nil {
-		return nil, errors.New("multiple server config documents")
+	if err := d.Decode(&extra); err != io.EOF {
+		return nil, errors.New("multiple or invalid server config documents")
 	}
 	return raw, nil
 }
