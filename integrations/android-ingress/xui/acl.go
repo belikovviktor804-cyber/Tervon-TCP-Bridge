@@ -26,7 +26,11 @@ func AddDeviceToACL(serverJSON []byte, leafFingerprint, service string) ([]byte,
 		return nil, errors.New("ACL update requires Bridge server configuration")
 	}
 	var routes map[string]json.RawMessage
-	if err := json.Unmarshal(raw["routes"], &routes); err != nil || len(routes[service]) == 0 || service == "" {
+	if err := json.Unmarshal(raw["routes"], &routes); err != nil || service == "" {
+		return nil, errors.New("service route unavailable")
+	}
+	var backends []json.RawMessage
+	if err := json.Unmarshal(routes[service], &backends); err != nil || len(backends) == 0 {
 		return nil, errors.New("service route unavailable")
 	}
 	var acl map[string][]string
