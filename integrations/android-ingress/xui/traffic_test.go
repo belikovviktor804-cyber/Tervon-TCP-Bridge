@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -28,7 +29,7 @@ func TestTrafficLookupAndEligibility(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			trafficCalled := false
+			var trafficCalled atomic.Bool
 			s := server(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.Header.Get("Authorization") != "Bearer test-secret" || r.Method != http.MethodGet {
 					t.Errorf("missing expected authorization or wrong method")
@@ -38,7 +39,7 @@ func TestTrafficLookupAndEligibility(t *testing.T) {
 				case "/private-panel/panel/api/clients/get/Diag":
 					_, _ = fmt.Fprintf(w, `{"success":true,"obj":{"client":{"id":10,"email":"Diag","enable":true,"expiryTime":%d,"totalGB":%d}}}`, now.Add(time.Hour).UnixMilli(), tc.quota)
 				case "/private-panel/panel/api/clients/traffic/Diag":
-					trafficCalled = true
+					trafficCalled.Store(true)
 					_, _ = fmt.Fprintf(w, `{"success":true,"obj":%s}`, tc.traffic)
 				default:
 					t.Errorf("unexpected path: %s", r.URL.Path); http.NotFound(w,r)
@@ -47,7 +48,7 @@ func TestTrafficLookupAndEligibility(t *testing.T) {
 			c := adapter(t,s)
 			err := c.CheckEligibilityByEmail(context.Background(), "Diag",now)
 			if (err != nil) != tc.wantErr { t.Fatalf("err %v; wantErr %v",err,tc.wantErr) }
-			if trafficCalled != tc.wantTraffic { t.Fatalf("traffic called %v, want %v",trafficCalled,tc.wantTraffic) }
+			if trafficCalled.Load() != tc.wantTraffic { t.Fatalf("traffic called %v, want %v",trafficCalled.Load(),tc.wantTraffic) }
 		})
 	}
 }
