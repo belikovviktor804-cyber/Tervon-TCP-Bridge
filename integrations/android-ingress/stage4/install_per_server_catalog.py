@@ -78,6 +78,9 @@ def main() -> int:
                 raise ValueError("refuse different per-server trust source")
         else:
             to_write.append((trust_target, pin_source, None))
+        # Create the independent pin source before updating the verifier so a
+        # partial file-copy failure never leaves a verifier without its trust API.
+        to_write.sort(key=lambda item: item[0].name == NAME)
         if not to_write:
             print("M6_SERVER_CATALOG_STAGE=ALREADY_PRESENT_IDENTICAL")
             return 0
