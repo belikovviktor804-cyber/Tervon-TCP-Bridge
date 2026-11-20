@@ -29,11 +29,18 @@ internal object BridgeCatalogTrustAnchors {
         val bytes = try {
             context.applicationContext.assets.open(ASSET).use { stream ->
                 // Limit input even if an accidentally packaged asset is huge.
-                val data = stream.readNBytes(MAX_BYTES + 1)
-                require(data.size in 1..MAX_BYTES) {
+                val data = ByteArray(MAX_BYTES + 1)
+                var total = 0
+                while (total < data.size) {
+                    val count = stream.read(data, total, data.size - total)
+                    if (count < 0) break
+                    if (count == 0) continue
+                    total += count
+                }
+                require(total in 1..MAX_BYTES) {
                     "invalid packaged Bridge catalog trust asset size"
                 }
-                data
+                data.copyOf(total)
             }
         } catch (_: FileNotFoundException) {
             error("trusted Bridge catalog public keys are not bundled in this APK")
