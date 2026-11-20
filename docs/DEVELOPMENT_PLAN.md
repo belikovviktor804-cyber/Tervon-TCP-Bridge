@@ -172,3 +172,8 @@
 Operator ran `docker network inspect bridge --format ...` and `ss -lntp '( sport = :18443 )'` on Russian Homeserver. Actual Docker default bridge subnet: `172.17.0.0/16`, gateway `172.17.0.1`; **no TCP listener** on candidate port `18443` at observation time. Prior observation confirmed Xray listening `*:30000`. No configuration or running service was changed.
 
 **Scope of finding:** candidate port and Docker gateway known; *container-to-host TCP reachability remains NOT_TESTED*. The Compose template maps only `127.0.0.1:18443` on the host, not a public HTTPS endpoint. Do not claim Android can connect until an approved ingress exposure and mTLS registration path are implemented and tested. Next focused check: validate Docker Compose rendering in an isolated clone, then test temporary isolated container-to-Xray connection without touching live services.
+
+
+### M6 — Docker Compose static validation PASS (2026-11-20)
+
+Operator cloned `work/m6-android-ingress` over SSH to `/opt/tervon-tcp-bridge-m6-android-ingress` on Homeserver and ran `docker compose -f integrations/android-ingress/compose.yaml --profile android-ingress-manual config --quiet` with the intended private config directory environment variable. **Actual result: `COMPOSE_EXIT_CODE=0` (PASS).** No container was built or started, no external port was opened, and active services were not altered by these commands. Next gate: isolated Docker image build, then separately scoped container-network connectivity. A Compose syntax PASS is not an end-to-end or security PASS.
