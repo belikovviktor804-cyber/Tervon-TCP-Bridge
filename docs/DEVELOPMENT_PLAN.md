@@ -165,3 +165,10 @@
 - **Known blocker:** Bridge server checks `authorized` certificate SHA-256 fingerprints at startup. The intended first-launch enrollment/automatic certificate issuance cannot work simply by distributing JSON; an operator-controlled, authenticated way of provisioning and updating the new Decapsulator's authorization is needed without altering the running Russia → Finland connection. An unauthenticated public certificate-issuing API is not acceptable.
 - **Next within M6:** verify the free ingress port, Docker bridge gateway and access to existing VLESS without changing services; then test isolated container and agree minimal safe enrollment authorization. Use the chosen subscription SNI only when it actually names the intended discovery endpoint; do not assume third-party camouflage domains support Bridge.
 - **User-facing UI text:** «Если в вашем регионе нет блокировок VPN, рекомендуем оставить обход DPI выключенным для экономии заряда аккумулятора.»
+
+
+### M6 — read-only host network preflight (2026-11-20)
+
+Operator ran `docker network inspect bridge --format ...` and `ss -lntp '( sport = :18443 )'` on Russian Homeserver. Actual Docker default bridge subnet: `172.17.0.0/16`, gateway `172.17.0.1`; **no TCP listener** on candidate port `18443` at observation time. Prior observation confirmed Xray listening `*:30000`. No configuration or running service was changed.
+
+**Scope of finding:** candidate port and Docker gateway known; *container-to-host TCP reachability remains NOT_TESTED*. The Compose template maps only `127.0.0.1:18443` on the host, not a public HTTPS endpoint. Do not claim Android can connect until an approved ingress exposure and mTLS registration path are implemented and tested. Next focused check: validate Docker Compose rendering in an isolated clone, then test temporary isolated container-to-Xray connection without touching live services.
