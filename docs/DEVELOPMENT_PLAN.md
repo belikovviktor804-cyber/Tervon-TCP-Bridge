@@ -177,3 +177,8 @@ Operator ran `docker network inspect bridge --format ...` and `ss -lntp '( sport
 ### M6 — Docker Compose static validation PASS (2026-11-20)
 
 Operator cloned `work/m6-android-ingress` over SSH to `/opt/tervon-tcp-bridge-m6-android-ingress` on Homeserver and ran `docker compose -f integrations/android-ingress/compose.yaml --profile android-ingress-manual config --quiet` with the intended private config directory environment variable. **Actual result: `COMPOSE_EXIT_CODE=0` (PASS).** No container was built or started, no external port was opened, and active services were not altered by these commands. Next gate: isolated Docker image build, then separately scoped container-network connectivity. A Compose syntax PASS is not an end-to-end or security PASS.
+
+
+### M6 — isolated Android ingress image built (2026-11-20)
+
+Operator supplied output after an image build on Russian Homeserver: `docker image inspect tervon-bridge-android-ingress:local` returned `IMAGE_ID=sha256:33fc8f5f41e3050823326e7db0f14e7f6ba24352d327f70d01cdaeea849ecc4b`, `ARCH=amd64`, `SIZE=5890065` bytes. `docker image ls` confirms the named image (Docker reported 20.4 MB disk usage and 5.89 MB content size). **BUILD ARTIFACT PRESENT / PASS** as confirmed by image inspect, not yet executable-runtime or E2E PASS. No running Bridge or Xray units modified by image-only build. Next test: ephemeral isolated Docker bridge-network TCP reachability to `host.docker.internal:30000` via gateway `172.17.0.1`, without starting ingress Decapsulator, sending VPN payload or touching live services.
