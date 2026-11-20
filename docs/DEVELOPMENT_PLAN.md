@@ -209,3 +209,8 @@ Operator observed `docker compose ps` with no running ingress container, no TCP 
 - Documented isolated detached Git worktree build from `v1.0.1`, without changing the current M6 checkout or live Linux Bridge.
 - Next: operator rebuilds image from the official tag and supplies `docker build` result. Only then recreate *new ingress container* with `--no-build --force-recreate`; retain existing test-only bind to `127.0.0.1:18443`.
 - Scope: no modification to active Xray, Russia–Finland Bridge, Stats, or firewall. Automated Android enrollment remains a separate incomplete part of the same M6 module.
+
+
+### M6 — isolated Android ingress container started; loopback listener confirmed (2026-11-20)
+
+Operator executed `docker compose -f integrations/android-ingress/compose.yaml --profile android-ingress-manual up -d --no-build --no-deps --force-recreate android-bridge-decapsulator` with `ANDROID_BRIDGE_CONFIG_DIR=/opt/tervon-bridge-m6-lab/config` after rebuilding the image from released `v1.0.1` sources. Runtime output: container `android-ingress-android-bridge-decapsulator-1` **Started / Up**, host binding **127.0.0.1:18443->8443/tcp**, `ss` confirms docker-proxy LISTEN on **127.0.0.1:18443**; immediate `docker compose logs --tail=20` had no lines. **CONTAINER_START / LISTEN PASS;** mTLS handshake, HTTP/2 application exchange, VLESS payload and Android E2E **NOT YET VERIFIED**. No existing Bridge Russia–Finland or Xray service changed. Next focused test: OpenSSL client certificate + server-name verification, TLS 1.3 and ALPN `h2` against loopback listener with the test PKI; this test must not transmit VPN payload.
