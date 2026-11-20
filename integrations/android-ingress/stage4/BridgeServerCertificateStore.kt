@@ -6,6 +6,7 @@ import android.util.Base64
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.security.MessageDigest
+import java.security.cert.CertificateExpiredException
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.util.Date
@@ -132,7 +133,12 @@ internal class BridgeServerCertificateStore(context: Context) {
             data
         }
         val pem = String(bytes, Charsets.UTF_8)
-        val cert = verifiedCertificate(pem, pinnedCaPem, devicePublicKeySpkiDer, nowEpochMillis)
+        val cert = try {
+            verifiedCertificate(pem, pinnedCaPem, devicePublicKeySpkiDer, nowEpochMillis)
+        } catch (_: CertificateExpiredException) {
+            // Preserve the old PEM for diagnostics/explicit renewal; never auto-enroll.
+            return null
+        }
         return StoredCertificate(trustedServerId, pem, cert.notAfter.time)
     }
 }
