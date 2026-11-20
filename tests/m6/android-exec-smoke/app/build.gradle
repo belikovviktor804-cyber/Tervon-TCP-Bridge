@@ -1,0 +1,21 @@
+plugins {
+    id 'com.android.application'
+}
+android {
+    namespace 'org.tervon.bridge.smoketest'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'org.tervon.bridge.smoketest'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+    // Extract the Go PIE executable from lib/<abi>/ to executable nativeLibraryDir.
+    // The lib*.so filename is a packaging convention, NOT a JNI shared library.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+}
