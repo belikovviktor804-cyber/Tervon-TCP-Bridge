@@ -152,3 +152,16 @@
   измеренным performance benchmark.
 - Изменения M0 не означают выпуск v1.0.1.
 - Решение: перейти к M1 без изменения работающих служб.
+
+
+## M6 — Android ingress Decapsulator: operator-approved implementation checkpoint (2026-11-20)
+
+**This checkpoint supersedes the historical M6 HOLD / NOT_STARTED wording above for the newly approved scope only.** Linux v1.0.1 release and existing Russia → Finland Bridge were confirmed operational by the operator. The operator approved a separate Android-facing Decapsulator on the Russian server, independent of the live Encapsulator, with VLESS TCP port 30000 remaining open for direct connections. Android DPI bypass is opt-in/manual; no Wi-Fi/mobile auto-switching. Existing live Xray/Bridge/Stats services must remain untouched.
+
+- **Working branch:** `work/m6-android-ingress` (from `main`); **current module M6**, implementation in progress.
+- **Confirmed host inventory from operator:** Xray listening `*:30000`; `tervon-bridge-client.service` active; `tervon-bridge-stats.service` and `tervon-bridge-fin-metrics-tunnel.service` active; Docker container `xray-exporter` running.
+- **Implemented in GitHub (non-deployed):** `integrations/android-ingress/Dockerfile`, `compose.yaml`, `server.json.example`, `README.ru.md`. Opt-in Compose profile, loopback-only host port binding, isolated Decapsulator routes to `host.docker.internal:30000`, nonroot read-only container, explicit placeholder authorized fingerprint. **No server runtime changed.**
+- **Verified:** all four files read back from GitHub; JSON example parses, role is server and dummy ACL fingerprint length is 64 hexadecimal chars. **Not verified:** Docker Compose validation/build, backend reachability, client enrollment, mTLS handshake, Android switching, or E2E TCP. Do not report PASS for these.
+- **Known blocker:** Bridge server checks `authorized` certificate SHA-256 fingerprints at startup. The intended first-launch enrollment/automatic certificate issuance cannot work simply by distributing JSON; an operator-controlled, authenticated way of provisioning and updating the new Decapsulator's authorization is needed without altering the running Russia → Finland connection. An unauthenticated public certificate-issuing API is not acceptable.
+- **Next within M6:** verify the free ingress port, Docker bridge gateway and access to existing VLESS without changing services; then test isolated container and agree minimal safe enrollment authorization. Use the chosen subscription SNI only when it actually names the intended discovery endpoint; do not assume third-party camouflage domains support Bridge.
+- **User-facing UI text:** «Если в вашем регионе нет блокировок VPN, рекомендуем оставить обход DPI выключенным для экономии заряда аккумулятора.»
