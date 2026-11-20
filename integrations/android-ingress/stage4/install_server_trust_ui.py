@@ -90,9 +90,12 @@ def main() -> int:
                 b"BridgeServerTrustScreen" in original_flutter:
             raise ValueError("manual trust UI already modified")
         # Precheck every patch before any application.
-        updated_channel = inject_once(
-            original_channel, CHANNEL_ANCHOR, CHANNEL_INSERT, "Android channel"
-        )
+        if original_channel.decode("utf-8").count(CHANNEL_ANCHOR) != 1:
+            raise ValueError("Android channel: unexpected source anchor")
+        # Kotlin when-else must be LAST: add the new branch before it.
+        updated_channel = original_channel.decode("utf-8").replace(
+            CHANNEL_ANCHOR, CHANNEL_INSERT + CHANNEL_ANCHOR, 1
+        ).encode("utf-8")
         updated_flutter = inject_once(
             original_flutter, IMPORT_ANCHOR, IMPORT_INSERT, "Flutter import"
         )
