@@ -1,0 +1,74 @@
+name: M6 Android ARM64 cross-compile from released Linux v1.0.1 source
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/m5-linux-release]
+    paths:
+      - '.github/workflows/m6-android-arm64-crossbuild.yml'
+permissions:
+  contents: read
+jobs:
+  crossbuild:
+    name: Android arm64 build from immutable v1.0.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact public release tag (not development HEAD)
+        uses: actions/checkout@v4
+        with:
+          ref: v1.0.1
+          persist-credentials: false
+      - name: Require exact immutable release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=c77cf2685623e71705ae38f57125986fb9531fd8
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          echo "M6_SOURCE_TAG=v1.0.1"
+          echo "M6_SOURCE_COMMIT=$actual"
+      - name: Install Go toolchain matching source module
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: prototype/go.mod
+          cache: false
+      - name: Cross-compile existing Bridge (no source modifications)
+        shell: bash
+        working-directory: prototype
+        env:
+          CGO_ENABLED: "0"
+          GOOS: android
+          GOARCH: arm64
+        run: |
+          set -euo pipefail
+          mkdir -p ../dist
+          go build -trimpath -buildvcs=false \
+            -ldflags='-s -w -X main.buildVersion=v1.0.1 -X main.buildCommit=c77cf2685623e71705ae38f57125986fb9531fd8' \
+            -o ../dist/tervon-bridge-android-arm64 ./cmd/bridge
+          test -s ../dist/tervon-bridge-android-arm64
+          echo "M6_ANDROID_CROSSBUILD=PASS"
+      - name: Verify ELF architecture and embedded build metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          file dist/tervon-bridge-android-arm64
+          readelf -h dist/tervon-bridge-android-arm64 | tee dist/ELF_HEADER.txt
+          grep -q 'Machine:.*AArch64' dist/ELF_HEADER.txt
+          go version -m dist/tervon-bridge-android-arm64 | tee dist/GO_BUILD_INFO.txt
+          grep -q 'GOOS=android' dist/GO_BUILD_INFO.txt
+          grep -q 'GOARCH=arm64' dist/GO_BUILD_INFO.txt
+          (cd dist && sha256sum tervon-bridge-android-arm64 > SHA256SUMS)
+          echo 'SOURCE_TAG=v1.0.1' > dist/PROVENANCE.txt
+          echo 'SOURCE_COMMIT=c77cf2685623e71705ae38f57125986fb9531fd8' >> dist/PROVENANCE.txt
+          echo 'GOOS=android' >> dist/PROVENANCE.txt
+          echo 'GOARCH=arm64' >> dist/PROVENANCE.txt
+          echo 'CGO_ENABLED=0' >> dist/PROVENANCE.txt
+          echo 'STATUS=CROSS_BUILD_ONLY_NOT_ANDROID_RUNTIME_TESTED' >> dist/PROVENANCE.txt
+          echo "M6_ANDROID_ELF_PROVENANCE=PASS"
+      - name: Preserve cross-compiled binary and verification artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tervon-bridge-v1.0.1-android-arm64-crossbuild
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
