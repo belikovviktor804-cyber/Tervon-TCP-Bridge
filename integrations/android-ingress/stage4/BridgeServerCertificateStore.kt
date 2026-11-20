@@ -2,12 +2,12 @@ package com.tervonvpndpi.app
 
 import android.content.Context
 import android.util.AtomicFile
+import android.util.Base64
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.security.MessageDigest
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.util.Base64
 import java.util.Date
 
 /**
@@ -51,7 +51,7 @@ internal class BridgeServerCertificateStore(context: Context) {
                 "-----END CERTIFICATE-----\\s*$"
         )
         val match = pattern.matchEntire(pem) ?: error("expected a single X.509 PEM certificate")
-        val der = Base64.getMimeDecoder().decode(match.groupValues[1])
+        val der = Base64.decode(match.groupValues[1], Base64.DEFAULT)
         return ByteArrayInputStream(der).use {
             factory.generateCertificate(it) as X509Certificate
         }
