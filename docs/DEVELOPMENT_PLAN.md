@@ -226,3 +226,10 @@ GitHub M6 changes prepared, **NOT YET DEPLOYED**:
 - `integrations/android-ingress/README.ru.md` defines controlled in-place conversion of **same** ingress container, explicit certification renewal and lab cleanup after verified cutover.
 
 **Not yet PASS / operator input needed:** actual externally resolvable controlled Android Bridge DNS name for server leaf/SNI; creation of production secrets under `/etc/tervon/bridge-android`; controlled recreate and runtime validation; secure certificate issuance + atomic ACL update and Android E2E. Do not invent a domain from camouflage SNI or expose HTTPS publicly before authorization is in place. User's requirement is permanent installation, not to skip appropriate acceptance checks. Existing Russia–Finland Bridge, live VLESS TCP :30000, and protection services remain unchanged.
+
+
+### M6 — operator confirmed permanent Android ingress hostname (2026-11-20)
+
+Operator confirms ownership/creation of **`bridge.xrayvless.online`** as the intended dedicated Android Bridge HTTPS entry. No need to ask again or infer SNI from generic VLESS camouflage hostnames. This is a **hostname selection**, not proof of public DNS resolution, TLS certificate issuance, public port accessibility, or live Android end-to-end connectivity.
+
+The M6 Compose configuration now defaults to **`/etc/tervon/bridge-android/config`** for its read-only volume, avoiding reliance on a shell-exported laboratory path after restarts and later Compose operations. `restart: unless-stopped`, `pull_policy: never`, and no implicit image build remain. **GitHub only, NOT YET APPLIED** on Homeserver. Once operator updates the checkout, perform one-time production PKI initialization with FQDN `bridge.xrayvless.online`, recreate **the same existing Android Decapsulator only**, prove that it mounts the permanent config and serves a valid matching server certificate, then remove **only** the explicitly identified laboratory PKI directory after successful cutover. Do not publish server/client CA private keys or service secrets. Access is deny-all until client enrollment and verified ACL are provided; no production Android connection is claimed.
