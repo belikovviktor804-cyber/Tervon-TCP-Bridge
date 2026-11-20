@@ -4,11 +4,11 @@
 services:
   android-bridge-decapsulator:
     profiles: ["android-ingress-manual"]
-    build:
-      context: ../..
-      dockerfile: integrations/android-ingress/Dockerfile
+    # Production runtime uses the prebuilt verified v1.0.1 image only.
+    # NEVER rebuild implicitly from the obsolete main/M6 prototype.
+    pull_policy: never
     image: tervon-bridge-android-ingress:local
-    restart: "no"
+    restart: unless-stopped
     read_only: true
     user: "65532:65532"
     security_opt:
