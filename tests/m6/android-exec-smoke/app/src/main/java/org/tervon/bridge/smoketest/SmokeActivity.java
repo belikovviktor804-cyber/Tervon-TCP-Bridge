@@ -12,6 +12,7 @@ import android.view.WindowInsets;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Button;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.File;
@@ -46,11 +47,25 @@ public final class SmokeActivity extends Activity {
         root.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
         TextView description = new TextView(this);
-        description.setText("Offline test only. No network, VPN, or production changes.\n");
+        description.setText("Test 1: executable launch. Test 2: local-only HTTPS/2 + mTLS TCP. No VPN or remote servers.\n");
         description.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         description.setTextColor(Color.rgb(75, 85, 99));
         description.setPadding(0, dp(12), 0, dp(12));
         root.addView(description, new LinearLayout.LayoutParams(-1, -2));
+
+        Button loopbackButton = new Button(this);
+        loopbackButton.setText("Run local TCP / TLS 1.3 / mTLS test");
+        loopbackButton.setAllCaps(false);
+        root.addView(loopbackButton, new LinearLayout.LayoutParams(-1, dp(56)));
+        loopbackButton.setOnClickListener(v -> {
+            loopbackButton.setEnabled(false);
+            status("RESULT=RUNNING_LOOPBACK\\nTwo Bridge processes on 127.0.0.1...");
+            new Thread(() -> {
+                String result = LoopbackTest.run(getApplicationContext());
+                status(result);
+                runOnUiThread(() -> loopbackButton.setEnabled(true));
+            }, "m6-loopback-test").start();
+        });
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
