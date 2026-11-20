@@ -199,3 +199,13 @@ Operator executed an ephemeral `alpine:3.20` container using `docker run --rm --
 ### M6 — local fixture creation PASS (2026-11-20)
 
 Operator synchronized `work/m6-android-ingress` to the Homeserver checkout and executed `bash -n integrations/android-ingress/prepare-local-fixture.sh` (observed `M6_SCRIPT_SYNTAX=PASS`) and then generated the isolated test PKI under `/opt/tervon-bridge-m6-lab` (observed `M6_LAB_PKI=PASS`, `M6_LAB_SERVER_JSON=CREATED`, `M6_LAB_CONFIG_DIR=/opt/tervon-bridge-m6-lab/config`, `M6_LAB_CLIENT_JSON=/opt/tervon-bridge-m6-lab/private/client.json`, `M6_LAB_EXPIRES_WITHIN_DAYS=1`, `M6_LAB_RUNTIME=NOT_STARTED`). This confirms script execution and OpenSSL verification of the local test certificate chain only. No new ingress container started; external port and Android/mTLS E2E remain NOT_TESTED. These one-day keys are test-only and cannot be treated as production enrollment. Next: explicitly start only the new Compose-profiled ingress container bound to `127.0.0.1:18443`, verify runtime logs/listener and perform loopback TLS test; do not touch existing Russia–Finland Bridge, VLESS or protective services.
+
+
+### M6 — first local container launch failed: obsolete main-source build (2026-11-20)
+
+Operator observed `docker compose ps` with no running ingress container, no TCP listener `:18443`, and ingress log `json: unknown field "padding_enabled"`. Verified GitHub source comparison: `main` and `work/m6-android-ingress` `prototype/cmd/bridge/main.go` lack `padding_enabled`, `jitter_enabled`, `/v2/stream`; released tag `v1.0.1` supports them. Therefore **CONTAINER_START=FAIL** due to **wrong source tree for Docker image**, not established PKI failure. This test must not be counted PASS.
+
+- Fixed Dockerfile on M6 branch to fail closed on source trees lacking Padding/Jitter and v2.
+- Documented isolated detached Git worktree build from `v1.0.1`, without changing the current M6 checkout or live Linux Bridge.
+- Next: operator rebuilds image from the official tag and supplies `docker build` result. Only then recreate *new ingress container* with `--no-build --force-recreate`; retain existing test-only bind to `127.0.0.1:18443`.
+- Scope: no modification to active Xray, Russia–Finland Bridge, Stats, or firewall. Automated Android enrollment remains a separate incomplete part of the same M6 module.
