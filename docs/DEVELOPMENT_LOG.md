@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-20 09:26 — M6 physical Android loopback HTTP2/TLS1.3/mTLS TCP PASS
+
+- User supplied screenshot from actual Android device after pressing `Run local TCP / TLS 1.3 / mTLS test` displaying **`RESULT=PASS_ANDROID_LOOPBACK_MTLS_TCP`**; the app reports `HTTP/2 + TLS 1.3 + mTLS`, `Full-duplex 16384-byte echo verified`, `Padding/Jitter enabled`, `All listeners 127.0.0.1` and `No production VPN/server used`.
+- The isolated harness ran the unchanged Bridge v1.0.1 Android ARM64 executable as separate client and server processes with one-off test certificates and local TCP echo backend. All 16,384 expected bytes were received and compared by the harness; test code and signed APK packaging had [CI PASS #44659848880](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44659848880).
+- **Gate CLOSED/PASS:** actual Android local TCP byte-round-trip over Bridge HTTP/2 + TLS 1.3 + mTLS, with Padding/Jitter enabled. **Not tested:** quantitative padding/jitter guarantees, Android VpnService `protect()` and HEV/Xray integration, Android ↔ Russian test ingress, production connection or DNS/AdBlock routing. No production installations or service changes.
+
 ## 2026-11-20 — M6 isolated Android HTTP2/mTLS loopback TCP test packaged (CI PASS, device PENDING)
 
 - Continuing immediately after operator's physical Android `PASS_EXEC_ANDROID_ARM64` confirmation, added separate manual `Run local TCP / TLS 1.3 / mTLS test` button in the isolated smoke APK. It runs **two exact v1.0.1 Android ELF processes** in client/server modes with 127.0.0.1-only listeners, temporary CI-generated test PKI (no production keys), HTTP/2, TLS1.3/mTLS, enabled Padding/Jitter, and local Java TCP echo backend; checks a 16,384-byte binary round-trip. No remote endpoints, VPN, HEV or service restart.
