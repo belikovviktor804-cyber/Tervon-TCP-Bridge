@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Guarded staging of pure offline M6 signed-catalog modules into Android.
 
-Copies only BridgeServerReconciler.kt and BridgeSignedServerCatalog.kt.
+Copies only the catalog reconciler, signed verifier and packaged trust loader.
 Never overwrites different files; never touches VPN, APK or live services.
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ import argparse
 from pathlib import Path
 import sys
 
-FILES = ("BridgeServerReconciler.kt", "BridgeSignedServerCatalog.kt")
+FILES = ("BridgeServerReconciler.kt", "BridgeSignedServerCatalog.kt", "BridgeCatalogTrustAnchors.kt")
 PACKAGE = b"package com.tervonvpndpi.app\n"
 RELATIVE = Path("android/app/src/main/kotlin/com/tervonvpndpi/app")
 
