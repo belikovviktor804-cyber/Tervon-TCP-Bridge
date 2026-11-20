@@ -33,3 +33,25 @@
 7. На Homeserver собирать APK только после интеграции с исходниками приложения; затем проверять подпись APK и реальный Android E2E.
 
 **Не заявлять PASS** без фактических результатов сборки и мобильных тестов. Действующие Linux Bridge Россия → Финляндия, серверный Xray и Docker Android ingress этим этапом не меняются.
+
+
+## Готовая интеграция исходников в TervonVPN DPI (без изменения VPN)
+
+20 ноября 2026 года изучен прикреплённый оператором архив `tervonvpndpi-stage4-review.tar.gz` с **15 реальными файлами** приложения. Подтверждено: `BridgeCoreManager.kt` запускает отдельный ELF через `ProcessBuilder`; `BridgeRuntimeControl.kt` уже содержит команду `-config`, но `vpnRouteIntegrated=false`; `BridgeControlChannel.kt` зарегистрирован в приложении; `bridge_settings_screen.dart` уже имеет отдельный экран управления. Текущий `android/app/build.gradle.kts` содержит AndroidX Security/OkHttp, но ещё не содержит PKCS#10 библиотеки. Существующие HEV, Xray, подписание и сборку не изменяем.
+
+Добавлен `apply_to_tervonvpndpi.py` — **неавтоматический установщик для однократной интеграции**. Проверяет точный SHA-256 трёх присланных файлов (Gradle, BridgeControlChannel и Bridge Settings Flutter), отсутствие ранее созданных Kotlin Stage 4 и наличие необходимых якорей; при отличии от архива **останавливается без записей**. `--check` выполняет только preflight и ничего не меняет, `--apply` устанавливает три Kotlin-файла, добавляет ровно одну зависимость `org.bouncycastle:bcpkix-jdk18on:1.87`, один метод `stage4IdentitySelfCheck` в существующий метод-канал и одну кнопку теста в уже существующий экран Bridge. Разрешение подписок, внешние соединения, запуск Bridge, переключение Xray, VPN и подпись APK остаются без изменений. Версия библиотеки сверена с Maven Central; реальная Android/Gradle совместимость **ещё не проверена сборкой**, поэтому при ошибке надо исправить именно обнаруженную проблему.
+
+Пример выполнения **после SSH git pull ветки M6** на Homeserver:
+
+```bash
+cd /opt/tervon-tcp-bridge-m6-android-ingress
+python3 integrations/android-ingress/stage4/apply_to_tervonvpndpi.py \
+  --app-root /opt/tervonvpndpi --check
+# Только при STAGE4_SOURCE_SNAPSHOT=MATCH:
+python3 integrations/android-ingress/stage4/apply_to_tervonvpndpi.py \
+  --app-root /opt/tervonvpndpi --apply
+```
+
+**Важно:** `--apply` изменяет исходники в `/opt/tervonvpndpi`, не трогая службы; текущая сборка APK не запускается автоматически. Прежде чем собирать, сохранить текущие правила подписи/публикации и убедиться, что Gradle имеет доступ к Maven Central. Кнопка `Проверить ключ и CSR (Stage 4)` запускает Android-проверку по требованию оператора, возвращая только `PASS` или код ошибки (никакие секреты в Flutter не передаются). Проверка CSR/ключей не означает успешную авторизацию абонента, работу моста или переключение Xray.
+
+В GitHub находится исходник инструмента и перечень правок; исполнять, диагностировать и проверять сборку следует отдельно на Homeserver. **Сам установщик, Gradle compile, APK и Android self-check ещё не запускались.**
