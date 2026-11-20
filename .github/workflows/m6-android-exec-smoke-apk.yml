@@ -47,22 +47,53 @@ jobs:
           readelf -h "$dst/libtervonbridge.so" | grep -E 'Type:|Machine:'
           readelf -l "$dst/libtervonbridge.so" | grep '/system/bin/linker64'
           echo 'M6_ELF_READY_FOR_APK=PASS'
+      - name: Generate one-off localhost-only mutual TLS test credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          pki=harness/tests/m6/android-exec-smoke/out/m6-pki
+          mkdir -p "$pki"
+          openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+            -nodes -days 1 -subj '/CN=Tervon isolated test CA' \
+            -keyout "$pki/ca-key.pem" -out "$pki/ca.pem" >/dev/null 2>&1
+          openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+            -subj '/CN=localhost' -keyout "$pki/server-key.pem" \
+            -out "$pki/server.csr" >/dev/null 2>&1
+          printf '%s\n' 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            'extendedKeyUsage=serverAuth' > "$pki/server.ext"
+          openssl x509 -req -in "$pki/server.csr" -CA "$pki/ca.pem" \
+            -CAkey "$pki/ca-key.pem" -CAcreateserial -days 1 \
+            -extfile "$pki/server.ext" -out "$pki/server.pem" >/dev/null 2>&1
+          openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+            -subj '/CN=isolated-android-test-client' -keyout "$pki/client-key.pem" \
+            -out "$pki/client.csr" >/dev/null 2>&1
+          printf '%s\n' 'extendedKeyUsage=clientAuth' > "$pki/client.ext"
+          openssl x509 -req -in "$pki/client.csr" -CA "$pki/ca.pem" \
+            -CAkey "$pki/ca-key.pem" -CAcreateserial -days 1 \
+            -extfile "$pki/client.ext" -out "$pki/client.pem" >/dev/null 2>&1
+          openssl x509 -in "$pki/client.pem" -outform DER | \
+            sha256sum | cut -d ' ' -f1 > "$pki/client-fingerprint.txt"
+          # Never ship the CA signing key in the APK.
+          rm -f "$pki/ca-key.pem" "$pki/"*.csr "$pki/"*.ext "$pki/"*.srl
+          openssl verify -CAfile "$pki/ca.pem" "$pki/server.pem" "$pki/client.pem"
+          echo 'M6_LOOPBACK_TEST_PKI_GENERATED=PASS'
       - name: Build minimal test APK using only installed Android SDK (no Gradle dependencies)
         shell: bash
         run: |
           set -euo pipefail
           testproj="$PWD/harness/tests/m6/android-exec-smoke"
           build="$testproj/out"
-          mkdir -p "$build/classes" "$build/dex" "$build/apkroot/lib/arm64-v8a"
+          mkdir -p "$build/classes" "$build/dex" "$build/apkroot/lib/arm64-v8a" "$build/apkroot/assets/m6-pki"
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           platform="$SDK/platforms/android-35/android.jar"
           buildtools="$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -f "$platform"
           test -x "$buildtools/aapt2"
           javac --release 8 -cp "$platform" -d "$build/classes" \
-            "$testproj/app/src/main/java/org/tervon/bridge/smoketest/SmokeActivity.java"
+            "$testproj/app/src/main/java/org/tervon/bridge/smoketest/SmokeActivity.java" \
+            "$testproj/app/src/main/java/org/tervon/bridge/smoketest/LoopbackTest.java"
           "$buildtools/d8" --lib "$platform" --min-api 26 --output "$build/dex" \
-            "$build/classes/org/tervon/bridge/smoketest/SmokeActivity.class"
+            $(find "$build/classes" -name '*.class' -type f)
           "$buildtools/aapt2" link \
             -I "$platform" \
             --manifest "$testproj/app/src/main/AndroidManifest.xml" \
@@ -70,9 +101,10 @@ jobs:
             --version-code 1 --version-name 1.0 \
             -o "$build/unsigned.apk"
           cp "$build/dex/classes.dex" "$build/apkroot/"
+          cp "$build/m6-pki/"{ca.pem,server.pem,server-key.pem,client.pem,client-key.pem,client-fingerprint.txt} "$build/apkroot/assets/m6-pki/"
           cp "$testproj/app/src/main/jniLibs/arm64-v8a/libtervonbridge.so" \
             "$build/apkroot/lib/arm64-v8a/libtervonbridge.so"
-          (cd "$build/apkroot" && zip -q -0 "$build/unsigned.apk" classes.dex lib/arm64-v8a/libtervonbridge.so)
+          (cd "$build/apkroot" && zip -q -0 "$build/unsigned.apk" classes.dex lib/arm64-v8a/libtervonbridge.so assets/m6-pki/*)
           "$buildtools/zipalign" -f -p 4 "$build/unsigned.apk" "$build/aligned.apk"
           keytool -genkeypair -noprompt -alias smoke \
             -keystore "$build/smoke-debug.jks" -storepass android -keypass android \
