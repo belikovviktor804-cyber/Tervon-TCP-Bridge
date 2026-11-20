@@ -18,11 +18,15 @@ import java.util.Locale
  * Never downloads a key, trusts SNI/URL alone, changes subscription state,
  * enrolls devices, signs anything, or starts VPN/Bridge.
  */
-internal class BridgeServerCatalogTrust(context: Context) {
-    private val baseDir = File(
+internal class BridgeServerCatalogTrust(
+    context: Context,
+    // An isolated directory may be supplied only by in-app diagnostics.
+    // Production callers always use the app-private noBackupFilesDir default.
+    private val baseDir: File = File(
         context.applicationContext.noBackupFilesDir,
         "bridge-server-catalog-trust-v1"
-    )
+    ),
+) {
 
     data class PinnedKey(
         val serverId: String,
