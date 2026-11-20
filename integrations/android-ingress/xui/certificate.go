@@ -52,7 +52,8 @@ func SignDeviceCSR(csrPEM, caPEM []byte, caKey crypto.Signer, now time.Time, lif
 	if err != nil || !ca.IsCA || ca.KeyUsage&x509.KeyUsageCertSign == 0 {
 		return zero, errors.New("invalid client CA")
 	}
-	if !ca.PublicKey.(interface{ Equal(crypto.PublicKey) bool }).Equal(caKey.Public()) {
+	caPublic, equalSupported := ca.PublicKey.(interface{ Equal(crypto.PublicKey) bool })
+	if !equalSupported || !caPublic.Equal(caKey.Public()) {
 		return zero, errors.New("client CA key mismatch")
 	}
 	if now.Before(ca.NotBefore) || now.After(ca.NotAfter) || now.Add(lifetime).After(ca.NotAfter) {
