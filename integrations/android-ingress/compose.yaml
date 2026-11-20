@@ -21,7 +21,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - "${ANDROID_BRIDGE_CONFIG_DIR:?Set ANDROID_BRIDGE_CONFIG_DIR to a private, prepared directory}:/config:ro"
+      - "${ANDROID_BRIDGE_CONFIG_DIR:-/etc/tervon/bridge-android/config}:/config:ro"
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=8m
     stop_grace_period: 15s
