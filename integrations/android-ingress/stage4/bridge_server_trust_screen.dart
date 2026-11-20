@@ -50,6 +50,26 @@ class _BridgeServerTrustScreenState extends State<BridgeServerTrustScreen> {
     }
   }
 
+  Future<void> _selfCheck() async {
+    if (_busy) return;
+    setState(() { _busy = true; _result = 'Самопроверка ключей серверов…'; });
+    try {
+      final data = await _channel.invokeMapMethod<String, dynamic>(
+        'serverCatalogPinSelfCheck',
+      );
+      if (mounted) setState(() => _result =
+          data?['result'] == 'PASS'
+              ? 'M6: PASS — изоляция, отпечаток, запрет подмены'
+              : 'M6: FAIL — проверка ключей');
+    } on PlatformException catch (e) {
+      if (mounted) setState(() => _result = 'M6: FAIL — ${e.code}');
+    } catch (_) {
+      if (mounted) setState(() => _result = 'M6: FAIL — самопроверка недоступна');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _field(TextEditingController c, String label, {int lines = 1}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -94,6 +114,10 @@ class _BridgeServerTrustScreenState extends State<BridgeServerTrustScreen> {
       FilledButton(
         onPressed: (_busy || !_confirmed) ? null : _save,
         child: const Text('Закрепить ключ сервера'),
+      ),
+      OutlinedButton(
+        onPressed: _busy ? null : _selfCheck,
+        child: const Text('Самопроверка доверия (без реальных ключей)'),
       ),
       if (_result.isNotEmpty) ...[
         const SizedBox(height: 12),
