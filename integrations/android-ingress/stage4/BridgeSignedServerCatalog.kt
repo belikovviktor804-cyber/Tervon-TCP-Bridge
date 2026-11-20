@@ -122,7 +122,7 @@ internal class BridgeSignedServerCatalog(
         }
 
         val list = root.getJSONArray("servers")
-        require(list.length() in 1..256) { "invalid catalog server count" }
+        require(list.length() in 0..256) { "invalid catalog server count" }
         val ids = HashSet<String>()
         val assignedEndpoints = HashSet<BridgeServerReconciler.Endpoint>()
         val servers = ArrayList<Server>(list.length())
