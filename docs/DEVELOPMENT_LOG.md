@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-20 09:11 device screenshot — M6 Android arm64 ELF runtime PASS
+
+- Operator installed isolated `Tervon Bridge ELF Smoke` APK on physical Android device and supplied screenshot with **`RESULT=PASS_EXEC_ANDROID_ARM64`**, `ELF launched via ProcessBuilder`, native library executable path ending `lib/arm64/libtervonbridge.so`, and `help: -config found`.
+- APK source is existing immutable Bridge `v1.0.1` (`c77cf2685623e71705ae38f57125986fb9531fd8`), with Go ELF cross-build and package SHA byte-match PASS in [Actions run 44658549065](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44658549065). Native executable is packaged under `.so` naming convention, not claimed to be JNI library.
+- **Gate CLOSED/PASS:** packaging, extraction to nativeLibraryDir, and actual Android `ProcessBuilder -h` execution. **Not yet tested:** VpnService socket `protect()`, HEV/Xray integration, certificate loading, HTTPS/2 TLS 1.3 mTLS handshake, Russian ingress or live TCP data. Production TervonVPN, Linux Bridge v1.0.1, servers/services unchanged. Proceed only with next M6 integration gate.
+
 ## 2026-11-19 13:43:47Z — Official Linux v1.0.1 RELEASED / PASS
 
 - Operator published with `install/publish-v1.0.1.sh`: local SHA check `tervon-bridge-linux-amd64: OK`, `M5_PUBLISH_TAG_SHA=c77cf2685623e71705ae38f57125986fb9531fd8`, downloaded and compared all three uploaded assets, `M5_PUBLISH_DRAFT_REMOTE_VERIFY=PASS`, `M5_PUBLISH=PASS_PUBLIC_RELEASE`, exit 0.
