@@ -54,7 +54,7 @@ jobs:
           pki=harness/tests/m6/android-exec-smoke/out/m6-pki
           mkdir -p "$pki"
           openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
-            -nodes -days 1 -subj '/CN=Tervon isolated test CA' \
+            -nodes -days 30 -subj '/CN=Tervon isolated test CA' \
             -keyout "$pki/ca-key.pem" -out "$pki/ca.pem" >/dev/null 2>&1
           openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
             -subj '/CN=localhost' -keyout "$pki/server-key.pem" \
@@ -62,14 +62,14 @@ jobs:
           printf '%s\n' 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
             'extendedKeyUsage=serverAuth' > "$pki/server.ext"
           openssl x509 -req -in "$pki/server.csr" -CA "$pki/ca.pem" \
-            -CAkey "$pki/ca-key.pem" -CAcreateserial -days 1 \
+            -CAkey "$pki/ca-key.pem" -CAcreateserial -days 30 \
             -extfile "$pki/server.ext" -out "$pki/server.pem" >/dev/null 2>&1
           openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
             -subj '/CN=isolated-android-test-client' -keyout "$pki/client-key.pem" \
             -out "$pki/client.csr" >/dev/null 2>&1
           printf '%s\n' 'extendedKeyUsage=clientAuth' > "$pki/client.ext"
           openssl x509 -req -in "$pki/client.csr" -CA "$pki/ca.pem" \
-            -CAkey "$pki/ca-key.pem" -CAcreateserial -days 1 \
+            -CAkey "$pki/ca-key.pem" -CAcreateserial -days 30 \
             -extfile "$pki/client.ext" -out "$pki/client.pem" >/dev/null 2>&1
           openssl x509 -in "$pki/client.pem" -outform DER | \
             sha256sum | cut -d ' ' -f1 > "$pki/client-fingerprint.txt"
