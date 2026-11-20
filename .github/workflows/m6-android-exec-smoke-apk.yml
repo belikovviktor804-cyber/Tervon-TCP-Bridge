@@ -1,0 +1,75 @@
+name: M6 Android executable APK packaging smoke (offline)
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/m5-linux-release]
+    paths:
+      - 'tests/m6/android-exec-smoke/**'
+      - '.github/workflows/m6-android-exec-smoke-apk.yml'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v1.0.1
+          path: released-source
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: work/m5-linux-release
+          path: harness
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: released-source/prototype/go.mod
+          cache: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build original Android ARM64 executable, rename only for APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C released-source rev-parse HEAD)" = c77cf2685623e71705ae38f57125986fb9531fd8
+          dst="harness/tests/m6/android-exec-smoke/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$dst"
+          (cd released-source/prototype && env CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+            go build -trimpath -buildvcs=false \
+            -ldflags='-s -w -X main.buildVersion=v1.0.1 -X main.buildCommit=c77cf2685623e71705ae38f57125986fb9531fd8' \
+            -o "../../$dst/libtervonbridge.so" ./cmd/bridge)
+          test -s "$dst/libtervonbridge.so"
+          file "$dst/libtervonbridge.so"
+          readelf -h "$dst/libtervonbridge.so" | grep -E 'Type:|Machine:'
+          readelf -l "$dst/libtervonbridge.so" | grep '/system/bin/linker64'
+          echo 'M6_ELF_READY_FOR_APK=PASS'
+      - name: Assemble isolated smoke APK, no production app dependencies
+        shell: bash
+        working-directory: harness/tests/m6/android-exec-smoke
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Verify APK actually includes unchanged executable bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=harness/tests/m6/android-exec-smoke/app/build/outputs/apk/debug/app-debug.apk
+          elf=harness/tests/m6/android-exec-smoke/app/src/main/jniLibs/arm64-v8a/libtervonbridge.so
+          test -s "$apk"
+          unzip -p "$apk" lib/arm64-v8a/libtervonbridge.so | cmp - "$elf"
+          sha256sum "$apk" "$elf"
+          echo 'M6_APK_PACKAGING_SHA_MATCH=PASS'
+          echo 'M6_DEVICE_PROCESSBUILDER=NOT_TESTED_REQUIRE_PHYSICAL_ANDROID'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m6-bridge-v1.0.1-android-exec-smoke-apk
+          path: harness/tests/m6/android-exec-smoke/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
