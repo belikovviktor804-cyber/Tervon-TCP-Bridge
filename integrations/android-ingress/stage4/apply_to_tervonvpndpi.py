@@ -29,6 +29,8 @@ NEW_KOTLIN = (
 )
 DEPENDENCY = '    implementation("org.bouncycastle:bcpkix-jdk18on:1.87")'
 GRADLE_ANCHOR = '    implementation("com.squareup.okhttp3:okhttp:4.12.0")'
+PACKAGING_ANCHOR = '    packaging {\n        jniLibs {'
+PACKAGING_REPLACEMENT = '    packaging {\n        resources {\n            pickFirsts += "META-INF/LICENSE.md"\n        }\n        jniLibs {'
 
 CHANNEL_ANCHOR = '                else -> result.notImplemented()'
 CHANNEL_INJECTION = '''                "stage4IdentitySelfCheck" -> Thread({
@@ -99,6 +101,7 @@ def prepare(root: Path) -> dict[Path, bytes]:
 
     gradle = replace_exact(source[GRADLE], GRADLE_ANCHOR,
                            GRADLE_ANCHOR + "\n" + DEPENDENCY, "Gradle")
+    gradle = replace_exact(gradle, PACKAGING_ANCHOR, PACKAGING_REPLACEMENT, "Bouncy Castle license resource")
     channel = replace_exact(source[CHANNEL], CHANNEL_ANCHOR,
                             CHANNEL_INJECTION + CHANNEL_ANCHOR, "BridgeControlChannel")
     dart = replace_exact(source[DART], DART_METHOD_ANCHOR,
