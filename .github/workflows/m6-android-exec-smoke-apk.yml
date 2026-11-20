@@ -31,9 +31,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.10.2'
       - name: Build original Android ARM64 executable, rename only for APK packaging
         shell: bash
         run: |
@@ -50,17 +47,46 @@ jobs:
           readelf -h "$dst/libtervonbridge.so" | grep -E 'Type:|Machine:'
           readelf -l "$dst/libtervonbridge.so" | grep '/system/bin/linker64'
           echo 'M6_ELF_READY_FOR_APK=PASS'
-      - name: Assemble isolated smoke APK, no production app dependencies
+      - name: Build minimal test APK using only installed Android SDK (no Gradle dependencies)
         shell: bash
-        working-directory: harness/tests/m6/android-exec-smoke
         run: |
           set -euo pipefail
-          gradle --no-daemon --stacktrace :app:assembleDebug
+          testproj="$PWD/harness/tests/m6/android-exec-smoke"
+          build="$testproj/out"
+          mkdir -p "$build/classes" "$build/dex" "$build/apkroot/lib/arm64-v8a"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          platform="$SDK/platforms/android-35/android.jar"
+          buildtools="$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -f "$platform"
+          test -x "$buildtools/aapt2"
+          javac --release 8 -cp "$platform" -d "$build/classes" \
+            "$testproj/app/src/main/java/org/tervon/bridge/smoketest/SmokeActivity.java"
+          "$buildtools/d8" --lib "$platform" --min-api 26 --output "$build/dex" \
+            "$build/classes/org/tervon/bridge/smoketest/SmokeActivity.class"
+          "$buildtools/aapt2" link \
+            -I "$platform" \
+            --manifest "$testproj/app/src/main/AndroidManifest.xml" \
+            --min-sdk-version 26 --target-sdk-version 35 \
+            --version-code 1 --version-name 1.0 \
+            -o "$build/unsigned.apk"
+          cp "$build/dex/classes.dex" "$build/apkroot/"
+          cp "$testproj/app/src/main/jniLibs/arm64-v8a/libtervonbridge.so" \
+            "$build/apkroot/lib/arm64-v8a/libtervonbridge.so"
+          (cd "$build/apkroot" && zip -q -0 "$build/unsigned.apk" classes.dex lib/arm64-v8a/libtervonbridge.so)
+          "$buildtools/zipalign" -f -p 4 "$build/unsigned.apk" "$build/aligned.apk"
+          keytool -genkeypair -noprompt -alias smoke \
+            -keystore "$build/smoke-debug.jks" -storepass android -keypass android \
+            -dname 'CN=Isolated Android Smoke APK' -keyalg RSA -keysize 2048 -validity 2
+          "$buildtools/apksigner" sign --ks "$build/smoke-debug.jks" \
+            --ks-key-alias smoke --ks-pass pass:android --key-pass pass:android \
+            --out "$build/app-debug.apk" "$build/aligned.apk"
+          "$buildtools/apksigner" verify "$build/app-debug.apk"
+          echo 'M6_OFFLINE_APK_PACKAGING=PASS'
       - name: Verify APK actually includes unchanged executable bytes
         shell: bash
         run: |
           set -euo pipefail
-          apk=harness/tests/m6/android-exec-smoke/app/build/outputs/apk/debug/app-debug.apk
+          apk=harness/tests/m6/android-exec-smoke/out/app-debug.apk
           elf=harness/tests/m6/android-exec-smoke/app/src/main/jniLibs/arm64-v8a/libtervonbridge.so
           test -s "$apk"
           unzip -p "$apk" lib/arm64-v8a/libtervonbridge.so | cmp - "$elf"
@@ -70,6 +96,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: m6-bridge-v1.0.1-android-exec-smoke-apk
-          path: harness/tests/m6/android-exec-smoke/app/build/outputs/apk/debug/app-debug.apk
+          path: harness/tests/m6/android-exec-smoke/out/app-debug.apk
           if-no-files-found: error
           retention-days: 14
