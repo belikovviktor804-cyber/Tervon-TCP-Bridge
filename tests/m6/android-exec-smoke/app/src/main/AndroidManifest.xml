@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.tervon.bridge.smoketest">
+    <!-- Required for Android socket APIs, even when all listeners are on loopback. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="Tervon Bridge ELF Smoke"
         android:allowBackup="false"
