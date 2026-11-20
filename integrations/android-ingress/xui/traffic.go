@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,13 @@ import (
 //
 // Missing counters are a hard error: missing must never become zero usage.
 // This method is not an Android authentication or enrollment endpoint.
+func validateEmail(email string) error {
+	if email == "" || strings.ContainsAny(email, "/\\\\?#\\x00\\r\\n") {
+		return errors.New("invalid client identifier")
+	}
+	return nil
+}
+
 func (c *Client) GetUsageByEmail(ctx context.Context, email string) (UsageSnapshot, error) {
 	if err := validateEmail(email); err != nil {
 		return UsageSnapshot{}, err
@@ -49,8 +57,7 @@ func (c *Client) CheckEligibilityByEmail(ctx context.Context, email string, now 
 	// Even for malformed or disabled records, don't grant anything: the
 	// policy below rejects them. Request traffic only when still eligible
 	// for a quota check.
-	if err := CheckSubscriptionEligibility(record, nil, now); err != nil &&
-		err.Error() != "usage unavailable for limited subscription" {
+	if err := CheckSubscriptionEligibility(record, &UsageSnapshot{}, now); err != nil {
 		return err
 	}
 	usage, err := c.GetUsageByEmail(ctx, record.Email)
