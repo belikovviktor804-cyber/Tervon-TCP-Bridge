@@ -70,3 +70,23 @@ sudo bash integrations/android-ingress/prepare-local-fixture.sh /opt/tervon-brid
 Тестовый CA private key никогда не копировать в контейнер и Android, не отправлять в GitHub или чат; на сервер не передавать реальные client private keys. После испытаний лабораторную PKI удалить только по согласованной процедуре и не смешивать с рабочей инфраструктурой.
 
 **Контроль безопасности:** запуск генератора требует root для создания отдельных ограниченных прав, но не меняет действующие сертификаты `/etc/tervon-tcp-bridge/`. Настоящая регистрация Android должна выпускать сертификат на CSR/публичный ключ, созданный **телефоном**, а не генерировать клиентский приватный ключ на сервере.
+
+## M6: исправление несовместимого Docker-образа (2026-11-20)
+
+При первом запуске тестового контейнера оператор получил `json: unknown field "padding_enabled"`; контейнер завершился, listener `127.0.0.1:18443` отсутствовал. **Причина подтверждена сравнением исходников:** ветка M6 основана на старом `main` (`prototype/cmd/bridge/main.go` без Padding/Jitter), а релизный тег `v1.0.1` содержит Padding/Jitter и `/v2/stream`. Лабораторный JSON верен для релиза. **Нельзя удалять поля Padding/Jitter или переводить клиент на v1.**
+
+Dockerfile теперь отказывает в сборке из старого исходника. Для исправления используйте **отдельное Git worktree** с официальным тегом, не переключая рабочую ветку M6 и не затрагивая действующие службы:
+
+```sh
+cd /opt/tervon-tcp-bridge-m6-android-ingress
+git pull --ff-only
+git fetch --tags origin
+git worktree add --detach /opt/tervon-tcp-bridge-m6-release-src v1.0.1
+
+docker build \
+  -f /opt/tervon-tcp-bridge-m6-android-ingress/integrations/android-ingress/Dockerfile \
+  -t tervon-bridge-android-ingress:local \
+  /opt/tervon-tcp-bridge-m6-release-src
+```
+
+Это пересобирает **только тестовый образ**; `docker compose up` здесь не вызывается. Предварительно убедитесь, что путь release worktree отсутствует. Поскольку текущая Compose-конфигурация использует ветку M6 как build context, `docker compose build` без специального исправления контекста теперь **намеренно выдаст ошибку проверки версии**, а не незаметно соберёт старый Bridge. Запуск после успешной сборки — отдельный этап с `--no-build`, подтвердить работу контейнера и локальный HTTPS/2/mTLS, не открывая порт наружу.
