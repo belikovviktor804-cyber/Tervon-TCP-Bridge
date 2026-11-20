@@ -81,11 +81,19 @@ func signOffline(keyPath, payloadPath, outputPath, keyID string) error {
     return nil
 }
 
+// FHS-based defaults apply only to the catalog publisher, NOT to every
+// Bridge installation. All paths are overridable for unprivileged Linux setups.
+const (
+    defaultSigningKeyPath = "/etc/tervon/bridge/keys/catalog-ed25519.pk8.pem"
+    defaultPayloadPath    = "/var/lib/tervon/bridge/catalog/catalog.json"
+    defaultEnvelopePath   = "/var/lib/tervon/bridge/catalog/catalog.signed.json"
+)
+
 func main() {
-    key := flag.String("key", "", "path to existing private Ed25519 PKCS#8 PEM (0600)")
-    payload := flag.String("payload", "", "path to catalog JSON payload")
-    out := flag.String("out", "", "new output envelope path (must not exist)")
-    id := flag.String("key-id", "", "trusted catalog signing key ID")
+    key := flag.String("key", defaultSigningKeyPath, "path to existing private Ed25519 PKCS#8 PEM (0600)")
+    payload := flag.String("payload", defaultPayloadPath, "path to catalog JSON payload")
+    out := flag.String("out", defaultEnvelopePath, "new output envelope path (must not exist)")
+    id := flag.String("key-id", "", "trusted catalog signing key ID (required)")
     flag.Parse()
     if err := signOffline(*key, *payload, *out, *id); err != nil {
         fmt.Fprintln(os.Stderr, "catalog-sign: refused:", err)
