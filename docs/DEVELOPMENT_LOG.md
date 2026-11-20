@@ -1,5 +1,11 @@
 # Tervon TCP Bridge — журнал разработки
 
+## 2026-11-20 — M6 isolated Android HTTP2/mTLS loopback TCP test packaged (CI PASS, device PENDING)
+
+- Continuing immediately after operator's physical Android `PASS_EXEC_ANDROID_ARM64` confirmation, added separate manual `Run local TCP / TLS 1.3 / mTLS test` button in the isolated smoke APK. It runs **two exact v1.0.1 Android ELF processes** in client/server modes with 127.0.0.1-only listeners, temporary CI-generated test PKI (no production keys), HTTP/2, TLS1.3/mTLS, enabled Padding/Jitter, and local Java TCP echo backend; checks a 16,384-byte binary round-trip. No remote endpoints, VPN, HEV or service restart.
+- Fixed intermediate `javac` test harness dependency (new `LoopbackTest` class was not included in prior one-file Java invocation). Latest [CI run 44659848880](https://github.com/tervon-software/Tervon-TCP-Bridge/actions/runs/44659848880) **SUCCESS** with packaging byte-match and signed APK. Test artifact `m6-bridge-v1.0.1-android-exec-smoke-apk` (id 14594324655; 14-day retention).
+- **State:** M6 Android packaging PASS; physical Android loopback/mTLS/TCP runtime **AWAITING DEVICE EVIDENCE**. Operator must install updated APK, press loopback button, and return on-screen PASS/FAIL. No claim of completed mTLS/TCP transmission until then. Existing Linux v1.0.1 release and production services unchanged.
+
 ## 2026-11-20 09:11 device screenshot — M6 Android arm64 ELF runtime PASS
 
 - Operator installed isolated `Tervon Bridge ELF Smoke` APK on physical Android device and supplied screenshot with **`RESULT=PASS_EXEC_ANDROID_ARM64`**, `ELF launched via ProcessBuilder`, native library executable path ending `lib/arm64/libtervonbridge.so`, and `help: -config found`.
