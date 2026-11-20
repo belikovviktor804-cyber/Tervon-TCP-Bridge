@@ -15,7 +15,9 @@ import (
 // Missing counters are a hard error: missing must never become zero usage.
 // This method is not an Android authentication or enrollment endpoint.
 func validateEmail(email string) error {
-	if email == "" || strings.ContainsAny(email, "/\\\\?#\\x00\\r\\n") {
+	if email == "" || strings.IndexFunc(email, func(r rune) bool {
+		return r < 0x20 || r == 0x7f || strings.ContainsRune("/\\?#", r)
+	}) >= 0 {
 		return errors.New("invalid client identifier")
 	}
 	return nil
