@@ -462,3 +462,14 @@ Decision cases implemented: Bridge manually OFF => IDLE_OFF (before profile look
 Read-only source investigation of operator-provided actual 15-file Android archive: `BridgeRuntimeSettings.kt` contains only manual preferences; `BridgeConfigManager.kt` handles app-private config; `BridgeVpnIntegration.kt` validates local TCP target but does not alter Xray; `home_screen.dart` owns selection events and consults `ExternalServerSelection` / `SubParser`. These external service source files and complete active profile resolution are **not in the supplied archive**. It would be unsafe to guess those APIs or wire automatic route changes without inspecting them. Do **not** inject reconciliation into Bridge Settings alone; keep working VPN/HEV and release signing unchanged.
 
 **Current status:** `RECONCILER_SOURCE_COMMITTED / TEST_SOURCE_COMMITTED`; `KOTLIN_TEST_EXECUTION_NOT_CONFIRMED`; `APP_WIRING_NOT_IMPLEMENTED`; `ON_DEVICE_SWITCHING_NOT_TESTED`; `ENROLLMENT_NOT_IMPLEMENTED`. A sandbox compiler exists but direct GitHub raw download failed due DNS, so there is no honest PASS from that attempt. Next gate: Kotlin/JVM compile/test exact GitHub sources in the existing SSH Homeserver checkout; after PASS inspect actual `lib/vpn/external_server_selection.dart`, `lib/vpn/subscription_service_name.dart`, related protocol selection and Xray start/pause event paths before wiring. No production services or Android APK changed by these GitHub commits.
+
+
+### M6 — offline Kotlin reconciler compilation and isolated scenario test PASS on Homeserver (2026-11-20)
+
+Operator executed exact source checkout `work/m6-android-ingress` up to `797904b` and compiled `integrations/android-ingress/stage4/BridgeServerReconciler.kt` + `BridgeServerReconcilerTest.kt` using the pre-existing Gradle-cached Kotlin compiler 2.3.20 under Java 25, without installing packages or affecting production services. Standalone compiler was initially invoked with incomplete classpath (`kotlin-reflect 2.3.20` missing; then `kotlinx.coroutines.CoroutineScope` missing). Operator corrected classpath using cached `kotlin-reflect 2.2.10` and `kotlinx-coroutines-core-jvm 1.8.0`. **Final observed evidence:**
+```text
+COMPILE_EXIT_CODE=0
+M6_OFFLINE_BRIDGE_RECONCILIATION=PASS
+TEST_EXIT_CODE=0
+```
+Java 25 native-access/Unsafe warnings were nonfatal. **Status: ISOLATED_RECONCILER=PASS** (source compilation + local scenario assertions). This does **not** establish Android app event wiring, actual trusted catalog loading, real certificate storage, live DNS reachability, enrollment, Xray routing, APK/device E2E or remote server connection. Do not repeat this successful isolated test without relevant source changes. Next step in this SAME M6 module: inspect actual active-profile selection APIs in `/opt/tervonvpndpi` read-only before implementing minimal event hookup and separate per-server certificate storage. Never guess source APIs or alter running services.
