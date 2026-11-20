@@ -68,3 +68,20 @@ func TestInvalidInputAndNoOutput(t *testing.T) {
     if _, err := os.Stat(out); !os.IsNotExist(err) { t.Fatal("output created after invalid data") }
     if err := signOffline(key, payload, key, "primary"); err == nil { t.Fatal("output equals key accepted") }
 }
+
+func TestFHSDefaultsAreAbsoluteAndDistinct(t *testing.T) {
+    paths := []string{defaultSigningKeyPath, defaultPayloadPath, defaultEnvelopePath}
+    if !filepath.IsAbs(paths[0]) || !filepath.IsAbs(paths[1]) || !filepath.IsAbs(paths[2]) {
+        t.Fatal("catalog publisher defaults must be absolute paths")
+    }
+    if paths[0] != "/etc/tervon/bridge/keys/catalog-ed25519.pk8.pem" {
+        t.Fatal("private signing key not under FHS configuration path")
+    }
+    if paths[1] != "/var/lib/tervon/bridge/catalog/catalog.json" ||
+       paths[2] != "/var/lib/tervon/bridge/catalog/catalog.signed.json" {
+        t.Fatal("catalog state paths not under FHS persistent state")
+    }
+    if paths[0] == paths[1] || paths[0] == paths[2] || paths[1] == paths[2] {
+        t.Fatal("private key, payload, signed envelope must be distinct files")
+    }
+}
