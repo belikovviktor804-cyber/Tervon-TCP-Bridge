@@ -58,6 +58,7 @@ func TestBridgeEnrollmentHTTPRefusesUnsafeRequestsAndActivationFailures(t *testi
     csr,caPEM,caKey:=testCertificateInputs(t,now)
     base:=&BridgeEnrollmentHTTP{
         RemoteURL:"https://dynamic.example/v2/stream",ServerName:"dynamic.example",
+        BackendHost:"vless.dynamic.example",BackendPort:30000,
         Service:"vpn",ClientCAPEM:caPEM,ServerCAPEM:caPEM,ClientCAKey:caKey,
         Activate:func(string)error{return io.ErrUnexpectedEOF},
     }
@@ -90,6 +91,9 @@ func TestBridgeEnrollmentHTTPRefusesUnsafeRequestsAndActivationFailures(t *testi
     missingServerCA:=*base
     missingServerCA.ServerCAPEM=nil
     if _,err:=missingServerCA.Handler();err==nil{t.Fatal("missing server trust CA accepted")}
+    noBackend:=*base
+    noBackend.BackendHost=""
+    if _,err:=noBackend.Handler();err==nil{t.Fatal("missing authorized backend accepted")}
     badURL:=*base
     badURL.RemoteURL="http://dynamic.example/v2/stream"
     if _,err:=badURL.Handler();err==nil{t.Fatal("insecure endpoint accepted")}
