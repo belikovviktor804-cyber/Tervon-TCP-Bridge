@@ -24,6 +24,7 @@ type BridgeEnrollmentHTTP struct {
     RemoteURL string
     ServerName string
     Service string
+    TransportServices map[string]string // optional advertised service mapping
     ClientCAPEM []byte
     ServerCAPEM []byte // existing public server trust root for Android Bridge TLS
     ClientCAKey crypto.Signer
@@ -36,6 +37,7 @@ type bridgeDiscoveryResponse struct {
     RemoteURL string `json:"remote_url,omitempty"`
     ServerName string `json:"server_name,omitempty"`
     Service string `json:"service,omitempty"`
+    TransportServices map[string]string `json:"transport_services,omitempty"`
     ClientCA string `json:"client_ca,omitempty"`
     ServerCA string `json:"server_ca,omitempty"`
 }
@@ -58,6 +60,16 @@ func (h *BridgeEnrollmentHTTP) Handler() (http.Handler, error) {
         u.Path != "/v2/stream" || u.RawPath != "" {
         return nil, errors.New("invalid configured Bridge endpoint")
     }
+    if len(h.TransportServices) > 0 {
+        if h.TransportServices["tcp"] != h.Service {
+            return nil, errors.New("Bridge TCP transport service mismatch")
+        }
+        for transport, svc := range h.TransportServices {
+            if (transport != "tcp" && transport != "xhttp") || svc == "" {
+                return nil, errors.New("unknown Bridge transport service")
+            }
+        }
+    }
     now := h.Now
     if now == nil { now = time.Now }
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +86,7 @@ func (h *BridgeEnrollmentHTTP) Handler() (http.Handler, error) {
             _ = json.NewEncoder(w).Encode(bridgeDiscoveryResponse{
                 Available:true, RemoteURL:h.RemoteURL,
                 ServerName:h.ServerName,Service:h.Service,
+                TransportServices:h.TransportServices,
                 ClientCA:string(h.ClientCAPEM), ServerCA:string(h.ServerCAPEM),
             })
         case http.MethodPost:
