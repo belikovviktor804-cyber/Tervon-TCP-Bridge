@@ -17,10 +17,32 @@ import javax.net.ssl.HttpsURLConnection
  */
 internal class BridgeAutoEnrollmentHttp(
     private val subscriptionUrl: String,
-    private val trustedServer: BridgeSignedServerCatalog.Server,
 ) :
     BridgeAutoCertificateEnrollment.SubscriptionBridgeDiscovery,
     BridgeAutoCertificateEnrollment.EnrollmentTransport {
+
+    private val subscriptionHost: String = run {
+        val uri = URI(subscriptionUrl.trim())
+        require(uri.scheme.equals("https", ignoreCase = true) &&
+                !uri.host.isNullOrBlank() && uri.rawUserInfo == null &&
+                uri.port in -1..65535 && uri.port != 0 &&
+                uri.rawFragment == null) { "current subscription must be HTTPS" }
+        uri.host.lowercase(java.util.Locale.ROOT)
+    }
+
+    internal data class BridgeParameters(
+        val serverId: String,
+        val remoteUrl: String,
+        val tlsName: String,
+        val service: String,
+        val clientCaPem: String,
+        val serverCaPem: String,
+    )
+
+    @Volatile private var discovered: BridgeParameters? = null
+
+    /** Only the existing authenticated HTTPS discovery may supply Bridge parameters. */
+    fun discoveredParameters(): BridgeParameters? = discovered
 
     private val endpoint: URL = run {
         val origin = URI(subscriptionUrl.trim())
@@ -37,24 +59,37 @@ internal class BridgeAutoEnrollmentHttp(
         URL("https", origin.host, 443, "/.well-known/tervon-bridge")
     }
 
-    /** Binding is checked against the independently verified signed server catalog. */
+    /** Stable certificate-store identity is the HTTPS subscription authority, not camouflage SNI. */
     internal fun verifiedServerId(advertisedUrl: String, advertisedName: String): String {
-        require(advertisedUrl == trustedServer.bridgeUrl) {
-            "discovered Bridge URL differs from signed catalog"
+        val remote = URI(advertisedUrl)
+        require(remote.scheme == "https" && !remote.host.isNullOrBlank() &&
+                remote.rawUserInfo == null && remote.rawQuery == null &&
+                remote.rawFragment == null && remote.rawPath == "/v2/stream" &&
+                remote.port in -1..65535 && remote.port != 0) {
+            "invalid Bridge HTTPS endpoint"
         }
-        require(advertisedName.equals(trustedServer.tlsName, ignoreCase = true)) {
-            "discovered Bridge TLS identity differs from signed catalog"
+        require(advertisedName.equals(remote.host, ignoreCase = true)) {
+            "Bridge TLS name differs from its HTTPS endpoint"
         }
-        return trustedServer.id
+        require(subscriptionHost.matches(Regex("[a-z0-9][a-z0-9.-]{0,127}"))) {
+            "invalid subscription server identity"
+        }
+        return subscriptionHost
     }
 
     override fun discover(activeSubscription: String): BridgeAutoCertificateEnrollment.TrustedBridge? {
         require(activeSubscription == subscriptionUrl) { "subscription changed during registration" }
         val (code, json) = request("GET", null)
-        if (code == HttpURLConnection.HTTP_NOT_FOUND) return null
+        if (code == HttpURLConnection.HTTP_NOT_FOUND) {
+            discovered = null
+            return null
+        }
         require(code == HttpURLConnection.HTTP_OK) { "Bridge discovery unavailable" }
         val data = JSONObject(json)
-        if (!data.optBoolean("available", false)) return null
+        if (!data.optBoolean("available", false)) {
+            discovered = null
+            return null
+        }
         val remote = URI(data.getString("remote_url"))
         require(remote.scheme == "https" && remote.host != null &&
                 remote.rawUserInfo == null && remote.rawQuery == null &&
@@ -66,17 +101,27 @@ internal class BridgeAutoEnrollmentHttp(
         require(name.equals(remote.host, ignoreCase = true)) {
             "Bridge TLS identity differs from advertised endpoint"
         }
-        return BridgeAutoCertificateEnrollment.TrustedBridge(
-            verifiedServerId(data.getString("remote_url"), name), data.getString("client_ca")
+        val clientCa = data.getString("client_ca")
+        val serverCa = data.getString("server_ca")
+        require(clientCa.contains("-----BEGIN CERTIFICATE-----") &&
+                serverCa.contains("-----BEGIN CERTIFICATE-----")) {
+            "incomplete Bridge certificate trust information"
+        }
+        val params = BridgeParameters(
+            verifiedServerId(data.getString("remote_url"), name),
+            data.getString("remote_url"), name, "vpn", clientCa, serverCa
         )
+        discovered = params
+        return BridgeAutoCertificateEnrollment.TrustedBridge(params.serverId, params.clientCaPem)
     }
 
     override fun issue(
         trusted: BridgeAutoCertificateEnrollment.TrustedBridge,
         csrPem: String
     ): BridgeAutoCertificateEnrollment.Issued {
-        require(trusted.serverId == trustedServer.id) {
-            "certificate issuance requested for a different trusted server"
+        val params = discovered ?: error("Bridge discovery must succeed before issuance")
+        require(trusted.serverId == params.serverId && trusted.clientCaPem == params.clientCaPem) {
+            "certificate issuance differs from authenticated HTTPS discovery"
         }
         require(csrPem.length in 64..8192) { "invalid CSR" }
         val (code, response) = request("POST", csrPem.toByteArray(Charsets.US_ASCII))
