@@ -9,7 +9,7 @@
     "vpn": [
       {
         "Name": "existing-vless-tcp",
-        "Address": "host.docker.internal:30000"
+        "Address": "host.docker.internal:<vless-tcp-port-from-xray>"
       }
     ]
   },
