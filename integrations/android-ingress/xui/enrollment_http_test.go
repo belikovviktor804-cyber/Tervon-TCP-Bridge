@@ -34,6 +34,7 @@ func TestBridgeEnrollmentHTTPDiscoveryAndCSR(t *testing.T) {
     if !data.Available || data.RemoteURL!=h.RemoteURL || data.ServerName!=h.ServerName ||
         data.Service!="vpn" || data.ClientCA!=string(caPEM) ||
         data.ServerCA!=string(caPEM) {t.Fatal("incorrect discovery")}
+    if len(data.TransportServices) != 0 { t.Fatal("legacy discovery unexpectedly advertised XHTTP") }
     if fingerprint!="" {t.Fatal("discovery activated client")}
     request:=httptest.NewRequest(http.MethodPost,"https://sub.example/.well-known/tervon-bridge",bytes.NewReader(csr))
     request.Header.Set("Content-Type","application/pkcs10")
@@ -92,4 +93,31 @@ func TestBridgeEnrollmentHTTPRefusesUnsafeRequestsAndActivationFailures(t *testi
     badURL:=*base
     badURL.RemoteURL="http://dynamic.example/v2/stream"
     if _,err:=badURL.Handler();err==nil{t.Fatal("insecure endpoint accepted")}
+}
+
+func TestDiscoveryTransportCapabilities(t *testing.T) {
+    now:=time.Now().UTC().Truncate(time.Second)
+    _,caPEM,caKey:=testCertificateInputs(t,now)
+    h:=&BridgeEnrollmentHTTP{
+        RemoteURL:"https://bridge.example/v2/stream", ServerName:"bridge.example",
+        Service:"vpn", TransportServices:map[string]string{"tcp":"vpn","xhttp":"vpn-xhttp"},
+        ClientCAPEM:caPEM, ServerCAPEM:caPEM, ClientCAKey:caKey,
+        Activate:func(string)error{return nil},
+    }
+    handler,err:=h.Handler()
+    if err!=nil {t.Fatal(err)}
+    rr:=httptest.NewRecorder()
+    handler.ServeHTTP(rr,httptest.NewRequest(http.MethodGet,"https://sub.example/.well-known/tervon-bridge",nil))
+    if rr.Code!=http.StatusOK { t.Fatalf("bad status %d",rr.Code) }
+    var resp bridgeDiscoveryResponse
+    if err:=json.Unmarshal(rr.Body.Bytes(),&resp);err!=nil {t.Fatal(err)}
+    if resp.TransportServices["tcp"]!="vpn" || resp.TransportServices["xhttp"]!="vpn-xhttp" {
+        t.Fatalf("incomplete capability map: %v",resp.TransportServices)
+    }
+    wrong:=*h
+    wrong.TransportServices=map[string]string{"tcp":"vpn-xhttp"}
+    if _,err:=wrong.Handler();err==nil {t.Fatal("accepted mismatched TCP service")}
+    wrong=*h
+    wrong.TransportServices=map[string]string{"tcp":"vpn","udp":"vpn-xhttp"}
+    if _,err:=wrong.Handler();err==nil {t.Fatal("accepted unexpected UDP transport")}
 }
