@@ -16,7 +16,10 @@ internal object BridgeXrayConfigRoute {
         require(matching.size == 1) { "Exactly one proxy outbound required" }
         val proxy = matching.single()
         require(proxy.optString("protocol") == "vless") { "Only VLESS supported" }
-        val network = proxy.optJSONObject("streamSettings")?.optString("network")
+        val stream = proxy.optJSONObject("streamSettings") ?: JSONObject().also {
+            proxy.put("streamSettings", it)
+        }
+        val network = stream.optString("network")
         require(BridgeVlessRoutePlan.isSupportedTransport(network)) { "Only TCP-based VLESS supported" }
         val vnext = proxy.getJSONObject("settings").getJSONArray("vnext")
         require(vnext.length() == 1) { "Exactly one destination required" }
@@ -68,7 +71,7 @@ internal object BridgeXrayConfigRoute {
             val tls = stream.optJSONObject("tlsSettings") ?: JSONObject().also {
                 stream.put("tlsSettings", it)
             }
-            if (tls != null && tls.optString("serverName").isEmpty() &&
+            if (tls.optString("serverName").isEmpty() &&
                 originalHost.matches(Regex("[A-Za-z0-9][A-Za-z0-9.-]{0,252}")) &&
                 !originalHost.matches(Regex("[0-9.]+"))) {
                 tls.put("serverName", originalHost)
