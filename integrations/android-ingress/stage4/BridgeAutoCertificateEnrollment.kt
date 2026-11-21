@@ -44,10 +44,29 @@ internal class BridgeAutoCertificateEnrollment(
         fun issue(trusted: TrustedBridge, csrPem: String): Issued
     }
 
+    interface SubscriptionBridgeDiscovery {
+        /**
+         * Must use the already authenticated subscription response and verify
+         * whether this subscription server has configured Bridge support.
+         * No DNS/SNI-based trust and no new registration credentials.
+         */
+        fun discover(activeSubscription: String): TrustedBridge?
+    }
+
+    /**
+     * The ONLY public entry point: discovery and CSR happen exclusively after
+     * the user enables the bypass toggle, never on subscription refresh or OFF.
+     * The caller supplies the actual selected subscription, not a hardcoded host.
+     */
     @Synchronized
-    fun onBypassEnabled(enabled: Boolean, trusted: TrustedBridge?): Outcome {
+    fun onBypassToggled(
+        enabled: Boolean,
+        activeSubscription: String?,
+        discovery: SubscriptionBridgeDiscovery,
+    ): Outcome {
         if (!enabled) return Outcome.Disabled
-        if (trusted == null) return Outcome.NoBridge
+        if (activeSubscription.isNullOrBlank()) return Outcome.NoBridge
+        val trusted = discovery.discover(activeSubscription) ?: return Outcome.NoBridge
         val publicKey = identity.spkiDer()
         if (certificates.hasValid(trusted.serverId, trusted.clientCaPem, publicKey)) {
             return Outcome.Reused(trusted.serverId)
