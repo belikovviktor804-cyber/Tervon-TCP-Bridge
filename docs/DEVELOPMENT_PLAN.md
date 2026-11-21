@@ -1221,3 +1221,8 @@ Operator verified **from a foreign VPS** the existing publicly advertised Bridge
 **ПРОВЕРКИ:** GitHub-файлы повторно прочитаны; точные SHA исходников и наличие кода передачи/отображения причины сверены. Реальная установка трёх файлов на Homeserver, Flutter/Kotlin компиляция и повторное испытание телефона **ПОКА НЕ ВЫПОЛНЕНЫ**. Серверные discovery, TLS 1.3, h2 ранее прошли PASS; повторять их не требуется. **M6_ANDROID_REASON_SOURCE=COMMITTED / M6_ANDROID_BUILD=NOT_RUN_FOR_THIS_CHANGE / M6_ANDROID_E2E=FAIL_FROM_PREVIOUS_TEST / M6_OVERALL=IN_PROGRESS.**
 
 **Далее:** обновить ветку на Homeserver, проверить точные SHA установщиков, применить три файла (Kotlin runtime, существующий Kotlin Flutter-канал, Flutter UI), однократно скомпилировать Flutter+Kotlin и повторить реальное включение. Полученный код причины определит следующее конкретное исправление без изменения серверов.
+
+
+### M6 — Android: компиляция после исправления диагностики PASS (21.11.2026)
+
+Оператор перенёс исправления M6 через проверяемые установщики и выполнил `./gradlew :app:compileDebugKotlin --no-daemon` в `/opt/tervonvpndpi/android`. Результат: `BUILD SUCCESSFUL in 27s`, `72 actionable tasks: 6 executed, 66 up-to-date`, `ANDROID_COMPILE_RC=0`, `LIVE_SERVICES=UNCHANGED`, `SSH_CONSOLE=OPEN`. **ANDROID_COMPILE=PASS.** Это проверка компиляции, не подтверждение работы Bridge на телефоне. APK с этой правкой ещё не подтверждён как собранный и установленный. Следующий шаг — собрать и установить APK, включить «Обход DPI» на Android и записать показанный код причины. Серверные discovery и TLS/h2 повторно не проверять: ранее PASS. M6 в целом IN_PROGRESS.
