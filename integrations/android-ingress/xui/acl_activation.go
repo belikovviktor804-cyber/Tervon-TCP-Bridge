@@ -54,7 +54,12 @@ func (a *HotACLActivator) Activate(ctx context.Context, fingerprint string) erro
 		return err
 	}
 	if err = atomicACLConfigWrite(a.Path, after, fi); err != nil {
-		return err
+		// A directory fsync failure may occur after rename; restore the old
+		// file even if publication did not finish, and never signal success.
+		if restoreErr := atomicACLConfigWrite(a.Path, before, fi); restoreErr != nil {
+			return fmt.Errorf("ACL publication and restoration both failed: %w", restoreErr)
+		}
+		return fmt.Errorf("ACL publication failed: %w", err)
 	}
 	// The confirmed digest must come from the running process, not from the
 	// file we just wrote. A successful docker kill --signal HUP is NOT an ACK.
