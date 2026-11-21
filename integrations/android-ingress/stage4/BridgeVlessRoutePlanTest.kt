@@ -11,7 +11,7 @@ internal object BridgeVlessRoutePlanTest {
             subscriptionVerified: Boolean = true,
             port: Int = 19001,
             ready: Boolean = true
-        ) = BridgeVlessRoutePlan.decide(enabled, protocol, transport, active, authorized, port, ready)
+        ) = BridgeVlessRoutePlan.decide(enabled, protocol, transport, active, subscriptionVerified, port, ready)
 
         check(plan(enabled = false) is BridgeVlessRoutePlan.Decision.Direct)
         check(plan(protocol = "hysteria2") == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
