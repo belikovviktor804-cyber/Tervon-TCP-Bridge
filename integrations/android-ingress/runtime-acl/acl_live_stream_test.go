@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/hex"
 	"io"
 	"net"
@@ -147,7 +146,3 @@ func TestM6ActiveStreamSurvivesACLReplacement(t *testing.T) {
 		t.Fatal("active stream did not terminate after close")
 	}
 }
-
-// Make the expected fixture depend on Go's standard x509 metadata rather
-// than on an unverified TLS header or a fake request.
-var _ *x509.Certificate
