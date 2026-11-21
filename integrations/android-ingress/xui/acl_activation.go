@@ -25,6 +25,7 @@ type HotACLActivator struct {
 	mu      sync.Mutex
 	Path    string
 	Service string
+    Services []string // optional; default remains the existing single Service
 	Confirm func(context.Context, string) error
 }
 
@@ -45,7 +46,9 @@ func (a *HotACLActivator) Activate(ctx context.Context, fingerprint string) erro
 	if err != nil || len(before) > 4<<20 {
 		return errors.New("Bridge configuration unavailable")
 	}
-	after, err := AddDeviceToACL(before, fingerprint, a.Service)
+    services := a.Services
+    if len(services) == 0 { services = []string{a.Service} }
+    after, err := AddDeviceToACLServices(before, fingerprint, services)
 	if err != nil {
 		return err
 	}
