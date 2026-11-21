@@ -30,7 +30,7 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
       setState(() {
         _enabled = data?['enabled'] == true;
         _message = data?['runtimeIntegrated'] == true
-            ? 'Bridge: локальная TCP-маршрутизация активна'
+            ? 'Bridge: локальный маршрут готов, связь с сервером не подтверждена'
             : 'Bridge: маршрутизация пока не активна';
       });
     } catch (_) {
