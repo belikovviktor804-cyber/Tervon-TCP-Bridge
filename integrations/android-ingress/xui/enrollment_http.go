@@ -53,7 +53,8 @@ type bridgeEnrollmentResponse struct {
 // terminated by a trusted reverse proxy, the parent must enforce HTTPS there.
 func (h *BridgeEnrollmentHTTP) Handler() (http.Handler, error) {
     if h == nil || h.ClientCAKey == nil || h.Activate == nil ||
-        len(h.ClientCAPEM) == 0 || len(h.ServerCAPEM) == 0 || h.Service == "" || h.ServerName == "" {
+        len(h.ClientCAPEM) == 0 || len(h.ServerCAPEM) == 0 || h.Service == "" || h.ServerName == "" ||
+        h.BackendHost == "" || h.BackendPort < 1 || h.BackendPort > 65535 {
         return nil, errors.New("Bridge registration is not configured")
     }
     u, err := url.Parse(h.RemoteURL)
