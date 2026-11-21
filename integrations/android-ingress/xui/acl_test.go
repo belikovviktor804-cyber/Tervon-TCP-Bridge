@@ -45,3 +45,23 @@ func TestStageACLRejectsInvalidRequests(t *testing.T) {
 		})
 	}
 }
+
+func TestStageDeviceForTCPAndXHTTP(t *testing.T) {
+    configured := strings.Replace(basicServerConfig,
+        `"vpn":[{"Name":"existing-vless","Address":"host.docker.internal:30000"}]`,
+        `"vpn":[{"Name":"existing-vless","Address":"host.docker.internal:30000"}],"vpn-xhttp":[{"Name":"existing-xhttp","Address":"host.docker.internal:30443"}]`, 1)
+    input := []byte(configured)
+    data, err := AddDeviceToACLServices(input, deviceFingerprint, []string{"vpn", "vpn-xhttp"})
+    if err != nil { t.Fatal(err) }
+    if !bytes.Equal(input, []byte(configured)) { t.Fatal("server input mutated") }
+    var result struct { Authorized map[string][]string `json:"authorized"`; Routes map[string]json.RawMessage `json:"routes"` }
+    if err := json.Unmarshal(data, &result); err != nil { t.Fatal(err) }
+    got := result.Authorized[deviceFingerprint]
+    if len(got) != 2 || got[0] != "vpn" || got[1] != "vpn-xhttp" { t.Fatalf("wrong services: %v", got) }
+    if len(result.Routes) != 2 { t.Fatal("routes modified") }
+    for _, services := range [][]string{{}, {"vpn","vpn"}, {"vpn","missing"}, {"missing","vpn"}} {
+        if _, err := AddDeviceToACLServices(input, deviceFingerprint, services); err == nil {
+            t.Fatalf("invalid services accepted: %v", services)
+        }
+    }
+}
