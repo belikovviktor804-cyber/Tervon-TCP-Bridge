@@ -3,7 +3,7 @@ package com.tervonvpndpi.app
 /**
  * Routing decision only. Never changes VPN configuration or starts Bridge.
  * The caller must establish the authorized mTLS Bridge, check local readiness,
- * and identify the active VLESS/TCP destination before applying this plan.
+ * and identify the active VLESS TCP or TCP-based XHTTP destination.
  */
 internal object BridgeVlessRoutePlan {
     // Xray calls its normal TCP stream "tcp" or "raw"; omitted network also defaults to TCP.
