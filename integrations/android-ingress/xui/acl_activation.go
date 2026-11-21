@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // HotACLActivator updates only the persistent Bridge authorization field.
@@ -70,7 +72,9 @@ func (a *HotACLActivator) Activate(ctx context.Context, fingerprint string) erro
 	if hashErr != nil {
 		return errors.New("ACL not confirmed; prior ACL is invalid")
 	}
-	if secondErr := a.Confirm(context.Background(), priorDigest); secondErr != nil {
+	rollbackCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if secondErr := a.Confirm(rollbackCtx, priorDigest); secondErr != nil {
 		return errors.New("ACL not confirmed; previous file restored but runtime rollback unverified")
 	}
 	return errors.New("new ACL not confirmed; previous ACL restored")
@@ -112,6 +116,12 @@ func atomicACLConfigWrite(path string, content []byte, prior os.FileInfo) error 
 	if err := f.Chmod(prior.Mode().Perm()); err != nil {
 		f.Close()
 		return err
+	}
+	if stat, ok := prior.Sys().(*syscall.Stat_t); ok {
+		if err := f.Chown(int(stat.Uid), int(stat.Gid)); err != nil {
+			f.Close()
+			return err
+		}
 	}
 	if err := f.Close(); err != nil {
 		return err
