@@ -14,6 +14,14 @@ internal object BridgeVpnSession {
     private var handoff: BridgeClientPemHandoff? = null
     private var active = false
     private var ownsProcess = false
+    @Volatile private var failureCode = "NOT_ATTEMPTED"
+
+    fun lastFailureCode(): String = failureCode
+
+    private fun fallback(code: String, original: String): String {
+        failureCode = code
+        return original
+    }
 
     @Synchronized
     fun active(): Boolean = active && BridgeRuntimeControl.coreState() == BridgeCoreManager.State.RUNNING
@@ -22,18 +30,19 @@ internal object BridgeVpnSession {
     @Synchronized
     fun prepare(context: Context, direct: String): String {
         stop(context)
+        failureCode = "NOT_ATTEMPTED"
         val prefs = context.getSharedPreferences("tervon_bridge_settings_v1", Context.MODE_PRIVATE)
-        if (!prefs.getBoolean("enabled", false)) return direct
-        val subscriptionHost = BridgeSubscriptionBinding.host(context) ?: return direct
-        if (!subscriptionHost.matches(Regex("[a-z0-9][a-z0-9.-]{0,127}"))) return direct
+        if (!prefs.getBoolean("enabled", false)) return fallback("BYPASS_DISABLED", direct)
+        val subscriptionHost = BridgeSubscriptionBinding.host(context) ?: return fallback("SUBSCRIPTION_NOT_SELECTED", direct)
+        if (!subscriptionHost.matches(Regex("[a-z0-9][a-z0-9.-]{0,127}"))) return fallback("INVALID_SUBSCRIPTION_HOST", direct)
         try {
             val root = JSONObject(direct)
             val outbounds = root.getJSONArray("outbounds")
             val proxy = (0 until outbounds.length()).map { outbounds.getJSONObject(it) }
                 .single { it.optString("tag") == "proxy" }
-            if (proxy.optString("protocol") != "vless") return direct
+            if (proxy.optString("protocol") != "vless") return fallback("UNSUPPORTED_PROTOCOL", direct)
             val stream = proxy.getJSONObject("streamSettings")
-            if (stream.optString("network") != "tcp") return direct
+            if (stream.optString("network") != "tcp") return fallback("UNSUPPORTED_TRANSPORT", direct)
             val dest = proxy.getJSONObject("settings").getJSONArray("vnext").getJSONObject(0)
             val selected = BridgeVlessRoutePlan.Endpoint(dest.getString("address"), dest.getInt("port"))
 
@@ -41,19 +50,19 @@ internal object BridgeVpnSession {
             // never use stale discovery parameters from the preceding profile.
             val origin = "https://$subscriptionHost/"
             val http = BridgeAutoEnrollmentHttp(origin)
-            val trusted = http.discover(origin) ?: return direct
-            val params = http.discoveredParameters() ?: return direct
-            if (params.serverId != trusted.serverId) return direct
+            val trusted = http.discover(origin) ?: return fallback("DISCOVERY_NO_BRIDGE", direct)
+            val params = http.discoveredParameters() ?: return fallback("DISCOVERY_NO_PARAMETERS", direct)
+            if (params.serverId != trusted.serverId) return fallback("DISCOVERY_ID_MISMATCH", direct)
 
             val identity = BridgeDeviceIdentity(context)
             val stored = BridgeServerCertificateStore(context).findValid(
                 trusted.serverId, params.clientCaPem, identity.publicIdentity().spkiDer
-            ) ?: return direct
+            ) ?: return fallback("DEVICE_CERTIFICATE_UNAVAILABLE", direct)
             // Obtain local listener ports from the OS, not from manually
             // entered values or fixed per-device defaults.
             val port = automaticLoopbackPort()
             val metricsPort = generateSequence { automaticLoopbackPort() }
-                .take(5).firstOrNull { it != port } ?: return direct
+                .take(5).firstOrNull { it != port } ?: return fallback("PORT_ALLOCATION_FAILED", direct)
             handoff = BridgeClientPemHandoff.create(context, identity, stored.certificatePem, params.serverCaPem)
             val files = requireNotNull(handoff)
             val config = BridgeClientConfigBuilder.build(BridgeClientConfigBuilder.Inputs(
@@ -69,10 +78,12 @@ internal object BridgeVpnSession {
             val env = BridgeConfigManager(context)
             if (BridgeRuntimeControl.coreState() == BridgeCoreManager.State.RUNNING) {
                 stop(context)
-                return direct
+                return fallback("BRIDGE_ALREADY_RUNNING", direct)
             }
+            failureCode = "CONFIG_CREATED"
             env.writeValidatedConfig(config)
             BridgeRuntimeControl.onUnexpectedExit(context) { unexpectedExit(context.applicationContext) }
+            failureCode = "BRIDGE_START_FAILED"
             check(BridgeRuntimeControl.launchClient(context)) { "Bridge process did not start" }
             ownsProcess = true
             var ready = false
@@ -84,6 +95,7 @@ internal object BridgeVpnSession {
                     } catch (_: Exception) { Thread.sleep(80) }
                 }
             }
+            failureCode = "BRIDGE_LISTENER_UNAVAILABLE"
             check(ready) { "Bridge TCP listener unavailable" }
             // The Go Bridge opens PEM files during startup. Remove handoff after
             // the local listener is confirmed and on every stop/error path.
@@ -95,15 +107,20 @@ internal object BridgeVpnSession {
                 subscriptionVerified = params.serverId == trusted.serverId,
                 localPort = port, bridgeReady = ready
             )
+            failureCode = "ROUTE_REJECTED"
             val route = (decision as? BridgeVlessRoutePlan.Decision.ThroughBridge)?.route
                 ?: error("VLESS TCP route did not pass authorization")
+            failureCode = "XRAY_ROUTE_FAILED"
             val routed = BridgeXrayConfigRoute.apply(direct, route)
             prefs.edit().putInt("metricsPort", metricsPort).apply()
             active = true
+            failureCode = "READY"
             return routed
         } catch (_: Exception) {
-            // No certificate, server address or private key in logs/UI.
+            // Only stage codes may reach the UI; never expose private keys or URLs.
+            val stage = failureCode
             stop(context)
+            failureCode = if (stage == "NOT_ATTEMPTED") "PROFILE_CONFIG_INVALID" else stage
             return direct
         }
     }
