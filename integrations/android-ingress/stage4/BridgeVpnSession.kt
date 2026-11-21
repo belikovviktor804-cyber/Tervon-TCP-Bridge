@@ -109,7 +109,7 @@ internal object BridgeVpnSession {
     }
 
     private fun automaticLoopbackPort(): Int =
-        ServerSocket(0, 0, InetAddress.getLoopbackAddress()).use { it.localPort }
+        ServerSocket(0, 0, InetAddress.getByName("127.0.0.1")).use { it.localPort }
 
     private fun unexpectedExit(context: Context) {
         val shouldRecover = synchronized(this) {
