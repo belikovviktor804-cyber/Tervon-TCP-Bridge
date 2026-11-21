@@ -57,13 +57,13 @@ internal object BridgeServerReconcilerTest {
         )
         // Known different Bridge: use existing matching certificate.
         checkDecision(BridgeServerReconciler.Action.SELECT_SAVED, true, endB)
-        // No valid certificate: registration is ONLY a user button action.
+        // No valid certificate: the integration must invoke automatic authorized enrollment.
         checkDecision(
-            BridgeServerReconciler.Action.REQUEST_USER_REGISTRATION,
+            BridgeServerReconciler.Action.REQUEST_AUTO_ENROLLMENT,
             true, endB, listOf(certA)
         )
         checkDecision(
-            BridgeServerReconciler.Action.REQUEST_USER_REGISTRATION,
+            BridgeServerReconciler.Action.REQUEST_AUTO_ENROLLMENT,
             true, endB, listOf(certA, certB), now = 20000
         )
         // Unknown/missing/colliding destination fails closed, never falls
