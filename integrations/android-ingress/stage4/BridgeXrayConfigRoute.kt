@@ -16,8 +16,8 @@ internal object BridgeXrayConfigRoute {
         require(matching.size == 1) { "Exactly one proxy outbound required" }
         val proxy = matching.single()
         require(proxy.optString("protocol") == "vless") { "Only VLESS supported" }
-        val stream = proxy.getJSONObject("streamSettings")
-        require(stream.optString("network") == "tcp") { "Only VLESS TCP supported" }
+        val network = proxy.optJSONObject("streamSettings")?.optString("network")
+        require(BridgeVlessRoutePlan.isTcpTransport(network)) { "Only VLESS TCP supported" }
         val vnext = proxy.getJSONObject("settings").getJSONArray("vnext")
         require(vnext.length() == 1) { "Exactly one destination required" }
         val destination = vnext.getJSONObject(0)
