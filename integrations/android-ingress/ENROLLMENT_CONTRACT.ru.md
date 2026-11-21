@@ -1,5 +1,14 @@
 # M6 — привязка Android-устройства к постоянному Decapsulator
 
+## ### M6 — final operator decision: Bridge mTLS issuance without VLESS subscription authorization (2026-11-21)
+
+The operator explicitly removed the earlier requirement to verify active VLESS account, UUID, expiry, quotas, or subscription eligibility to obtain a **Bridge transport mTLS** certificate. Bridge carries an opaque TCP stream; existing Xray/VLESS remains the **only** VPN user authorization enforcement. The subscription URL's server/domain is used only to discover a configured Bridge when the Android user manually enables `Обход DPI`. No hardcoded Android host, independent client account, new cryptographic layer, manual registration button, or VPN E2E in this task. When no Bridge is configured, no certificate request.
+
+The existing client-CA / ECDSA P-256 CSR signer `xui.SignDeviceCSR` and short-lived clientAuth leaf stay unchanged. The `xui/enrollment_service.go` wrapper was reduced to `IssueBridgeClientCertificate(ctx, csrPEM, clientCAPEM, clientCAKey, now)` without any 3X-UI subscription eligibility or authentication verifier; commit `357dc079646bdb0b49bacd5da19d5d369104f470`. Focused tests updated to reject invalid CSR/CA/cancellation and issue a valid clientAuth certificate without a VLESS subscriber record; commit `8e76397a2a90ab26b82aa64e04b3ab6fd67a8b4f`.
+
+**Transport-specific guardrails remain:** only a server with deliberately configured Bridge exposes its enrollment; a signed leaf must enter the correct Bridge `authorized` ACL before the client is told it can connect; registration should be resource-limited against abuse. This does NOT introduce a VPN subscriber check. The present function is **not an HTTP API**, and it does not change a live ACL, server or Android app. **M6_AUTO_MTLS=SOURCE_UPDATED / NOT_DEPLOYED / REAL_REGISTRATION_NOT_CONNECTED**. No additional crypto; no running services touched.
+
+
 
 ## Уточнение: регистрация только после ручного включения «Обход DPI» (2026-11-21)
 
