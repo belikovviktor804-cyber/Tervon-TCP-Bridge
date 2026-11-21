@@ -7,11 +7,12 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 
-/** M6: existing Go v1.0.1 Bridge + existing libv2ray VLESS TCP integration.
+/** M6: existing Go v1.0.1 Bridge + libv2ray VLESS TCP or XHTTP-over-TCP.
  * Never changes the persisted direct Xray config or HEV/TUN. Failures use direct.
  */
 internal object BridgeVpnSession {
     private var handoff: BridgeClientPemHandoff? = null
+    // Local listener/route readiness only; never a remote E2E success signal.
     private var active = false
     private var ownsProcess = false
     @Volatile private var failureCode = "NOT_ATTEMPTED"
