@@ -1,0 +1,6 @@
+# M6 approved Option 2 — ONLY override the Android-facing Bridge image.
+# Combine with ../compose.yaml in the existing android-ingress Compose project.
+# Do not change the original image tag, 3x-ui, Xray, or RU/FI Bridge.
+services:
+  android-bridge-decapsulator:
+    image: tervon-bridge-android-ingress:m6-runtime-acl
