@@ -4,6 +4,7 @@ on:
     branches: [work/m6-android-ingress]
     paths:
       - 'integrations/android-ingress/runtime-acl/**'
+      - 'integrations/android-ingress/xui/**'
       - '.github/workflows/m6-runtime-acl-source.yml'
   workflow_dispatch:
 permissions:
@@ -41,3 +42,25 @@ jobs:
           go build -o "$RUNNER_TEMP/tervon-bridge-m6-candidate" ./cmd/bridge
           test -s "$RUNNER_TEMP/tervon-bridge-m6-candidate"
           echo "M6_RELEASE_SOURCE_GO_RACE_VET_BUILD=PASS"
+
+  registrar-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: integrations/android-ingress/xui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: false
+      - name: Verify registrar, persistent ACL, rollback and Docker confirmation source
+        run: |
+          set -euo pipefail
+          go test -count=1 -timeout=120s ./...
+          go test -race -count=1 -timeout=180s ./...
+          go vet ./...
+          go build -o "$RUNNER_TEMP/m6-auto-registrar" ./cmd/m6-auto-registrar
+          test -s "$RUNNER_TEMP/m6-auto-registrar"
+          echo "M6_REGISTRAR_RACE_VET_BUILD=PASS"
