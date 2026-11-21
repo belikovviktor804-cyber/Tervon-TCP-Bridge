@@ -1226,3 +1226,18 @@ Operator verified **from a foreign VPS** the existing publicly advertised Bridge
 ### M6 — Android: компиляция после исправления диагностики PASS (21.11.2026)
 
 Оператор перенёс исправления M6 через проверяемые установщики и выполнил `./gradlew :app:compileDebugKotlin --no-daemon` в `/opt/tervonvpndpi/android`. Результат: `BUILD SUCCESSFUL in 27s`, `72 actionable tasks: 6 executed, 66 up-to-date`, `ANDROID_COMPILE_RC=0`, `LIVE_SERVICES=UNCHANGED`, `SSH_CONSOLE=OPEN`. **ANDROID_COMPILE=PASS.** Это проверка компиляции, не подтверждение работы Bridge на телефоне. APK с этой правкой ещё не подтверждён как собранный и установленный. Следующий шаг — собрать и установить APK, включить «Обход DPI» на Android и записать показанный код причины. Серверные discovery и TLS/h2 повторно не проверять: ранее PASS. M6 в целом IN_PROGRESS.
+
+
+### M6 — Android TCP/RAW: исправление проверки транспорта (21.11.2026)
+
+**Согласовано:** исправить отказ «выбранный профиль не использует TCP» при штатном TCP-подключении. Работа только с TCP, без расширения M6 на новые VPN-протоколы или другие транспортные механизмы.
+
+**Сделано в ветке `work/m6-android-ingress`:**
+- В `BridgeVlessRoutePlan.kt` добавлена общая проверка: Xray `network=tcp`, `network=raw` и отсутствие `network` (TCP по умолчанию) считаются TCP. Другие значения отклоняются.
+- `BridgeVpnSession.kt` и `BridgeXrayConfigRoute.kt` используют эту одну проверку. При перенаправлении Xray меняются только адрес и порт назначения на локальный Encapsulator; содержимое, UUID, TLS и остальные параметры VPN не изменяются.
+- `BridgeVlessRoutePlanTest.kt` дополнен проверками `tcp`, `raw`, `RAW`, пустого/default и отказами для нетиповых транспортов.
+- Для переноса только этих трёх Kotlin-файлов добавлен `stage4/install_m6_tcp_raw_fix.py` с точной проверкой Git blob SHA исходника и установленного файла, режимами `--check` и `--apply`, откатом при ошибке записи.
+
+**Проверено:** исходники повторно прочитаны из GitHub, сравнение с предыдущим commit показывает только целевые изменения, SHA установщика совпадают с исходниками GitHub. **На Homeserver ещё не применено; тесты Kotlin/JVM, компиляция Android и испытание APK с этой правкой ещё не выполнены.** Предыдущий результат на телефоне — FAIL с причиной `UNSUPPORTED_TRANSPORT`. Никакие службы, PKI, Nginx, релизный APK не изменялись.
+
+**Далее:** GitHub SSH pull → защищённый перенос 3 файлов → `BridgeVlessRoutePlanTest` и `compileDebugKotlin` → испытание APK на телефоне, подтверждение реальной работы TCP Bridge. M6 не закрывать до фактического Android PASS.
