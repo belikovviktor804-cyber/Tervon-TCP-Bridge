@@ -59,7 +59,7 @@ def main():
     if current.count(old) == 1 and blob(current) == BEFORE:
         output = current.replace(old, new)
         print("M6_REASON_CHANNEL=READY")
-    elif current.count(new) == 1 and current.count(old) == 0:
+    elif current.count(new) == 1 and current.count(old) == 0 and blob(current.replace(new, old)) == BEFORE:
         print("M6_REASON_CHANNEL=ALREADY_APPLIED")
         return 0
     else:
