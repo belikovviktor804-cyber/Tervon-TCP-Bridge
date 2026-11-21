@@ -1,0 +1,43 @@
+name: M6 runtime ACL source check (released v1.0.1)
+on:
+  push:
+    branches: [work/m6-android-ingress]
+    paths:
+      - 'integrations/android-ingress/runtime-acl/**'
+      - '.github/workflows/m6-runtime-acl-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  runtime-acl-released-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout M6 worktree and exact release history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: false
+      - name: Apply M6 overlay ONLY to v1.0.1 source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/tervon-release-source" 96c136702d10b6fb9a16aa2893f6b978e8b14e86
+          python3 integrations/android-ingress/runtime-acl/apply-to-release-source.py --release-root "$RUNNER_TEMP/tervon-release-source" --check
+          python3 integrations/android-ingress/runtime-acl/apply-to-release-source.py --release-root "$RUNNER_TEMP/tervon-release-source" --apply
+          test -f "$RUNNER_TEMP/tervon-release-source/prototype/acl_snapshot.go"
+          echo "M6_RELEASE_OVERLAY=PASS"
+      - name: Test release source with M6 runtime ACL
+        working-directory: ${{ runner.temp }}/tervon-release-source/prototype
+        run: |
+          set -euo pipefail
+          gofmt -w bridge.go cmd/bridge/main.go acl_snapshot.go acl_snapshot_test.go
+          go test -count=1 -timeout=120s ./...
+          go test -race -count=1 -timeout=180s ./...
+          go vet ./...
+          go build -o "$RUNNER_TEMP/tervon-bridge-m6-candidate" ./cmd/bridge
+          test -s "$RUNNER_TEMP/tervon-bridge-m6-candidate"
+          echo "M6_RELEASE_SOURCE_GO_RACE_VET_BUILD=PASS"
