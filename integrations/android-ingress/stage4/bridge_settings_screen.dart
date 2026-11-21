@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'bridge_runtime_screen.dart';
 import '../../vpn/xray_service.dart';
 
 /// Automatic Bridge enrollment for the current HTTPS subscription.
@@ -19,10 +18,7 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
   static const _gold = Color(0xFFD4A853);
   bool _enabled = false;
   bool _busy = false;
-  bool _stage4Busy = false;
-  String _stage4Result = '';
   String _message = 'Проверка состояния Bridge…';
-  String _cliHelp = '';
 
   @override
   void initState() { super.initState(); _load(); }
@@ -85,52 +81,6 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
         _enabled = false;
         _message = 'Автоматическая регистрация Bridge не выполнена';
       });
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _checkStage4Identity() async {
-    if (_busy || _stage4Busy) return;
-    setState(() {
-      _stage4Busy = true;
-      _stage4Result = 'Проверка ключа устройства и CSR…';
-    });
-    try {
-      final data = await _channel.invokeMapMethod<String, dynamic>('stage4IdentitySelfCheck');
-      if (!mounted) return;
-      setState(() {
-        _stage4Result = data?['result'] == 'PASS'
-            ? 'Stage 4: PASS — ключ устройства, подпись и CSR'
-            : 'Stage 4: FAIL — самопроверка не пройдена';
-      });
-    } on PlatformException catch (e) {
-      if (mounted) {
-        setState(() {
-          final detail = e.message?.trim();
-          _stage4Result = (detail == null || detail.isEmpty)
-              ? 'Stage 4: ${e.code}'
-              : 'Stage 4: ${e.code} ($detail)';
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _stage4Result = 'Stage 4: UNEXPECTED_ERROR');
-    } finally {
-      if (mounted) setState(() => _stage4Busy = false);
-    }
-  }
-
-  Future<void> _inspect() async {
-    if (_busy) return;
-    setState(() { _busy = true; _message = 'Чтение справки ядра…'; });
-    try {
-      final data = await _channel.invokeMapMethod<String, dynamic>('inspectCore');
-      if (mounted) setState(() {
-        _cliHelp = data?['output']?.toString() ?? '';
-        _message = data?['message']?.toString() ?? 'Нет ответа';
-      });
-    } catch (_) {
-      if (mounted) setState(() => _message = 'Ошибка запуска диагностики');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -216,43 +166,11 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
             _connectionDiagram(),
           ]),
         )),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.play_circle_outline),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const BridgeRuntimeScreen(),
-          )),
-          label: const Text('Управление процессом Bridge'),
-        ),
         const SizedBox(height: 12),
         Card(color: _card, child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Диагностика ядра',
-                style: TextStyle(color: _gold, fontSize: 16)),
-            const SizedBox(height: 8),
-            OutlinedButton(onPressed: _busy ? null : _inspect,
-              child: const Text('Показать параметры запуска ядра')),
-            OutlinedButton(
-              onPressed: (_busy || _stage4Busy) ? null : _checkStage4Identity,
-              child: const Text('Проверить ключ и CSR (Stage 4)'),
-            ),
-            if (_stage4Result.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              SelectableText(_stage4Result,
-                  style: const TextStyle(color: Colors.white70)),
-            ],
-            const SizedBox(height: 8),
-            SelectableText(_message, style: const TextStyle(color: Colors.white70)),
-            if (_cliHelp.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              SelectableText(_cliHelp, style: const TextStyle(
-                  color: Colors.white70, fontSize: 12)),
-              TextButton(
-                onPressed: () => Clipboard.setData(ClipboardData(text: _cliHelp)),
-                child: const Text('Копировать справку'),
-              ),
-            ],
-          ]),
+          child: SelectableText(_message,
+              style: const TextStyle(color: Colors.white70)),
         )),
       ]),
     );
