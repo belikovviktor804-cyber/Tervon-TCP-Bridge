@@ -3,6 +3,8 @@ package com.tervonvpndpi.app
 import android.content.Context
 import org.json.JSONObject
 import java.net.InetSocketAddress
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.net.Socket
 
 /** M6: existing Go v1.0.1 Bridge + existing libv2ray VLESS TCP integration.
@@ -47,10 +49,11 @@ internal object BridgeVpnSession {
             val stored = BridgeServerCertificateStore(context).findValid(
                 trusted.serverId, params.clientCaPem, identity.publicIdentity().spkiDer
             ) ?: return direct
-            val port = prefs.getInt("localPort", 0).let { if (it == 0) 18444 else it }
-            val configuredMetricsPort = prefs.getInt("metricsPort", 0)
-            val metricsPort = if (configuredMetricsPort == 0) 18445 else configuredMetricsPort
-            if (port !in 1024..65535 || metricsPort !in 1024..65535 || port == metricsPort) return direct
+            // Obtain local listener ports from the OS, not from manually
+            // entered values or fixed per-device defaults.
+            val port = automaticLoopbackPort()
+            val metricsPort = generateSequence { automaticLoopbackPort() }
+                .take(5).firstOrNull { it != port } ?: return direct
             handoff = BridgeClientPemHandoff.create(context, identity, stored.certificatePem, params.serverCaPem)
             val files = requireNotNull(handoff)
             val config = BridgeClientConfigBuilder.build(BridgeClientConfigBuilder.Inputs(
@@ -95,9 +98,7 @@ internal object BridgeVpnSession {
             val route = (decision as? BridgeVlessRoutePlan.Decision.ThroughBridge)?.route
                 ?: error("VLESS TCP route did not pass authorization")
             val routed = BridgeXrayConfigRoute.apply(direct, route)
-            if (configuredMetricsPort == 0) {
-                prefs.edit().putInt("metricsPort", metricsPort).apply()
-            }
+            prefs.edit().putInt("metricsPort", metricsPort).apply()
             active = true
             return routed
         } catch (_: Exception) {
@@ -106,6 +107,9 @@ internal object BridgeVpnSession {
             return direct
         }
     }
+
+    private fun automaticLoopbackPort(): Int =
+        ServerSocket(0, 0, InetAddress.getLoopbackAddress()).use { it.localPort }
 
     private fun unexpectedExit(context: Context) {
         val shouldRecover = synchronized(this) {
