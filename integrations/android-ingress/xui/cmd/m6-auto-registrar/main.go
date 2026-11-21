@@ -38,13 +38,16 @@ func clientCASigner(data []byte) (crypto.Signer,error) {
 }
 
 func main() {
-	var root,listen,remote,serverName,service,containerID string
+	var root,listen,remote,serverName,service,containerID,backendHost string
+	var backendPort int
 	flag.StringVar(&root,"root","/etc/tervon/bridge-android","existing Android Bridge root")
 	flag.StringVar(&listen,"listen","","loopback address for existing HTTPS proxy (required)")
 	flag.StringVar(&remote,"remote-url","","Bridge HTTPS /v2/stream endpoint advertised to Android")
 	flag.StringVar(&serverName,"server-name","","server TLS name of configured Bridge")
 	flag.StringVar(&service,"service","vpn","existing configured Bridge service")
 	flag.StringVar(&containerID,"container-id","","running Android ingress Docker container ID")
+	flag.StringVar(&backendHost,"backend-host","","existing VLESS TCP endpoint hostname (required)")
+	flag.IntVar(&backendPort,"backend-port",0,"existing VLESS TCP endpoint port (required)")
 	flag.Parse()
 	if filepath.Clean(root)!=root || !filepath.IsAbs(root) || root=="/" {
 		log.Fatal("invalid existing Android Bridge root")
@@ -53,7 +56,7 @@ func main() {
 	if err!=nil || net.ParseIP(host)==nil || !net.ParseIP(host).IsLoopback() || port=="" {
 		log.Fatal("registrar must bind a literal loopback IP:port")
 	}
-	if containerID=="" || serverName=="" || remote=="" {
+	if containerID=="" || serverName=="" || remote=="" || backendHost=="" || backendPort<1 || backendPort>65535 {
 		log.Fatal("Android ingress container and remote URL/server name required")
 	}
 	clientCAPEM,err:=os.ReadFile(filepath.Join(root,"config/pki/client-ca.crt"))
@@ -74,6 +77,7 @@ func main() {
 	}
 	enrollment:=&xui.BridgeEnrollmentHTTP{
 		RemoteURL:remote,ServerName:serverName,Service:service,
+		BackendHost:backendHost,BackendPort:backendPort,
 		ClientCAPEM:clientCAPEM, ServerCAPEM:serverCAPEM, ClientCAKey:signer,
 		Activate:func(fingerprint string) error {
 			ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second)
