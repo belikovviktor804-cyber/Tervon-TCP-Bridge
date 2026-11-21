@@ -37,8 +37,9 @@ internal object BridgeXrayConfigRoute {
             require(tlsAlpn == null || (0 until tlsAlpn.length()).none {
                 tlsAlpn.optString(it).equals("h3", ignoreCase = true)
             }) { "XHTTP over HTTP/3 is outside TCP scope" }
-            val settings = stream.optJSONObject("xhttpSettings")
-                ?: error("XHTTP settings missing")
+            val settings = stream.optJSONObject("xhttpSettings") ?: JSONObject().also {
+                stream.put("xhttpSettings", it)
+            }
             val separate = settings.optJSONObject("downloadSettings")
             if (separate != null) {
                 // Only a shared backend is mapped by this single local Bridge
@@ -64,7 +65,9 @@ internal object BridgeXrayConfigRoute {
         // Xray may derive its TLS SNI from the original destination when
         // serverName was omitted. Retain that identity for the local dial.
         if (stream.optString("security") == "tls") {
-            val tls = stream.optJSONObject("tlsSettings")
+            val tls = stream.optJSONObject("tlsSettings") ?: JSONObject().also {
+                stream.put("tlsSettings", it)
+            }
             if (tls != null && tls.optString("serverName").isEmpty() &&
                 originalHost.matches(Regex("[A-Za-z0-9][A-Za-z0-9.-]{0,252}")) &&
                 !originalHost.matches(Regex("[0-9.]+"))) {
