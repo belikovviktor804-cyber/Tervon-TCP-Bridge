@@ -15,6 +15,7 @@ FILES = (
     'BridgeVlessRoutePlan.kt',
     'BridgeXrayConfigRoute.kt',
     'BridgeClientConfigBuilder.kt',
+    'BridgeClientPemHandoff.kt',
 )
 BASE_REL = Path('android/app/src/main/kotlin/com/tervonvpndpi/app')
 RECONCILER_OLD_SHA = '882f81df9ed38a6448b77f58a00b3583614abfdb1507a78d7774e88641650bac'
