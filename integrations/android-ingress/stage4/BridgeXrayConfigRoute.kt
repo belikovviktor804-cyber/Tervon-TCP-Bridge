@@ -58,6 +58,16 @@ internal object BridgeXrayConfigRoute {
                 require(downAlpn == null || (0 until downAlpn.length()).none {
                     downAlpn.optString(it).equals("h3", ignoreCase = true)
                 }) { "XHTTP download over HTTP/3 is outside TCP scope" }
+                if (separate.optString("security") == "tls") {
+                    val downTls = separate.optJSONObject("tlsSettings") ?: JSONObject().also {
+                        separate.put("tlsSettings", it)
+                    }
+                    if (downTls.optString("serverName").isEmpty() &&
+                        originalHost.matches(Regex("[A-Za-z0-9][A-Za-z0-9.-]{0,252}")) &&
+                        !originalHost.matches(Regex("[0-9.]+"))) {
+                        downTls.put("serverName", originalHost)
+                    }
+                }
                 if (separate.has("address")) separate.put("address", route.local.host)
                 if (separate.has("port")) separate.put("port", route.local.port)
             }
