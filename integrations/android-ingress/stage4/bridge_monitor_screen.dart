@@ -122,7 +122,7 @@ class _BridgeMonitorScreenState extends State<BridgeMonitorScreen> {
     if (n == null || !n.isFinite || n < 0) return '—';
     const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
     var i = 0;
-    while (n! >= 1024 && i < units.length - 1) {
+    while (n >= 1024 && i < units.length - 1) {
       n = n / 1024;
       i++;
     }
