@@ -16,6 +16,14 @@ internal object BridgeVlessRoutePlanTest {
         check(plan(enabled = false) is BridgeVlessRoutePlan.Decision.Direct)
         check(plan(protocol = "hysteria2") == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
         check(plan(transport = "xhttp") == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
+        check(plan(transport = "raw") is BridgeVlessRoutePlan.Decision.ThroughBridge)
+        check(plan(transport = "RAW") is BridgeVlessRoutePlan.Decision.ThroughBridge)
+        check(plan(transport = "") is BridgeVlessRoutePlan.Decision.ThroughBridge)
+        check(BridgeVlessRoutePlan.isTcpTransport(null))
+        check(plan(transport = "tcp") is BridgeVlessRoutePlan.Decision.ThroughBridge)
+        for (unsupported in listOf("ws", "grpc", "http", "xhttp", "quic", "udp", "splithttp")) {
+            check(plan(transport = unsupported) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
+        }
         check(plan(active = null) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.INVALID_PROFILE))
         check(plan(subscriptionVerified = false) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.SUBSCRIPTION_NOT_VERIFIED))
         check(plan(port = 0) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.INVALID_LOCAL_LISTENER))
