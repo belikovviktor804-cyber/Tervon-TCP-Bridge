@@ -17,6 +17,7 @@ internal object BridgeClientConfigBuilder {
         val serverName: String,
         val service: String,
         val listenPort: Int,
+        val metricsPort: Int = 0,
         val clientCertificatePath: String,
         val clientPrivateKeyPath: String,
         val serverCaPath: String,
@@ -27,6 +28,10 @@ internal object BridgeClientConfigBuilder {
 
     fun build(input: Inputs): String {
         require(input.listenPort in 1024..65535) { "invalid local listener" }
+        require(input.metricsPort == 0 ||
+                (input.metricsPort in 1024..65535 && input.metricsPort != input.listenPort)) {
+            "invalid local metrics listener"
+        }
         require(input.serverName.isNotBlank() &&
                 input.serverName.length <= 253 &&
                 input.serverName.all { it.isLetterOrDigit() || it in ".-" }) {
@@ -61,6 +66,7 @@ internal object BridgeClientConfigBuilder {
         return JSONObject().apply {
             put("mode", "client")
             put("listen", "127.0.0.1:${input.listenPort}")
+            if (input.metricsPort != 0) put("metrics_listen", "127.0.0.1:${input.metricsPort}")
             put("remote_url", input.remoteUrl)
             put("service", input.service)
             put("server_name", input.serverName)
