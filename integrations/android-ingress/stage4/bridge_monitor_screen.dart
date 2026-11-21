@@ -120,14 +120,15 @@ class _BridgeMonitorScreenState extends State<BridgeMonitorScreen> {
 
   static String readable(double? n, {bool perSecond = false}) {
     if (n == null || !n.isFinite || n < 0) return '—';
+    double value = n;
     const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
     var i = 0;
-    while (n >= 1024 && i < units.length - 1) {
-      n = n / 1024;
+    while (value >= 1024 && i < units.length - 1) {
+      value /= 1024;
       i++;
     }
-    final decimals = i == 0 || n >= 100 ? 0 : n >= 10 ? 1 : 2;
-    return n.toStringAsFixed(decimals) + ' ' + units[i] + (perSecond ? '/с' : '');
+    final decimals = i == 0 || value >= 100 ? 0 : value >= 10 ? 1 : 2;
+    return value.toStringAsFixed(decimals) + ' ' + units[i] + (perSecond ? '/с' : '');
   }
 
   String count(String name) => metric(name)?.toStringAsFixed(0) ?? '—';
