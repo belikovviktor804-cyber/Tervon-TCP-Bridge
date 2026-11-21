@@ -27,10 +27,11 @@ internal class BridgeAutoEnrollmentHttp(private val subscriptionUrl: String) :
                 origin.rawFragment == null) {
             "current subscription must be an HTTPS URL"
         }
-        // Fixed protocol path, NOT a fixed server; never forward subscription
-        // token path or query parameters to Bridge discovery/enrollment.
-        URL("https", origin.host, if (origin.port == -1) 443 else origin.port,
-            "/.well-known/tervon-bridge")
+        // The HTTPS subscription can be served on its own port (e.g. 2096).
+        // Discovery uses ONLY the subscription host and the existing HTTPS
+        // web server on 443. Never send the secret subscription path/query
+        // to discovery or try to register against the 3x-ui subscription port.
+        URL("https", origin.host, 443, "/.well-known/tervon-bridge")
     }
 
     override fun discover(activeSubscription: String): BridgeAutoCertificateEnrollment.TrustedBridge? {
