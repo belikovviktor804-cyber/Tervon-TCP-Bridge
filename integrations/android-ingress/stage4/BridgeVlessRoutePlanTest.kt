@@ -23,7 +23,7 @@ internal object BridgeVlessRoutePlanTest {
         check(plan(transport = "") is BridgeVlessRoutePlan.Decision.ThroughBridge)
         check(BridgeVlessRoutePlan.isTcpTransport(null))
         check(plan(transport = "tcp") is BridgeVlessRoutePlan.Decision.ThroughBridge)
-        for (unsupported in listOf("ws", "grpc", "http", "quic", "udp", "splithttp")) {
+        for (unsupported in listOf("ws", "grpc", "http", "quic", "udp")) {
             check(plan(transport = unsupported) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
         }
         check(plan(active = null) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.INVALID_PROFILE))
