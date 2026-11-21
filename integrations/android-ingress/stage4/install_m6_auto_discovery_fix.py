@@ -20,7 +20,7 @@ FILES = {
     ),
     "BridgeVpnSession.kt": (
         "f49ee06c199c7aef4c907ac15e1165f1fe0d6bfc",
-        "f5dc8461846e50c4d37ed3216a31cc54e6589d2d",
+        "50d966aed9dd4311eb29e5f713a1d50181a53eed",
     ),
 }
 DEST = "android/app/src/main/kotlin/com/tervonvpndpi/app"
