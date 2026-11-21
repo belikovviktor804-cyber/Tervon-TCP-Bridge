@@ -37,8 +37,6 @@ internal class BridgeAutoEnrollmentHttp(
         val service: String,
         val clientCaPem: String,
         val serverCaPem: String,
-        val backendHost: String,
-        val backendPort: Int,
     )
 
     @Volatile private var discovered: BridgeParameters? = null
@@ -109,15 +107,9 @@ internal class BridgeAutoEnrollmentHttp(
                 serverCa.contains("-----BEGIN CERTIFICATE-----")) {
             "incomplete Bridge certificate trust information"
         }
-        val backendHost = data.getString("backend_host")
-        val backendPort = data.getInt("backend_port")
-        require(backendHost.isNotBlank() && backendHost.length <= 253 &&
-                backendHost.none { it.isWhitespace() || it in "/\\\\@?#" } &&
-                backendPort in 1..65535) { "invalid Bridge backend authorization" }
         val params = BridgeParameters(
             verifiedServerId(data.getString("remote_url"), name),
-            data.getString("remote_url"), name, "vpn", clientCa, serverCa,
-            backendHost, backendPort
+            data.getString("remote_url"), name, "vpn", clientCa, serverCa
         )
         discovered = params
         return BridgeAutoCertificateEnrollment.TrustedBridge(params.serverId, params.clientCaPem)
