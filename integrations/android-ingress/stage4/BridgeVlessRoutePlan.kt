@@ -6,6 +6,12 @@ package com.tervonvpndpi.app
  * and identify the active VLESS/TCP destination before applying this plan.
  */
 internal object BridgeVlessRoutePlan {
+    // Xray calls its normal TCP stream "tcp" or "raw"; omitted network also defaults to TCP.
+    fun isTcpTransport(network: String?): Boolean = when (network?.lowercase(java.util.Locale.ROOT)) {
+        null, "", "tcp", "raw" -> true
+        else -> false
+    }
+
     data class Endpoint(val host: String, val port: Int)
     data class Route(val remote: Endpoint, val local: Endpoint)
 
@@ -31,7 +37,7 @@ internal object BridgeVlessRoutePlan {
     ): Decision {
         if (!enabled) return Decision.Direct
         if (!protocol.equals("vless", ignoreCase = true) ||
-            !transport.equals("tcp", ignoreCase = true)) {
+            !isTcpTransport(transport)) {
             return Decision.Blocked(Reason.UNSUPPORTED_TRANSPORT)
         }
         if (activeServer == null || !validRemote(activeServer)) {
