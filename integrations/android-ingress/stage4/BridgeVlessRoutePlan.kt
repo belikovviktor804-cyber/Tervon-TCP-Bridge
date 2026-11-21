@@ -10,7 +10,7 @@ internal object BridgeVlessRoutePlan {
     data class Route(val remote: Endpoint, val local: Endpoint)
 
     sealed class Decision {
-        data object Direct : Decision()
+        object Direct : Decision()
         data class ThroughBridge(val route: Route) : Decision()
         data class Blocked(val reason: Reason) : Decision()
     }
