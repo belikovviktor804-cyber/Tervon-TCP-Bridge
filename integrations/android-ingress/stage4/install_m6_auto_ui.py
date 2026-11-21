@@ -8,8 +8,8 @@ import tempfile
 
 SOURCE = "integrations/android-ingress/stage4/bridge_settings_screen.dart"
 TARGET = "lib/features/home/bridge_settings_screen.dart"
-BEFORE = "ba2318a7950f1aa6cc5b621786d6062cb4d2c544"
-AFTER = "def9471988ff1cdb0e0ddec5986b379d6c62a88d"
+BEFORE = "def9471988ff1cdb0e0ddec5986b379d6c62a88d"
+AFTER = "a0ae6693795920da6ec948cce0d238f35585dd67"
 
 def git_blob(content):
     return hashlib.sha1(b"blob " + str(len(content)).encode() + b"\0" + content).hexdigest()
