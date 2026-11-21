@@ -41,8 +41,8 @@ internal object BridgeVpnSession {
             val proxy = (0 until outbounds.length()).map { outbounds.getJSONObject(it) }
                 .single { it.optString("tag") == "proxy" }
             if (proxy.optString("protocol") != "vless") return fallback("UNSUPPORTED_PROTOCOL", direct)
-            val stream = proxy.getJSONObject("streamSettings")
-            if (stream.optString("network") != "tcp") return fallback("UNSUPPORTED_TRANSPORT", direct)
+            val network = proxy.optJSONObject("streamSettings")?.optString("network")
+            if (!BridgeVlessRoutePlan.isTcpTransport(network)) return fallback("UNSUPPORTED_TRANSPORT", direct)
             val dest = proxy.getJSONObject("settings").getJSONArray("vnext").getJSONObject(0)
             val selected = BridgeVlessRoutePlan.Endpoint(dest.getString("address"), dest.getInt("port"))
 
