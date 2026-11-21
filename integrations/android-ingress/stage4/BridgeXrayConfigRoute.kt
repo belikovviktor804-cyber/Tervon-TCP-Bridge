@@ -4,8 +4,9 @@ import org.json.JSONObject
 
 /**
  * Applies an ALREADY AUTHORIZED, READY, locally listening Bridge route to one
- * generated Xray VLESS TCP outbound. It does not authorize or start Bridge.
- * Never modifies the VLESS UUID, flow, TLS/REALITY parameters, DNS or routing.
+ * generated Xray VLESS TCP or TCP-based XHTTP outbound. It never starts Bridge.
+ * Keeps UUID, flow, transport mode and routing. Preserves effective HTTP Host
+ * and TLS SNI explicitly when Xray would derive them from the old destination.
  */
 internal object BridgeXrayConfigRoute {
     fun apply(configJson: String, route: BridgeVlessRoutePlan.Route): String {
