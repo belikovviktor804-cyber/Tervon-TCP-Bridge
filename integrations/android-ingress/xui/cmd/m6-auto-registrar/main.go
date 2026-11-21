@@ -7,6 +7,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -15,6 +16,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"path/filepath"
 	"time"
 
@@ -37,64 +41,121 @@ func clientCASigner(data []byte) (crypto.Signer,error) {
 	return s,nil
 }
 
+
+type bridgeRuntimeConfig struct {
+    Mode string `json:"mode"`
+    Listen string `json:"listen"`
+    Routes map[string][]json.RawMessage `json:"routes"`
+}
+
+type publishedBinding struct {
+    HostIp string `json:"HostIp"`
+    HostPort string `json:"HostPort"`
+}
+
+// Resolve the public mTLS endpoint from the VERIFIED running Bridge container,
+// not from a second, manually maintained hostname or port list.
+func discoverBridgeEndpoint(root, containerID, service string, serverCAPEM []byte) (string, string, error) {
+    data, err := os.ReadFile(filepath.Join(root, "config/server.json"))
+    if err != nil { return "", "", err }
+    var cfg bridgeRuntimeConfig
+    if err = json.Unmarshal(data, &cfg); err != nil { return "", "", err }
+    if cfg.Mode != "server" || len(cfg.Routes[service]) == 0 {
+        return "", "", errors.New("existing Bridge VPN route unavailable")
+    }
+    _, internalPort, err := net.SplitHostPort(cfg.Listen)
+    if err != nil { return "", "", errors.New("invalid Bridge listen address") }
+
+    serverCertPEM, err := os.ReadFile(filepath.Join(root, "config/pki/server.crt"))
+    if err != nil { return "", "", err }
+    leafBlock, _ := pem.Decode(serverCertPEM)
+    rootBlock, _ := pem.Decode(serverCAPEM)
+    if leafBlock == nil || rootBlock == nil { return "", "", errors.New("Bridge server trust is incomplete") }
+    leaf, err := x509.ParseCertificate(leafBlock.Bytes)
+    if err != nil { return "", "", err }
+    ca, err := x509.ParseCertificate(rootBlock.Bytes)
+    if err != nil { return "", "", err }
+    if len(leaf.DNSNames) != 1 || leaf.DNSNames[0] == "" {
+        return "", "", errors.New("Bridge needs exactly one configured server TLS DNS identity")
+    }
+    name := strings.ToLower(leaf.DNSNames[0])
+    pool := x509.NewCertPool()
+    pool.AddCert(ca)
+    if _, err = leaf.Verify(x509.VerifyOptions{
+        DNSName:name, Roots:pool, KeyUsages:[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+    }); err != nil { return "", "", errors.New("Bridge server certificate verification failed") }
+
+    // Docker's published port is the only permitted source of the external
+    // host port. There must be exactly one non-loopback IPv4 binding.
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    output, err := exec.CommandContext(ctx, "docker", "inspect", "--format",
+        "{{json .NetworkSettings.Ports}}", containerID).Output()
+    if err != nil { return "", "", errors.New("cannot inspect running Bridge port") }
+    var published map[string][]publishedBinding
+    if err = json.Unmarshal(output, &published); err != nil { return "", "", err }
+    bindings := published[internalPort + "/tcp"]
+    if len(bindings) != 1 || bindings[0].HostIp != "0.0.0.0" {
+        return "", "", errors.New("Bridge has no unambiguous public TCP listener")
+    }
+    port, err := strconv.Atoi(bindings[0].HostPort)
+    if err != nil || port < 1 || port > 65535 {
+        return "", "", errors.New("invalid published Bridge port")
+    }
+    return "https://" + net.JoinHostPort(name, strconv.Itoa(port)) + "/v2/stream", name, nil
+}
+
 func main() {
-	var root,listen,remote,serverName,service,containerID,backendHost string
-	var backendPort int
-	flag.StringVar(&root,"root","/etc/tervon/bridge-android","existing Android Bridge root")
-	flag.StringVar(&listen,"listen","","loopback address for existing HTTPS proxy (required)")
-	flag.StringVar(&remote,"remote-url","","Bridge HTTPS /v2/stream endpoint advertised to Android")
-	flag.StringVar(&serverName,"server-name","","server TLS name of configured Bridge")
-	flag.StringVar(&service,"service","vpn","existing configured Bridge service")
-	flag.StringVar(&containerID,"container-id","","running Android ingress Docker container ID")
-	flag.StringVar(&backendHost,"backend-host","","existing VLESS TCP endpoint hostname (required)")
-	flag.IntVar(&backendPort,"backend-port",0,"existing VLESS TCP endpoint port (required)")
-	flag.Parse()
-	if filepath.Clean(root)!=root || !filepath.IsAbs(root) || root=="/" {
-		log.Fatal("invalid existing Android Bridge root")
-	}
-	host,port,err:=net.SplitHostPort(listen)
-	if err!=nil || net.ParseIP(host)==nil || !net.ParseIP(host).IsLoopback() || port=="" {
-		log.Fatal("registrar must bind a literal loopback IP:port")
-	}
-	if containerID=="" || serverName=="" || remote=="" || backendHost=="" || backendPort<1 || backendPort>65535 {
-		log.Fatal("Android ingress container and remote URL/server name required")
-	}
-	clientCAPEM,err:=os.ReadFile(filepath.Join(root,"config/pki/client-ca.crt"))
-	if err!=nil{log.Fatal("existing client CA unavailable")}
-	serverCAPEM,err:=os.ReadFile(filepath.Join(root,"private/server-ca.crt"))
-	if err!=nil{log.Fatal("existing public server CA unavailable")}
-	privatePEM,err:=os.ReadFile(filepath.Join(root,"private/client-ca.key"))
-	if err!=nil{log.Fatal("existing client CA signer unavailable")}
-	signer,err:=clientCASigner(privatePEM)
-	if err!=nil{log.Fatal(err)}
-	activator:=&xui.HotACLActivator{
-		Path:filepath.Join(root,"config/server.json"),
-		Service:service,
-		Confirm:xui.DockerACLConfirmer{
-			ContainerID:containerID,
-			HostConfigDirectory:filepath.Join(root,"config"),
-		}.Confirm,
-	}
-	enrollment:=&xui.BridgeEnrollmentHTTP{
-		RemoteURL:remote,ServerName:serverName,Service:service,
-		BackendHost:backendHost,BackendPort:backendPort,
-		ClientCAPEM:clientCAPEM, ServerCAPEM:serverCAPEM, ClientCAKey:signer,
-		Activate:func(fingerprint string) error {
-			ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second)
-			defer cancel()
-			return activator.Activate(ctx,fingerprint)
-		},
-	}
-	handler,err:=enrollment.Handler()
-	if err!=nil{log.Fatal(err)}
-	mux:=http.NewServeMux()
-	mux.Handle("/.well-known/tervon-bridge",handler)
-	ln,err:=net.Listen("tcp",listen)
-	if err!=nil{log.Fatal(fmt.Errorf("cannot open registrar loopback listener: %w",err))}
-	log.Print("M6_BRIDGE_REGISTRAR=LOOPBACK_LISTENING")
-	srv:=&http.Server{
-		Handler:mux,ReadHeaderTimeout:5*time.Second,
-		IdleTimeout:15*time.Second,MaxHeaderBytes:16<<10,
-	}
-	log.Fatal(srv.Serve(ln))
+    var root, listen, containerID string
+    flag.StringVar(&root, "root", "/etc/tervon/bridge-android", "existing Android Bridge root")
+    flag.StringVar(&listen, "listen", "", "loopback address for existing HTTPS proxy (required)")
+    flag.StringVar(&containerID, "container-id", "", "running Android ingress Docker container ID")
+    flag.Parse()
+    if filepath.Clean(root) != root || !filepath.IsAbs(root) || root == "/" {
+        log.Fatal("invalid existing Android Bridge root")
+    }
+    host, port, err := net.SplitHostPort(listen)
+    if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() || port == "" {
+        log.Fatal("registrar must bind a literal loopback IP:port")
+    }
+    if containerID == "" { log.Fatal("running Android Bridge container ID required") }
+    clientCAPEM, err := os.ReadFile(filepath.Join(root, "config/pki/client-ca.crt"))
+    if err != nil { log.Fatal("existing client CA unavailable") }
+    serverCAPEM, err := os.ReadFile(filepath.Join(root, "private/server-ca.crt"))
+    if err != nil { log.Fatal("existing public server CA unavailable") }
+    privatePEM, err := os.ReadFile(filepath.Join(root, "private/client-ca.key"))
+    if err != nil { log.Fatal("existing client CA signer unavailable") }
+    signer, err := clientCASigner(privatePEM)
+    if err != nil { log.Fatal(err) }
+    const service = "vpn" // existing M6 service identifier, not a destination
+    remote, serverName, err := discoverBridgeEndpoint(root, containerID, service, serverCAPEM)
+    if err != nil { log.Fatal(err) }
+    activator := &xui.HotACLActivator{
+        Path:filepath.Join(root,"config/server.json"), Service:service,
+        Confirm:xui.DockerACLConfirmer{
+            ContainerID:containerID,
+            HostConfigDirectory:filepath.Join(root,"config"),
+        }.Confirm,
+    }
+    enrollment := &xui.BridgeEnrollmentHTTP{
+        RemoteURL:remote, ServerName:serverName, Service:service,
+        ClientCAPEM:clientCAPEM, ServerCAPEM:serverCAPEM, ClientCAKey:signer,
+        Activate:func(fingerprint string) error {
+            ctx,cancel := context.WithTimeout(context.Background(),15*time.Second)
+            defer cancel()
+            return activator.Activate(ctx,fingerprint)
+        },
+    }
+    handler,err := enrollment.Handler()
+    if err != nil { log.Fatal(err) }
+    mux := http.NewServeMux()
+    mux.Handle("/.well-known/tervon-bridge",handler)
+    ln,err := net.Listen("tcp",listen)
+    if err != nil { log.Fatal(fmt.Errorf("cannot open registrar loopback listener: %w",err)) }
+    log.Print("M6_BRIDGE_REGISTRAR=LOOPBACK_LISTENING")
+    srv := &http.Server{
+        Handler:mux, ReadHeaderTimeout:5*time.Second,
+        IdleTimeout:15*time.Second, MaxHeaderBytes:16<<10,
+    }
+    log.Fatal(srv.Serve(ln))
 }
