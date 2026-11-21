@@ -21,7 +21,7 @@ func TestM6DockerConfirmExactGenerationWithoutRestart(t *testing.T) {
 	body:="#!/bin/sh\n"+
 		"echo \"$1\" >> '"+calls+"'\n"+
 		"case \"$1\" in\n"+
-		"inspect) printf '%s\\n' '[{\"Config\":{\"Image\":\"tervon-bridge-android-ingress:local\"},\"State\":{\"Running\":true},\"Mounts\":[{\"Type\":\"bind\",\"Source\":\""+conf+"\",\"Destination\":\"/config\",\"RW\":false}]}]' ;;\n"+
+		"inspect) printf '%s\\n' '[{\"Config\":{\"Image\":\"tervon-bridge-android-ingress:m6-runtime-acl\",\"Labels\":{\"org.tervon.bridge.hot_acl\":\"m6-v1\"}},\"State\":{\"Running\":true},\"Mounts\":[{\"Type\":\"bind\",\"Source\":\""+conf+"\",\"Destination\":\"/config\",\"RW\":false}]}]' ;;\n"+
 		"kill) printf 'signaled\\n' ;;\n"+
 		"logs) printf '2026-11-21 M6_ACL_RELOAD=PASS digest="+digest+"\\n' ;;\n"+
 		"*) exit 9 ;;\n"+
