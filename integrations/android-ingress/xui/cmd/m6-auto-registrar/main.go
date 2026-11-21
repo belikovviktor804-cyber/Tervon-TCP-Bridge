@@ -58,6 +58,8 @@ func main() {
 	}
 	clientCAPEM,err:=os.ReadFile(filepath.Join(root,"config/pki/client-ca.crt"))
 	if err!=nil{log.Fatal("existing client CA unavailable")}
+	serverCAPEM,err:=os.ReadFile(filepath.Join(root,"private/server-ca.crt"))
+	if err!=nil{log.Fatal("existing public server CA unavailable")}
 	privatePEM,err:=os.ReadFile(filepath.Join(root,"private/client-ca.key"))
 	if err!=nil{log.Fatal("existing client CA signer unavailable")}
 	signer,err:=clientCASigner(privatePEM)
@@ -72,7 +74,7 @@ func main() {
 	}
 	enrollment:=&xui.BridgeEnrollmentHTTP{
 		RemoteURL:remote,ServerName:serverName,Service:service,
-		ClientCAPEM:clientCAPEM, ClientCAKey:signer,
+		ClientCAPEM:clientCAPEM, ServerCAPEM:serverCAPEM, ClientCAKey:signer,
 		Activate:func(fingerprint string) error {
 			ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second)
 			defer cancel()
