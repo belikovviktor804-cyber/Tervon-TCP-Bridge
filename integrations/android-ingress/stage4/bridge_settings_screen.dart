@@ -38,6 +38,32 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
     }
   }
 
+  // Only fixed failure codes are shown. No subscription URL, key or certificate.
+  String _bridgeError(String? code) => switch (code) {
+    'BYPASS_DISABLED' => 'обход выключен',
+    'SUBSCRIPTION_NOT_SELECTED' => 'не определена текущая HTTPS-подписка',
+    'INVALID_SUBSCRIPTION_HOST' => 'некорректный адрес подписки',
+    'UNSUPPORTED_PROTOCOL' => 'выбранный профиль не использует VLESS',
+    'UNSUPPORTED_TRANSPORT' => 'выбранный профиль не использует TCP',
+    'DISCOVERY_NO_BRIDGE' => 'сервер подписки не сообщил о Bridge',
+    'DISCOVERY_NO_PARAMETERS' => 'сервер не прислал параметры Bridge',
+    'DISCOVERY_ID_MISMATCH' => 'не совпадает сервер подписки',
+    'DEVICE_CERTIFICATE_UNAVAILABLE' => 'сертификат устройства недоступен',
+    'PORT_ALLOCATION_FAILED' => 'не удалось выделить локальный порт',
+    'BRIDGE_ALREADY_RUNNING' => 'предыдущий процесс Bridge ещё работает',
+    'CONFIG_WRITE_FAILED' => 'не удалось записать конфигурацию Bridge',
+    'BRIDGE_START_FAILED' => 'ядро Bridge не запустилось',
+    'BRIDGE_LISTENER_UNAVAILABLE' => 'ядро Bridge не открыло локальный порт',
+    'ROUTE_REJECTED' => 'выбранный VLESS TCP-маршрут отклонён',
+    'XRAY_ROUTE_FAILED' => 'не удалось переключить маршрут Xray',
+    'PROFILE_CONFIG_INVALID' => 'не удалось прочитать настройки выбранного профиля',
+    'BRIDGE_PROCESS_EXITED' => 'процесс Bridge завершился',
+    'BRIDGE_NOT_ACTIVE' => 'Bridge не подтвердил готовность после перезапуска VPN',
+    'VPN_RESTART_FAILED' => 'не удалось перезапустить VPN',
+    'ENROLLMENT_FAILED' => 'не удалось зарегистрировать устройство',
+    _ => 'неизвестная причина',
+  };
+
   Future<void> _toggleBypass(bool enable) async {
     if (_busy) return;
     setState(() { _busy = true; _message = 'Проверка Bridge…'; });
@@ -57,17 +83,18 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
         'setBypassEnabled', {'enabled': enable, if (url != null) 'subscriptionUrl': url});
       if (!mounted) return;
       final state = data?['state']?.toString() ?? 'UNKNOWN';
+      final reason = _bridgeError(data?['reasonCode']?.toString());
       setState(() {
         _enabled = data?['enabled'] == true;
         _message = switch (state) {
           'DISABLED' => 'Обход DPI выключен',
           'ACTIVE' => 'Обход DPI: активен локальный маршрут Bridge',
           'PREPARED' => 'Сертификат готов. Bridge включится при следующем подключении VPN.',
-          'DIRECT_FALLBACK' => 'Bridge недоступен: восстановлено прямое подключение VPN',
-          'RESTART_FAILED' => 'Переключение не завершено: VPN остановлен для безопасности',
+          'DIRECT_FALLBACK' => 'Bridge не включился: $reason. Прямой VPN сохранён.',
+          'RESTART_FAILED' => 'Не удалось перезапустить VPN: $reason',
           'NO_BRIDGE' => 'На сервере текущей подписки Bridge отсутствует',
           'CANCELLED' => 'Регистрация отменена',
-          'ENROLLMENT_FAILED' => 'Ошибка автоматической регистрации; прямой VPN не изменён',
+          'ENROLLMENT_FAILED' => 'Регистрация Bridge не выполнена: $reason',
           _ => 'Неизвестный результат регистрации Bridge',
         };
       });
