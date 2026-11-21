@@ -105,6 +105,25 @@ func discoverBridgeEndpoint(root, containerID, service string, serverCAPEM []byt
     return "https://" + net.JoinHostPort(name, strconv.Itoa(port)) + "/v2/stream", name, nil
 }
 
+// Transport service names are advertised only when the existing Bridge
+// configuration has a server-side route. This function never adds a route.
+func configuredTransportServices(root string) (map[string]string, []string, error) {
+    data, err := os.ReadFile(filepath.Join(root, "config/server.json"))
+    if err != nil { return nil, nil, err }
+    var cfg bridgeRuntimeConfig
+    if err := json.Unmarshal(data, &cfg); err != nil { return nil, nil, err }
+    if cfg.Mode != "server" || len(cfg.Routes["vpn"]) == 0 {
+        return nil, nil, errors.New("TCP Bridge backend unavailable")
+    }
+    transports := map[string]string{"tcp": "vpn"}
+    services := []string{"vpn"}
+    if len(cfg.Routes["vpn-xhttp"]) > 0 {
+        transports["xhttp"] = "vpn-xhttp"
+        services = append(services, "vpn-xhttp")
+    }
+    return transports, services, nil
+}
+
 func main() {
     var root, listen, containerID string
     flag.StringVar(&root, "root", "/etc/tervon/bridge-android", "existing Android Bridge root")
@@ -130,15 +149,17 @@ func main() {
     const service = "vpn" // existing M6 service identifier, not a destination
     remote, serverName, err := discoverBridgeEndpoint(root, containerID, service, serverCAPEM)
     if err != nil { log.Fatal(err) }
+    transports, services, err := configuredTransportServices(root)
+    if err != nil { log.Fatal(err) }
     activator := &xui.HotACLActivator{
-        Path:filepath.Join(root,"config/server.json"), Service:service,
+        Path:filepath.Join(root,"config/server.json"), Service:service, Services:services,
         Confirm:xui.DockerACLConfirmer{
             ContainerID:containerID,
             HostConfigDirectory:filepath.Join(root,"config"),
         }.Confirm,
     }
     enrollment := &xui.BridgeEnrollmentHTTP{
-        RemoteURL:remote, ServerName:serverName, Service:service,
+        RemoteURL:remote, ServerName:serverName, Service:service, TransportServices:transports,
         ClientCAPEM:clientCAPEM, ServerCAPEM:serverCAPEM, ClientCAKey:signer,
         Activate:func(fingerprint string) error {
             ctx,cancel := context.WithTimeout(context.Background(),15*time.Second)
