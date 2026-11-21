@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 RELEASE_COMMIT = "96c136702d10b6fb9a16aa2893f6b978e8b14e86"
-HELPERS = ("acl_snapshot.go", "acl_snapshot_test.go")
+HELPERS = ("acl_snapshot.go", "acl_snapshot_test.go", "acl_live_stream_test.go")
 
 
 def git(root, *args):
