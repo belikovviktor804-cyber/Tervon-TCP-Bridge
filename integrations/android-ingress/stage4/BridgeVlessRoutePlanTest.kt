@@ -8,7 +8,7 @@ internal object BridgeVlessRoutePlanTest {
             protocol: String = "vless",
             transport: String = "tcp",
             active: BridgeVlessRoutePlan.Endpoint? = remote,
-            authorized: BridgeVlessRoutePlan.Endpoint? = remote,
+            subscriptionVerified: Boolean = true,
             port: Int = 19001,
             ready: Boolean = true
         ) = BridgeVlessRoutePlan.decide(enabled, protocol, transport, active, authorized, port, ready)
@@ -17,8 +17,7 @@ internal object BridgeVlessRoutePlanTest {
         check(plan(protocol = "hysteria2") == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
         check(plan(transport = "xhttp") == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.UNSUPPORTED_TRANSPORT))
         check(plan(active = null) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.INVALID_PROFILE))
-        check(plan(authorized = null) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.WRONG_SERVER))
-        check(plan(authorized = BridgeVlessRoutePlan.Endpoint("other.example", 30000)) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.WRONG_SERVER))
+        check(plan(subscriptionVerified = false) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.SUBSCRIPTION_NOT_VERIFIED))
         check(plan(port = 0) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.INVALID_LOCAL_LISTENER))
         check(plan(ready = false) == BridgeVlessRoutePlan.Decision.Blocked(BridgeVlessRoutePlan.Reason.BRIDGE_NOT_READY))
         val routed = plan() as BridgeVlessRoutePlan.Decision.ThroughBridge
