@@ -25,13 +25,30 @@ internal object BridgeAutoCertificateEnrollmentTest {
         }
         val coordinator = BridgeAutoCertificateEnrollment(id, storage, transport)
         val bridge = BridgeAutoCertificateEnrollment.TrustedBridge("dynamic.example", "trusted CA")
-        check(coordinator.onBypassEnabled(false, bridge) is BridgeAutoCertificateEnrollment.Outcome.Disabled)
-        check(coordinator.onBypassEnabled(true, null) is BridgeAutoCertificateEnrollment.Outcome.NoBridge)
-        check(csrCalls == 0 && issueCalls == 0 && installCalls == 0)
-        check(coordinator.onBypassEnabled(true, bridge) is BridgeAutoCertificateEnrollment.Outcome.Enrolled)
-        check(csrCalls == 1 && issueCalls == 1 && installCalls == 1)
-        check(coordinator.onBypassEnabled(true, bridge) is BridgeAutoCertificateEnrollment.Outcome.Reused)
-        check(csrCalls == 1 && issueCalls == 1)
+        var discoveries = 0
+        val discovery = object : BridgeAutoCertificateEnrollment.SubscriptionBridgeDiscovery {
+            override fun discover(activeSubscription: String): BridgeAutoCertificateEnrollment.TrustedBridge? {
+                discoveries++
+                check(activeSubscription == "https://subscription.example/user/opaque")
+                return bridge
+            }
+        }
+        val noBridge = object : BridgeAutoCertificateEnrollment.SubscriptionBridgeDiscovery {
+            override fun discover(activeSubscription: String): BridgeAutoCertificateEnrollment.TrustedBridge? {
+                discoveries++
+                return null
+            }
+        }
+        val subscription = "https://subscription.example/user/opaque"
+        check(coordinator.onBypassToggled(false, subscription, discovery) is BridgeAutoCertificateEnrollment.Outcome.Disabled)
+        check(coordinator.onBypassToggled(true, null, discovery) is BridgeAutoCertificateEnrollment.Outcome.NoBridge)
+        check(discoveries == 0 && csrCalls == 0 && issueCalls == 0 && installCalls == 0)
+        check(coordinator.onBypassToggled(true, subscription, noBridge) is BridgeAutoCertificateEnrollment.Outcome.NoBridge)
+        check(discoveries == 1 && csrCalls == 0 && issueCalls == 0)
+        check(coordinator.onBypassToggled(true, subscription, discovery) is BridgeAutoCertificateEnrollment.Outcome.Enrolled)
+        check(discoveries == 2 && csrCalls == 1 && issueCalls == 1 && installCalls == 1)
+        check(coordinator.onBypassToggled(true, subscription, discovery) is BridgeAutoCertificateEnrollment.Outcome.Reused)
+        check(discoveries == 3 && csrCalls == 1 && issueCalls == 1)
         stored = false
         val failed = BridgeAutoCertificateEnrollment(id, storage,
             object : BridgeAutoCertificateEnrollment.EnrollmentTransport {
@@ -39,7 +56,7 @@ internal object BridgeAutoCertificateEnrollmentTest {
                     error("unreachable")
                 }
             })
-        check(runCatching { failed.onBypassEnabled(true, bridge) }.isFailure)
+        check(runCatching { failed.onBypassToggled(true, subscription, discovery) }.isFailure)
         check(!stored)
         println("M6_AUTO_CERT_COORDINATOR=PASS")
     }
