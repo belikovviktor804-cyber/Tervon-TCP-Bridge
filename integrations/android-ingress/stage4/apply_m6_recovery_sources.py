@@ -20,6 +20,17 @@ FILES = (
     'BridgeAutoCertificateAndroidAdapter.kt',
     'BridgeAutoEnrollmentHttp.kt',
 )
+EXPECTED_SOURCE_BLOBS = {
+    'BridgeServerReconciler.kt': '59792b867da23471f6cec80fab15ab2b7b1dfbae',
+    'BridgeVlessRoutePlan.kt': '79b39d6e0d5f7072695802c3133431dd55536bed',
+    'BridgeXrayConfigRoute.kt': '79cca5bf957353a52327f07ff86af3a8c5984e01',
+    'BridgeClientConfigBuilder.kt': '133a171d5521413ec66fda43f8abd49e8114363b',
+    'BridgeClientPemHandoff.kt': 'cffbbdbef383c0ecc560acba519c939a60c24a51',
+    'BridgeAutoCertificateEnrollment.kt': '9fdc027c3960a2e0f39477468d406f5d63cee9d1',
+    'BridgeAutoCertificateAndroidAdapter.kt': 'c82de9fde00c400689924b52d9643bb2dea0846c',
+    'BridgeAutoEnrollmentHttp.kt': 'c2a3d6d0d29046ee5033dac23cbba580627448e1',
+}
+
 BASE_REL = Path('android/app/src/main/kotlin/com/tervonvpndpi/app')
 RECONCILER_OLD_SHA = '882f81df9ed38a6448b77f58a00b3583614abfdb1507a78d7774e88641650bac'
 
@@ -52,6 +63,11 @@ def main() -> int:
             print('M6_RECOVERY=FAIL: BUNDLE_SOURCE_UNAVAILABLE')
             return 1
         content = source.read_bytes()
+        # Exact approved GitHub sources; refuse stale catalog-bound registration.
+        blob = hashlib.sha1(b'blob ' + str(len(content)).encode('ascii') + b'\x00' + content).hexdigest()
+        if blob != EXPECTED_SOURCE_BLOBS[name]:
+            print('M6_RECOVERY=FAIL: SOURCE_VERSION_MISMATCH', name)
+            return 1
         if target.is_symlink():
             print('M6_RECOVERY=FAIL: REFUSE_SYMLINK')
             return 1
