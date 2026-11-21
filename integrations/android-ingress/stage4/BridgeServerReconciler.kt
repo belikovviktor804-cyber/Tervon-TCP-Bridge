@@ -35,8 +35,8 @@ internal object BridgeServerReconciler {
         KEEP_CURRENT,
         /** Switch only to a previously issued valid certificate. */
         SELECT_SAVED,
-        /** Never auto-register: a user must press the enrollment button. */
-        REQUEST_USER_REGISTRATION,
+        /** No valid certificate: request automatic authorized enrollment. */
+        REQUEST_AUTO_ENROLLMENT,
         /** No trusted Bridge mapping for the selected VPN destination. */
         TURN_OFF_UNKNOWN,
         /** Missing/invalid selected VPN destination; fail closed. */
@@ -95,7 +95,7 @@ internal object BridgeServerReconciler {
         }.maxByOrNull { it.notAfterEpochMillis }
 
         if (valid == null) {
-            return Decision(Action.REQUEST_USER_REGISTRATION, server.id)
+            return Decision(Action.REQUEST_AUTO_ENROLLMENT, server.id)
         }
         return if (currentBridgeServerId == server.id) {
             Decision(Action.KEEP_CURRENT, server.id, valid)
