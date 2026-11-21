@@ -13,6 +13,12 @@ import (
 // This function does NOT write disk, reload Bridge, or modify running Xray.
 // The owner must atomically install and activate the staged config separately.
 func AddDeviceToACL(serverJSON []byte, leafFingerprint, service string) ([]byte, error) {
+    return AddDeviceToACLServices(serverJSON, leafFingerprint, []string{service})
+}
+
+// AddDeviceToACLServices only adds authorized services when every requested
+// service already has a configured server-side backend.
+func AddDeviceToACLServices(serverJSON []byte, leafFingerprint string, services []string) ([]byte, error) {
 	raw, err := decodeServerConfig(serverJSON)
 	if err != nil {
 		return nil, err
@@ -26,13 +32,23 @@ func AddDeviceToACL(serverJSON []byte, leafFingerprint, service string) ([]byte,
 		return nil, errors.New("ACL update requires Bridge server configuration")
 	}
 	var routes map[string]json.RawMessage
-	if err := json.Unmarshal(raw["routes"], &routes); err != nil || service == "" {
+	if err := json.Unmarshal(raw["routes"], &routes); err != nil {
 		return nil, errors.New("service route unavailable")
 	}
-	var backends []json.RawMessage
-	if err := json.Unmarshal(routes[service], &backends); err != nil || len(backends) == 0 {
-		return nil, errors.New("service route unavailable")
-	}
+    if len(services) == 0 || len(services) > 8 {
+        return nil, errors.New("invalid Bridge service list")
+    }
+    seen := make(map[string]bool)
+    for _, name := range services {
+        if name == "" || seen[name] {
+            return nil, errors.New("duplicate or empty Bridge service")
+        }
+        seen[name] = true
+        var backends []json.RawMessage
+        if err := json.Unmarshal(routes[name], &backends); err != nil || len(backends) == 0 {
+            return nil, errors.New("service route unavailable")
+        }
+    }
 	var acl map[string][]string
 	if err := json.Unmarshal(raw["authorized"], &acl); err != nil || acl == nil {
 		return nil, errors.New("missing authorized ACL")
@@ -40,7 +56,7 @@ func AddDeviceToACL(serverJSON []byte, leafFingerprint, service string) ([]byte,
 	if _, exists := acl[leafFingerprint]; exists {
 		return nil, errors.New("fingerprint already present")
 	}
-	acl[leafFingerprint] = []string{service}
+	acl[leafFingerprint] = append([]string(nil), services...)
 	updated, err := json.Marshal(acl)
 	if err != nil {
 		return nil, errors.New("cannot marshal ACL")
