@@ -17,7 +17,7 @@ internal object BridgeXrayConfigRoute {
         val proxy = matching.single()
         require(proxy.optString("protocol") == "vless") { "Only VLESS supported" }
         val network = proxy.optJSONObject("streamSettings")?.optString("network")
-        require(BridgeVlessRoutePlan.isTcpTransport(network)) { "Only VLESS TCP supported" }
+        require(BridgeVlessRoutePlan.isSupportedTransport(network)) { "Only TCP-based VLESS supported" }
         val vnext = proxy.getJSONObject("settings").getJSONArray("vnext")
         require(vnext.length() == 1) { "Exactly one destination required" }
         val destination = vnext.getJSONObject(0)
@@ -28,6 +28,48 @@ internal object BridgeXrayConfigRoute {
         }
         require(route.local.host == "127.0.0.1" && route.local.port in 1024..65535) {
             "Bridge route must use verified local IPv4 listener"
+        }
+        val originalHost = destination.getString("address")
+        val xhttp = BridgeVlessRoutePlan.transportKey(network) == "xhttp"
+        if (xhttp) {
+            // H3/QUIC is not TCP, even when XHTTP itself is the selected network.
+            val tlsAlpn = stream.optJSONObject("tlsSettings")?.optJSONArray("alpn")
+            require(tlsAlpn == null || (0 until tlsAlpn.length()).none {
+                tlsAlpn.optString(it).equals("h3", ignoreCase = true)
+            }) { "XHTTP over HTTP/3 is outside TCP scope" }
+            val settings = stream.optJSONObject("xhttpSettings")
+                ?: error("XHTTP settings missing")
+            val separate = settings.optJSONObject("downloadSettings")
+            if (separate != null) {
+                // Only a shared backend is mapped by this single local Bridge
+                // listener. Independent download destinations need an explicit
+                // second authorized server route, never silently bypass Bridge.
+                val downAddress = separate.optString("address", originalHost)
+                val downPort = separate.optInt("port", route.remote.port)
+                require(downAddress.equals(originalHost, ignoreCase = true) &&
+                        downPort == route.remote.port) {
+                    "independent XHTTP download backend is not authorized"
+                }
+                val downAlpn = separate.optJSONObject("tlsSettings")?.optJSONArray("alpn")
+                require(downAlpn == null || (0 until downAlpn.length()).none {
+                    downAlpn.optString(it).equals("h3", ignoreCase = true)
+                }) { "XHTTP download over HTTP/3 is outside TCP scope" }
+                if (separate.has("address")) separate.put("address", route.local.host)
+                if (separate.has("port")) separate.put("port", route.local.port)
+            }
+            // XHTTP Host is derived from the destination when not explicitly
+            // configured. Preserve that effective host before redirecting.
+            if (settings.optString("host").isEmpty()) settings.put("host", originalHost)
+        }
+        // Xray may derive its TLS SNI from the original destination when
+        // serverName was omitted. Retain that identity for the local dial.
+        if (stream.optString("security") == "tls") {
+            val tls = stream.optJSONObject("tlsSettings")
+            if (tls != null && tls.optString("serverName").isEmpty() &&
+                originalHost.matches(Regex("[A-Za-z0-9][A-Za-z0-9.-]{0,252}")) &&
+                !originalHost.matches(Regex("[0-9.]+"))) {
+                tls.put("serverName", originalHost)
+            }
         }
         destination.put("address", route.local.host)
         destination.put("port", route.local.port)
