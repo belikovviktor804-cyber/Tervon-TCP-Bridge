@@ -25,7 +25,10 @@ type DockerACLConfirmer struct {
 }
 
 type dockerInspectState struct {
-	Config struct{Image string `json:"Image"`} `json:"Config"`
+	Config struct {
+		Image string `json:"Image"`
+		Labels map[string]string `json:"Labels"`
+	} `json:"Config"`
 	State struct{Running bool `json:"Running"`} `json:"State"`
 	Mounts []struct {
 		Type string `json:"Type"`
@@ -55,7 +58,8 @@ func (d DockerACLConfirmer) validateTarget(ctx context.Context) error {
 	if err!=nil{return err}
 	var states []dockerInspectState
 	if json.Unmarshal(out,&states)!=nil || len(states)!=1 ||
-		states[0].Config.Image!="tervon-bridge-android-ingress:local" ||
+		states[0].Config.Image!="tervon-bridge-android-ingress:m6-runtime-acl" ||
+		states[0].Config.Labels["org.tervon.bridge.hot_acl"]!="m6-v1" ||
 		!states[0].State.Running {
 		return errors.New("unexpected Android ingress container")
 	}
