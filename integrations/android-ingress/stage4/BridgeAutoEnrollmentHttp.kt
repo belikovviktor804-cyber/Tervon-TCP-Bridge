@@ -35,6 +35,7 @@ internal class BridgeAutoEnrollmentHttp(
         val remoteUrl: String,
         val tlsName: String,
         val service: String,
+        val transportServices: Map<String, String>,
         val clientCaPem: String,
         val serverCaPem: String,
     )
@@ -101,6 +102,22 @@ internal class BridgeAutoEnrollmentHttp(
         require(name.equals(remote.host, ignoreCase = true)) {
             "Bridge TLS identity differs from advertised endpoint"
         }
+        // Backwards-compatible discovery: older registrars publish TCP only.
+        // XHTTP may be used only when the authenticated server explicitly
+        // advertises its separate Bridge service. No client-side guessed port.
+        val routes = linkedMapOf("tcp" to "vpn")
+        val advertised = data.optJSONObject("transport_services")
+        if (advertised != null) {
+            require(advertised.optString("tcp") == "vpn") {
+                "Bridge default TCP service mismatch"
+            }
+            val xhttp = advertised.optString("xhttp")
+            if (xhttp.isNotEmpty()) {
+                require(xhttp.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) &&
+                        xhttp != "vpn") { "invalid XHTTP service" }
+                routes["xhttp"] = xhttp
+            }
+        }
         val clientCa = data.getString("client_ca")
         val serverCa = data.getString("server_ca")
         require(clientCa.contains("-----BEGIN CERTIFICATE-----") &&
@@ -109,7 +126,7 @@ internal class BridgeAutoEnrollmentHttp(
         }
         val params = BridgeParameters(
             verifiedServerId(data.getString("remote_url"), name),
-            data.getString("remote_url"), name, "vpn", clientCa, serverCa
+            data.getString("remote_url"), name, "vpn", routes.toMap(), clientCa, serverCa
         )
         discovered = params
         return BridgeAutoCertificateEnrollment.TrustedBridge(params.serverId, params.clientCaPem)
