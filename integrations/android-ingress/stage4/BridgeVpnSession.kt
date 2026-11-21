@@ -80,7 +80,7 @@ internal object BridgeVpnSession {
                 stop(context)
                 return fallback("BRIDGE_ALREADY_RUNNING", direct)
             }
-            failureCode = "CONFIG_CREATED"
+            failureCode = "CONFIG_WRITE_FAILED"
             env.writeValidatedConfig(config)
             BridgeRuntimeControl.onUnexpectedExit(context) { unexpectedExit(context.applicationContext) }
             failureCode = "BRIDGE_START_FAILED"
@@ -137,6 +137,7 @@ internal object BridgeVpnSession {
             }
         }
         if (!shouldRecover) return
+        failureCode = "BRIDGE_PROCESS_EXITED"
         BridgeRuntimeSettings.setEnabled(context, false)
         BridgeSubscriptionBinding.clear(context)
         if (VpnForegroundService.isRunning) {
