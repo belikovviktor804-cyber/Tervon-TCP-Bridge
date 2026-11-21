@@ -15,7 +15,10 @@ import javax.net.ssl.HttpsURLConnection
  * verification. The discovery server determines whether Bridge is configured
  * and provides its own existing CA and client parameters.
  */
-internal class BridgeAutoEnrollmentHttp(private val subscriptionUrl: String) :
+internal class BridgeAutoEnrollmentHttp(
+    private val subscriptionUrl: String,
+    private val trustedServer: BridgeSignedServerCatalog.Server,
+) :
     BridgeAutoCertificateEnrollment.SubscriptionBridgeDiscovery,
     BridgeAutoCertificateEnrollment.EnrollmentTransport {
 
@@ -32,6 +35,17 @@ internal class BridgeAutoEnrollmentHttp(private val subscriptionUrl: String) :
         // web server on 443. Never send the secret subscription path/query
         // to discovery or try to register against the 3x-ui subscription port.
         URL("https", origin.host, 443, "/.well-known/tervon-bridge")
+    }
+
+    /** Binding is checked against the independently verified signed server catalog. */
+    internal fun verifiedServerId(advertisedUrl: String, advertisedName: String): String {
+        require(advertisedUrl == trustedServer.bridgeUrl) {
+            "discovered Bridge URL differs from signed catalog"
+        }
+        require(advertisedName.equals(trustedServer.tlsName, ignoreCase = true)) {
+            "discovered Bridge TLS identity differs from signed catalog"
+        }
+        return trustedServer.id
     }
 
     override fun discover(activeSubscription: String): BridgeAutoCertificateEnrollment.TrustedBridge? {
@@ -53,7 +67,7 @@ internal class BridgeAutoEnrollmentHttp(private val subscriptionUrl: String) :
             "Bridge TLS identity differs from advertised endpoint"
         }
         return BridgeAutoCertificateEnrollment.TrustedBridge(
-            name, data.getString("client_ca")
+            verifiedServerId(data.getString("remote_url"), name), data.getString("client_ca")
         )
     }
 
@@ -61,6 +75,9 @@ internal class BridgeAutoEnrollmentHttp(private val subscriptionUrl: String) :
         trusted: BridgeAutoCertificateEnrollment.TrustedBridge,
         csrPem: String
     ): BridgeAutoCertificateEnrollment.Issued {
+        require(trusted.serverId == trustedServer.id) {
+            "certificate issuance requested for a different trusted server"
+        }
         require(csrPem.length in 64..8192) { "invalid CSR" }
         val (code, response) = request("POST", csrPem.toByteArray(Charsets.US_ASCII))
         require(code == HttpURLConnection.HTTP_OK) { "Bridge enrollment unavailable" }
