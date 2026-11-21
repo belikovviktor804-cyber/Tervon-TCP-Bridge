@@ -87,7 +87,9 @@ def patch_main(raw):
 \t\t\t\t\tlog.Printf("M6_ACL_RELOAD=FAIL rejected ACL: %v", e)
 \t\t\t\t\tcontinue
 \t\t\t\t}
-\t\t\t\tlog.Print("M6_ACL_RELOAD=PASS")
+\t\t\t\taclJSON, _ := json.Marshal(fresh.Authorized)
+\t\t\t\taclDigest := sha256.Sum256(aclJSON)
+\t\t\t\tlog.Printf("M6_ACL_RELOAD=PASS digest=%x", aclDigest)
 \t\t\t}
 \t\t}
 \t}()
