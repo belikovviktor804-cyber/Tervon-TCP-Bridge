@@ -20,7 +20,7 @@ func TestBridgeEnrollmentHTTPDiscoveryAndCSR(t *testing.T) {
     h := &BridgeEnrollmentHTTP{
         RemoteURL:"https://chosen-from-server.example:18443/v2/stream",
         ServerName:"chosen-from-server.example",
-        Service:"vpn",ClientCAPEM:caPEM,ClientCAKey:caKey,
+        Service:"vpn",ClientCAPEM:caPEM,ServerCAPEM:caPEM,ClientCAKey:caKey,
         Now:func()time.Time{return now},
         Activate:func(fp string)error{fingerprint=fp;return nil},
     }
@@ -32,7 +32,8 @@ func TestBridgeEnrollmentHTTPDiscoveryAndCSR(t *testing.T) {
     var data bridgeDiscoveryResponse
     if err:=json.Unmarshal(discovery.Body.Bytes(),&data);err!=nil{t.Fatal(err)}
     if !data.Available || data.RemoteURL!=h.RemoteURL || data.ServerName!=h.ServerName ||
-        data.Service!="vpn" || data.ClientCA!=string(caPEM){t.Fatal("incorrect discovery")}
+        data.Service!="vpn" || data.ClientCA!=string(caPEM) ||
+        data.ServerCA!=string(caPEM){t.Fatal("incorrect discovery")}
     if fingerprint!="" {t.Fatal("discovery activated client")}
     request:=httptest.NewRequest(http.MethodPost,"https://sub.example/.well-known/tervon-bridge",bytes.NewReader(csr))
     request.Header.Set("Content-Type","application/pkcs10")
@@ -56,7 +57,7 @@ func TestBridgeEnrollmentHTTPRefusesUnsafeRequestsAndActivationFailures(t *testi
     csr,caPEM,caKey:=testCertificateInputs(t,now)
     base:=&BridgeEnrollmentHTTP{
         RemoteURL:"https://dynamic.example/v2/stream",ServerName:"dynamic.example",
-        Service:"vpn",ClientCAPEM:caPEM,ClientCAKey:caKey,
+        Service:"vpn",ClientCAPEM:caPEM,ServerCAPEM:caPEM,ClientCAKey:caKey,
         Activate:func(string)error{return io.ErrUnexpectedEOF},
     }
     h,err:=base.Handler();if err!=nil{t.Fatal(err)}
@@ -85,6 +86,9 @@ func TestBridgeEnrollmentHTTPRefusesUnsafeRequestsAndActivationFailures(t *testi
     noBridge:=*base
     noBridge.Activate=nil
     if _,err:=noBridge.Handler();err==nil{t.Fatal("unconfigured Bridge accepted")}
+    missingServerCA:=*base
+    missingServerCA.ServerCAPEM=nil
+    if _,err:=missingServerCA.Handler();err==nil{t.Fatal("missing server trust CA accepted")}
     badURL:=*base
     badURL.RemoteURL="http://dynamic.example/v2/stream"
     if _,err:=badURL.Handler();err==nil{t.Fatal("insecure endpoint accepted")}
