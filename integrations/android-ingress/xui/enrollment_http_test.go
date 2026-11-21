@@ -20,6 +20,7 @@ func TestBridgeEnrollmentHTTPDiscoveryAndCSR(t *testing.T) {
     h := &BridgeEnrollmentHTTP{
         RemoteURL:"https://chosen-from-server.example:18443/v2/stream",
         ServerName:"chosen-from-server.example",
+        BackendHost:"vpn-backend.example",BackendPort:30000,
         Service:"vpn",ClientCAPEM:caPEM,ServerCAPEM:caPEM,ClientCAKey:caKey,
         Now:func()time.Time{return now},
         Activate:func(fp string)error{fingerprint=fp;return nil},
@@ -33,7 +34,7 @@ func TestBridgeEnrollmentHTTPDiscoveryAndCSR(t *testing.T) {
     if err:=json.Unmarshal(discovery.Body.Bytes(),&data);err!=nil{t.Fatal(err)}
     if !data.Available || data.RemoteURL!=h.RemoteURL || data.ServerName!=h.ServerName ||
         data.Service!="vpn" || data.ClientCA!=string(caPEM) ||
-        data.ServerCA!=string(caPEM){t.Fatal("incorrect discovery")}
+        data.ServerCA!=string(caPEM) || data.BackendHost!="vpn-backend.example" || data.BackendPort!=30000 {t.Fatal("incorrect discovery")}
     if fingerprint!="" {t.Fatal("discovery activated client")}
     request:=httptest.NewRequest(http.MethodPost,"https://sub.example/.well-known/tervon-bridge",bytes.NewReader(csr))
     request.Header.Set("Content-Type","application/pkcs10")
