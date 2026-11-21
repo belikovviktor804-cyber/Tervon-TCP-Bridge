@@ -16,7 +16,7 @@ FILES = (
         "lib/features/home/bridge_monitor_screen.dart",
         "bridge_monitor_screen.dart",
         "13e68dee54eae64f5e241680e54669f74a951e08",  # operator source archive
-        "0cc6f70693099bd44442164c7facd769ab10cc5a",  # reviewed GitHub UI
+        "5cb6ecb82d9e9aacfe23d0a417448d12b8cdf371",  # M6 Dart nullable fix
     ),
     (
         "android/app/src/main/kotlin/com/tervonvpndpi/app/BridgeDiagnostics.kt",
