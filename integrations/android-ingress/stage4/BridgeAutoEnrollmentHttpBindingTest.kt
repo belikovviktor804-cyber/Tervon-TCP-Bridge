@@ -1,40 +1,49 @@
 package com.tervonvpndpi.app
 
-/** Focused offline regression for M6 signed-server identity binding.
- * Compile with the actual Stage 4 sources (Android) or with JVM-only
- * stand-ins for Android/JSON and the signed-catalog record.
- * Does not open a network connection or issue a certificate.
+/** Offline policy regression: the selected HTTPS subscription owns discovery.
+ * No manual Ed25519 pin, signed catalog or automatic trust-on-first-use.
+ * This test does not issue certificates or connect to a network.
  */
 internal object BridgeAutoEnrollmentHttpBindingTest {
     @JvmStatic fun main(args: Array<String>) {
-        val signed = BridgeSignedServerCatalog.Server(
-            id = "stable-server-42",
-            endpoints = setOf(BridgeServerReconciler.Endpoint("vpn.example.test", 30000)),
-            tlsName = "vp.example.test",
-            bridgeUrl = "https://vp.example.test:18443/v2/stream",
-            enrollmentUrl = "https://subscriptions.example.test/.well-known/tervon-bridge",
-            serverCaPem = "only-a-placeholder-for-an-offline-binding-test",
+        val client = BridgeAutoEnrollmentHttp(
+            "https://Subscriptions.Example.test:2096/secret-subscription-path?token=private"
         )
-        val http = BridgeAutoEnrollmentHttp(
-            "https://subscriptions.example.test:2096/secret-subscription-path", signed
-        )
-        check(http.verifiedServerId(signed.bridgeUrl, "vp.example.test") == signed.id)
-        check(http.verifiedServerId(signed.bridgeUrl, "VP.EXAMPLE.TEST") == signed.id)
+        check(client.discoveredParameters() == null)
+        check(client.verifiedServerId(
+            "https://bridge.example.test:18443/v2/stream", "bridge.example.test"
+        ) == "subscriptions.example.test")
+        check(client.verifiedServerId(
+            "https://bridge.example.test:18443/v2/stream", "BRIDGE.EXAMPLE.TEST"
+        ) == "subscriptions.example.test")
         fun mustReject(block: () -> Unit) {
             var rejected = false
             try { block() } catch (_: IllegalArgumentException) { rejected = true }
-            check(rejected) { "untrusted discovery/issuance was accepted" }
+            check(rejected) { "insecure enrollment binding accepted" }
         }
         mustReject {
-            http.verifiedServerId("https://other.example.test:18443/v2/stream", signed.tlsName)
+            client.verifiedServerId("http://bridge.example.test/v2/stream", "bridge.example.test")
         }
-        mustReject { http.verifiedServerId(signed.bridgeUrl, "other.example.test") }
         mustReject {
-            http.issue(
-                BridgeAutoCertificateEnrollment.TrustedBridge(signed.tlsName, "client-ca"),
+            client.verifiedServerId("https://bridge.example.test/v2/stream", "different.example.test")
+        }
+        mustReject {
+            client.verifiedServerId("https://bridge.example.test/v2/stream?test=1", "bridge.example.test")
+        }
+        mustReject {
+            BridgeAutoEnrollmentHttp("http://subscriptions.example.test:2096/secret")
+        }
+        // POST cannot precede a successful HTTPS discovery, even with a valid CSR shape.
+        var rejected = false
+        try {
+            client.issue(
+                BridgeAutoCertificateEnrollment.TrustedBridge(
+                    "subscriptions.example.test", "not-a-client-CA"
+                ),
                 "X".repeat(100),
             )
-        }
-        println("M6_SIGNED_SERVER_ID_BINDING=PASS")
+        } catch (_: IllegalStateException) { rejected = true }
+        check(rejected) { "certificate issued without verified HTTPS discovery" }
+        println("M6_HTTPS_SUBSCRIPTION_BINDING=PASS")
     }
 }
