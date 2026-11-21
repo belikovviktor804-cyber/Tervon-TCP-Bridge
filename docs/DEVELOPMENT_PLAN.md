@@ -1206,3 +1206,18 @@ Operator verified **from a foreign VPS** the existing publicly advertised Bridge
 По прямому запросу оператора удалены нижние элементы страницы переключателя: «Управление процессом Bridge», карточка «Диагностика ядра», кнопки просмотра параметров и самопроверки ключа/CSR. Сохранены переключатель, схема автообнаружения и короткий текст текущего состояния, без изменения VPN/регистрации. GitHub: `integrations/android-ingress/stage4/bridge_settings_screen.dart`, защищённый перенос `integrations/android-ingress/stage4/install_m6_auto_ui.py` обновлён на SHA предыдущего экрана `def9471988ff1cdb0e0ddec5986b379d6c62a88d` и нового экрана `a0ae6693795920da6ec948cce0d238f35585dd67`.
 
 **UI_SOURCE_CHANGED_IN_GITHUB / UI_APPLY_NOT_RUN / UI_COMPILE_NOT_RUN / ANDROID_BRIDGE_ACTIVE=FAIL / SERVER_DISCOVERY_TLS_H2=PASS.** Следующий шаг: перенести только UI-файл защищённым установщиком, проверить компиляцию, отдельно установить причину Android direct fallback из одного целевого набора данных (регистрация CSR/ACL на сервере и Android runtime outcome), без новых слепых проверок сети. APK и работающие службы серверов не изменены.
+
+
+### M6 — Android: причина отказа Bridge на экране «Обход DPI» (2026-11-21)
+
+**Задача утверждена пользователем:** исправить Android-код так, чтобы вместо общего «Bridge недоступен» приложение показывало, на каком этапе произошла ошибка. Сохранить существующий возврат на прямое VPN-соединение. Отдельно подтвердить удаление кнопки «Управление процессом Bridge» и нижнего блока диагностики.
+
+**РЕАЛИЗОВАНО В GITHUB, ветка `work/m6-android-ingress`:**
+- `integrations/android-ingress/stage4/BridgeVpnSession.kt`: короткий `lastFailureCode()` фиксирует шаг неудачи (профиль, подписка, обнаружение, сертификат, локальный порт, конфигурация, запуск ядра, готовность порта, маршрут Xray, неожиданный выход процесса). При ошибке остаётся прежний прямой маршрут. В код ошибки не попадают адрес подписки, UUID, ключи или сертификаты.
+- `integrations/android-ingress/stage4/install_m6_reason_channel.py`: защищённая точечная правка существующего `BridgeControlChannel.kt` с проверкой исходного Git blob SHA `da2a9614e0c6afe9ba8abb35106b50ca921b7678`. Использует имеющийся `postSuccess` и добавляет только `reasonCode` в ответ при `DIRECT_FALLBACK`, `RESTART_FAILED`, `ENROLLMENT_FAILED`. Нет нового канала.
+- `integrations/android-ingress/stage4/bridge_settings_screen.dart`: переводит `reasonCode` в краткую понятную фразу под схемой. Внизу нет кнопок управления процессом, проверки CSR и параметров ядра. Переключатель и схема остались.
+- Установщики `install_m6_failure_runtime.py` и `install_m6_auto_ui.py` работают только с известными исходными SHA; UI-установщик принимает обе прежние подтверждённые версии экрана, если обновление нижнего блока ещё не переносилось на Homeserver.
+
+**ПРОВЕРКИ:** GitHub-файлы повторно прочитаны; точные SHA исходников и наличие кода передачи/отображения причины сверены. Реальная установка трёх файлов на Homeserver, Flutter/Kotlin компиляция и повторное испытание телефона **ПОКА НЕ ВЫПОЛНЕНЫ**. Серверные discovery, TLS 1.3, h2 ранее прошли PASS; повторять их не требуется. **M6_ANDROID_REASON_SOURCE=COMMITTED / M6_ANDROID_BUILD=NOT_RUN_FOR_THIS_CHANGE / M6_ANDROID_E2E=FAIL_FROM_PREVIOUS_TEST / M6_OVERALL=IN_PROGRESS.**
+
+**Далее:** обновить ветку на Homeserver, проверить точные SHA установщиков, применить три файла (Kotlin runtime, существующий Kotlin Flutter-канал, Flutter UI), однократно скомпилировать Flutter+Kotlin и повторить реальное включение. Полученный код причины определит следующее конкретное исправление без изменения серверов.
