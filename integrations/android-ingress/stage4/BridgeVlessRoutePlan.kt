@@ -17,7 +17,7 @@ internal object BridgeVlessRoutePlan {
 
     enum class Reason {
         INVALID_PROFILE, UNSUPPORTED_TRANSPORT, BRIDGE_NOT_READY,
-        INVALID_LOCAL_LISTENER, WRONG_SERVER
+        INVALID_LOCAL_LISTENER, SUBSCRIPTION_NOT_VERIFIED
     }
 
     fun decide(
@@ -25,7 +25,7 @@ internal object BridgeVlessRoutePlan {
         protocol: String,
         transport: String,
         activeServer: Endpoint?,
-        authorizedServer: Endpoint?,
+        subscriptionVerified: Boolean,
         localPort: Int,
         bridgeReady: Boolean
     ): Decision {
@@ -37,11 +37,7 @@ internal object BridgeVlessRoutePlan {
         if (activeServer == null || !validRemote(activeServer)) {
             return Decision.Blocked(Reason.INVALID_PROFILE)
         }
-        if (authorizedServer == null || !validRemote(authorizedServer) ||
-            !activeServer.host.trimEnd('.').equals(authorizedServer.host.trimEnd('.'), ignoreCase = true) ||
-            activeServer.port != authorizedServer.port) {
-            return Decision.Blocked(Reason.WRONG_SERVER)
-        }
+        if (!subscriptionVerified) return Decision.Blocked(Reason.SUBSCRIPTION_NOT_VERIFIED)
         if (localPort !in 1024..65535) {
             return Decision.Blocked(Reason.INVALID_LOCAL_LISTENER)
         }
