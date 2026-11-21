@@ -56,7 +56,9 @@ def main() -> int:
             return 1
         if target_sha == current_sha:
             continue
-        if target_sha != original_sha:
+        previous_monitor_sha = "0cc6f70693099bd44442164c7facd769ab10cc5a"
+        allowed = (original_sha, previous_monitor_sha) if name == "bridge_monitor_screen.dart" else (original_sha,)
+        if target_sha not in allowed:
             print("M6_MONITOR=FAIL: UNRECOGNIZED_APP_SOURCE: " + name)
             return 1
         staged.append((target, source_bytes))
