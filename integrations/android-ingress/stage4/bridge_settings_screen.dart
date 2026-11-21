@@ -44,7 +44,9 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
     'SUBSCRIPTION_NOT_SELECTED' => 'не определена текущая HTTPS-подписка',
     'INVALID_SUBSCRIPTION_HOST' => 'некорректный адрес подписки',
     'UNSUPPORTED_PROTOCOL' => 'выбранный профиль не использует VLESS',
-    'UNSUPPORTED_TRANSPORT' => 'выбранный профиль не использует TCP',
+    'UNSUPPORTED_TRANSPORT' => 'транспорт профиля не поддержан TCP-мостом',
+    'XHTTP_H3_UNSUPPORTED' => 'этот режим XHTTP не работает поверх TCP',
+    'XHTTP_ROUTE_UNAVAILABLE' => 'сервер ещё не предоставил XHTTP-маршрут Bridge',
     'DISCOVERY_NO_BRIDGE' => 'сервер подписки не сообщил о Bridge',
     'DISCOVERY_NO_PARAMETERS' => 'сервер не прислал параметры Bridge',
     'DISCOVERY_ID_MISMATCH' => 'не совпадает сервер подписки',
@@ -88,7 +90,7 @@ class _BridgeSettingsScreenState extends State<BridgeSettingsScreen> {
         _enabled = data?['enabled'] == true;
         _message = switch (state) {
           'DISABLED' => 'Обход DPI выключен',
-          'ACTIVE' => 'Обход DPI: активен локальный маршрут Bridge',
+          'ACTIVE' => 'Локальный маршрут Bridge готов. Передача через сервер ещё не подтверждена.',
           'PREPARED' => 'Сертификат готов. Bridge включится при следующем подключении VPN.',
           'DIRECT_FALLBACK' => 'Bridge не включился: $reason. Прямой VPN сохранён.',
           'RESTART_FAILED' => 'Не удалось перезапустить VPN: $reason',
