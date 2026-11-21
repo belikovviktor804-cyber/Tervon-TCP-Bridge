@@ -41,8 +41,17 @@ internal object BridgeVpnSession {
             val proxy = (0 until outbounds.length()).map { outbounds.getJSONObject(it) }
                 .single { it.optString("tag") == "proxy" }
             if (proxy.optString("protocol") != "vless") return fallback("UNSUPPORTED_PROTOCOL", direct)
-            val network = proxy.optJSONObject("streamSettings")?.optString("network")
-            if (!BridgeVlessRoutePlan.isTcpTransport(network)) return fallback("UNSUPPORTED_TRANSPORT", direct)
+            val stream = proxy.optJSONObject("streamSettings")
+            val network = stream?.optString("network")
+            if (!BridgeVlessRoutePlan.isSupportedTransport(network)) return fallback("UNSUPPORTED_TRANSPORT", direct)
+            val transport = BridgeVlessRoutePlan.transportKey(network)
+            if (transport == "xhttp") {
+                // Explicit H3 is UDP/QUIC and cannot enter this TCP bridge.
+                val alpn = stream?.optJSONObject("tlsSettings")?.optJSONArray("alpn")
+                if (alpn != null && (0 until alpn.length()).any {
+                        alpn.optString(it).equals("h3", ignoreCase = true)
+                    }) return fallback("XHTTP_H3_UNSUPPORTED", direct)
+            }
             val dest = proxy.getJSONObject("settings").getJSONArray("vnext").getJSONObject(0)
             val selected = BridgeVlessRoutePlan.Endpoint(dest.getString("address"), dest.getInt("port"))
 
@@ -53,6 +62,8 @@ internal object BridgeVpnSession {
             val trusted = http.discover(origin) ?: return fallback("DISCOVERY_NO_BRIDGE", direct)
             val params = http.discoveredParameters() ?: return fallback("DISCOVERY_NO_PARAMETERS", direct)
             if (params.serverId != trusted.serverId) return fallback("DISCOVERY_ID_MISMATCH", direct)
+            val authorizedService = params.transportServices[transport]
+                ?: return fallback("XHTTP_ROUTE_UNAVAILABLE", direct)
 
             val identity = BridgeDeviceIdentity(context)
             val stored = BridgeServerCertificateStore(context).findValid(
@@ -68,7 +79,7 @@ internal object BridgeVpnSession {
             val config = BridgeClientConfigBuilder.build(BridgeClientConfigBuilder.Inputs(
                 remoteUrl = params.remoteUrl,
                 serverName = params.tlsName,
-                service = params.service,
+                service = authorizedService,
                 listenPort = port,
                 metricsPort = metricsPort,
                 clientCertificatePath = files.clientCertFile.absolutePath,
@@ -102,7 +113,7 @@ internal object BridgeVpnSession {
             files.close()
             handoff = null
             val decision = BridgeVlessRoutePlan.decide(
-                enabled = true, protocol = "vless", transport = "tcp",
+                enabled = true, protocol = "vless", transport = network ?: "tcp",
                 activeServer = selected,
                 subscriptionVerified = params.serverId == trusted.serverId,
                 localPort = port, bridgeReady = ready
@@ -114,7 +125,7 @@ internal object BridgeVpnSession {
             val routed = BridgeXrayConfigRoute.apply(direct, route)
             prefs.edit().putInt("metricsPort", metricsPort).apply()
             active = true
-            failureCode = "READY"
+            failureCode = "LOCAL_ROUTE_READY"
             return routed
         } catch (_: Exception) {
             // Only stage codes may reach the UI; never expose private keys or URLs.
