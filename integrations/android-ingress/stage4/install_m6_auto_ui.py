@@ -8,8 +8,8 @@ import tempfile
 
 SOURCE = "integrations/android-ingress/stage4/bridge_settings_screen.dart"
 TARGET = "lib/features/home/bridge_settings_screen.dart"
-BEFORE = "def9471988ff1cdb0e0ddec5986b379d6c62a88d"
-AFTER = "a0ae6693795920da6ec948cce0d238f35585dd67"
+BEFORE = {"def9471988ff1cdb0e0ddec5986b379d6c62a88d", "a0ae6693795920da6ec948cce0d238f35585dd67"}
+AFTER = "9ce2ab30b225513a95d9b60ccc3726a201e1f58b"
 
 def git_blob(content):
     return hashlib.sha1(b"blob " + str(len(content)).encode() + b"\0" + content).hexdigest()
@@ -36,7 +36,7 @@ def main():
     if current == AFTER:
         print("M6_UI=ALREADY_APPLIED")
         return 0
-    if current != BEFORE:
+    if current not in BEFORE:
         print("M6_UI=BLOCKED: UNKNOWN_TARGET_SHA")
         return 1
     print("M6_UI=READY")
