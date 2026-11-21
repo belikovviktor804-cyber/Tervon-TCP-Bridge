@@ -12,6 +12,15 @@ internal object BridgeVlessRoutePlan {
         else -> false
     }
 
+    // XHTTP uses TCP when Xray establishes HTTP/1.1 or HTTP/2; H3/QUIC is
+    // intentionally outside this integration. The caller must reject H3.
+    fun isSupportedTransport(network: String?): Boolean =
+        isTcpTransport(network) || network.equals("xhttp", ignoreCase = true) ||
+            network.equals("splithttp", ignoreCase = true)
+
+    fun transportKey(network: String?): String =
+        if (network.equals("xhttp", true) || network.equals("splithttp", true)) "xhttp" else "tcp"
+
     data class Endpoint(val host: String, val port: Int)
     data class Route(val remote: Endpoint, val local: Endpoint)
 
@@ -37,7 +46,7 @@ internal object BridgeVlessRoutePlan {
     ): Decision {
         if (!enabled) return Decision.Direct
         if (!protocol.equals("vless", ignoreCase = true) ||
-            !isTcpTransport(transport)) {
+            !isSupportedTransport(transport)) {
             return Decision.Blocked(Reason.UNSUPPORTED_TRANSPORT)
         }
         if (activeServer == null || !validRemote(activeServer)) {
